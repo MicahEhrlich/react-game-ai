@@ -1,0 +1,35 @@
+:root {
+  --bg: #08060f;
+  --panel: #120e22;
+  --edge: #3b3560;
+  --text: #f2eeff;
+  --dim: #8f88b8;
+  --hot: #ff3ea5;
+  --cool: #3ef0ff;
+  --warn: #ffe14d;
+  --danger: #ff4d4d;
+
+  color-scheme: dark;
+  font-family: ui-monospace, 'SFMono-Regular', 'Menlo', 'Consolas', monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+  /* The game owns every gesture inside the viewport; browser pan/zoom on a
+     phone would otherwise fight the touch controls. */
+  touch-action: none;
+  overscroll-behavior: none;
+}
+
+#root {
+  height: 100%;
+}

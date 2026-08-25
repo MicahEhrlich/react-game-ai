@@ -1,0 +1,150 @@
+import type { GameMode } from '../state/types.ts'
+import { ALL_MODES, MODE_LABEL } from '../state/types.ts'
+import { clampModifiers, DEFAULT_MODIFIERS } from './modifiers.ts'
+import type {
+  Director,
+  DirectorHistory,
+  ModifierDraft,
+  RunMetrics,
+  StageModifiers,
+  StagePlan,
+} from './types.ts'
+
+/**
+ * The runtime Game Director, as a deterministic rules engine.
+ *
+ * It is deliberately synchronous and offline: a stage plan must exist by the
+ * time the glitch overlay lifts, and a difficulty system that can stall or
+ * fail is worse than one that is merely simple. An LLM-backed Director
+ * implements the same interface and, because clampModifiers() sits between
+ * any director and the game, cannot produce an unplayable stage either.
+ *
+ * Every rule below also appends a short note, which the glitch overlay shows
+ * the player -- the adaptation is meant to be legible, not mysterious.
+ */
+
+/** Accuracy above this reads as "this player has the shooter solved". */
+const ACCURACY_HIGH = 0.7
+const ACCURACY_LOW = 0.35
+/** Damage per minute above this reads as "this player is drowning". */
+const DPM_HIGH = 45
+const HEALTH_MERCY = 0.3
+
+const CHAOS_FLAGS = ['invertControls', 'mirrorWorld', 'fogOfWar'] as const
+type ChaosFlag = (typeof CHAOS_FLAGS)[number]
+
+const CHAOS_NOTE: Readonly<Record<ChaosFlag, string>> = {
+  invertControls: 'CONTROLS INVERTED',
+  mirrorWorld: 'WORLD MIRRORED',
+  fogOfWar: 'SIGNAL DEGRADED',
+}
+
+export class HeuristicDirector implements Director {
+  /** Injectable so validate-director can make runs reproducible.
+   *  Declared explicitly: `erasableSyntaxOnly` bans parameter properties. */
+  private readonly random: () => number
+
+  constructor(random: () => number = Math.random) {
+    this.random = random
+  }
+
+  decide(m: RunMetrics, history: DirectorHistory): StagePlan {
+    const mode = this.pickMode(m, history)
+    const { modifiers, notes } = this.pickModifiers(m, history)
+    return {
+      mode,
+      modifiers,
+      notes: [`NEXT: ${MODE_LABEL[mode]}`, ...notes],
+    }
+  }
+
+  /**
+   * Never the same mode twice in a row, and weighted toward the mode the
+   * player scores worst in -- an adaptive director should be pushing at the
+   * weak spot, not replaying the comfortable one. Modes never played get the
+   * highest weight of all, so a run reaches all three quickly.
+   */
+  private pickMode(m: RunMetrics, history: DirectorHistory): GameMode {
+    const candidates = ALL_MODES.filter((x) => x !== history.currentMode)
+
+    const rates = candidates.map((mode) => {
+      const ms = m.msPerMode[mode]
+      // Unplayed modes: weight above anything a played mode can earn.
+      return ms > 1000 ? { mode, ms } : { mode, ms: 0 }
+    })
+
+    const unplayed = rates.filter((r) => r.ms === 0)
+    const pool = unplayed.length > 0 ? unplayed : rates
+
+    // Weight inversely by time spent: the less a mode has been played, the
+    // more likely it is next.
+    const totalMs = pool.reduce((sum, r) => sum + r.ms, 0)
+    const weights = pool.map((r) => (totalMs === 0 ? 1 : 1 + (totalMs - r.ms) / totalMs))
+    const roll = this.random() * weights.reduce((a, b) => a + b, 0)
+
+    let acc = 0
+    for (const [i, w] of weights.entries()) {
+      acc += w
+      if (roll <= acc) return pool[i].mode
+    }
+    return pool[pool.length - 1].mode
+  }
+
+  private pickModifiers(
+    m: RunMetrics,
+    history: DirectorHistory,
+  ): { modifiers: StageModifiers; notes: string[] } {
+    const notes: string[] = []
+    const next: ModifierDraft = { ...DEFAULT_MODIFIERS }
+
+    const minutes = Math.max(m.windowMs, 1) / 60_000
+    const dpm = m.damageTaken / minutes
+    const accuracy = m.shotsFired > 0 ? m.shotsHit / m.shotsFired : null
+
+    // --- pressure up: the player is handling it -----------------------
+    if (accuracy !== null && accuracy > ACCURACY_HIGH) {
+      next.spawnRateScale = 1.45
+      next.projectileSpeedScale = 1.25
+      notes.push(`ACCURACY ${Math.round(accuracy * 100)}% — MORE TARGETS`)
+    } else if (accuracy !== null && accuracy < ACCURACY_LOW) {
+      next.projectileSpeedScale = 0.85
+      notes.push('TRACKING EASED')
+    }
+
+    // --- pressure down: the player is drowning ------------------------
+    if (dpm > DPM_HIGH) {
+      next.spawnRateScale = Math.min(next.spawnRateScale ?? 1, 0.75)
+      next.gravityScale = 1 // stop compounding a movement modifier on top
+      notes.push('DAMAGE HIGH — PRESSURE REDUCED')
+    }
+
+    // --- mercy: low health outranks everything above ------------------
+    if (m.healthFraction < HEALTH_MERCY) {
+      next.spawnRateScale = 0.7
+      next.projectileSpeedScale = 0.8
+      next.scoreMultiplier = 1.2
+      notes.push('CRITICAL — MERCY PROTOCOL, x1.2 SCORE')
+    }
+
+    // --- spice: untouched for a whole stage ---------------------------
+    // Rate-limited to one chaos flag, never two stages running, so the game
+    // reads as escalating rather than as broken.
+    const earnedChaos = m.damageTaken === 0 && m.healthFraction > HEALTH_MERCY
+    if (earnedChaos && !history.chaosLastStage) {
+      const flag = CHAOS_FLAGS[Math.floor(this.random() * CHAOS_FLAGS.length)]
+      next[flag] = true
+      next.scoreMultiplier = 1.5
+      notes.push(`FLAWLESS — ${CHAOS_NOTE[flag]}, x1.5 SCORE`)
+    } else if (earnedChaos) {
+      next.scoreMultiplier = 1.25
+      notes.push('FLAWLESS — x1.25 SCORE')
+    }
+
+    // --- pacing: stages shorten as the run gets deeper -----------------
+    next.shiftDurationMs = 90_000 - Math.min(history.shiftIndex, 6) * 5_000
+
+    if (notes.length === 0) notes.push('PARAMETERS HOLDING')
+
+    return { modifiers: clampModifiers(next), notes }
+  }
+}

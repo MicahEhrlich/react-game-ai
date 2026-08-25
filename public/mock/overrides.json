@@ -1,0 +1,6 @@
+{
+  "_comment": "Task 4 mock API payload. Stands in for the Node/Express endpoint that will serve per-stage difficulty overrides. Every value here is still passed through clampModifiers() before it reaches a scene, so editing this file cannot produce an unplayable stage. Empty by default so the local director is in charge.",
+  "all": {},
+  "byMode": {},
+  "byShift": {}
+}
