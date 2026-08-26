@@ -93,7 +93,7 @@ export class PlatformerScene extends ModeScene {
 
     if (this.player.y > this.level.heightPx + 48) this.onPitFall()
 
-    // Reaching the far end regenerates the level ahead. A stage is 60-90s and
+    // Reaching the far end regenerates the level ahead. A stage is 45-75s and
     // the level is 140 tiles, so this is a safety net, not the usual path.
     if (this.player.x > this.level.widthPx - TILE_SIZE * 3) this.regenerate()
   }

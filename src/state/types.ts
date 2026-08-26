@@ -1,3 +1,5 @@
+import type { ChaosFlag } from '../director/modifiers.ts'
+
 /**
  * The three microgame modes. `erasableSyntaxOnly` bans TS enums, so this is
  * the `as const` object + indexed-union idiom used throughout the codebase.
@@ -54,6 +56,13 @@ export interface GameSnapshot {
   readonly lastRunScore: number
   /** Human-readable notes on what the director changed, for the overlay. */
   readonly lastDirectorNotes: readonly string[]
+  /**
+   * The chaos flag governing the CURRENT stage, or null. Set at the start of
+   * the transition that introduces it, so the glitch overlay announces it and
+   * the HUD badge is already correct when play resumes. Without this the
+   * player has no way to tell an intentional modifier from a bug.
+   */
+  readonly activeChaos: ChaosFlag | null
 }
 
 export type GameCommand =

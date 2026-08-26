@@ -8,8 +8,6 @@ import { sfx } from '../audio.ts'
 import {
   DEPTH,
   DMG_OBSTACLE,
-  RUNNER_JUMP_VELOCITY,
-  RUNNER_MAX_SCROLL_SPEED,
   RUNNER_SCROLL_SPEED,
   RUNNER_SLIDE_MS,
   RUNNER_SPAWN_MS,
@@ -19,18 +17,23 @@ import {
   VIEW_H,
   VIEW_W,
 } from '../constants.ts'
+import {
+  BODY_SLIDE,
+  BODY_STAND,
+  FEET_Y,
+  GATE_BOTTOM_Y,
+  GROUND_Y,
+  jumpVelocity,
+  minGapPx,
+  resolveGround,
+  scrollSpeedAt,
+} from '../runnerPacing.ts'
 import type { InputState } from '../input.ts'
 import { chance, makeRng, randInt } from '../rng.ts'
 import type { Rng } from '../rng.ts'
 import { runState } from '../../state/runState.ts'
 import { ModeScene } from './ModeScene.ts'
 import { SCENE } from './keys.ts'
-
-const GROUND_Y = VIEW_H - TILE_SIZE * 2
-/** Standing body. */
-const BODY_STAND = { w: 10, h: 14, ox: 3, oy: 1 }
-/** Sliding body: short enough to clear a head-height overhang. */
-const BODY_SLIDE = { w: 12, h: 7, ox: 2, oy: 8 }
 
 const OBSTACLE = {
   /** Sits on the floor: jump it. */
@@ -39,19 +42,6 @@ const OBSTACLE = {
   Gate: 'gate',
 } as const
 type ObstacleKind = (typeof OBSTACLE)[keyof typeof OBSTACLE]
-
-/**
- * The gate hangs from the top of the view down to GATE_BOTTOM_Y, which is
- * chosen against the two player bodies rather than by eye:
- *
- *   standing body  146..160  -> overlaps a gate ending at 148   (hit)
- *   sliding body   152..160  -> clears it                       (safe)
- *   jumping        rises into the gate's column                 (hit)
- *
- * Extending it to the ceiling is what makes sliding the ONLY answer; a
- * floating block, however high, can simply be jumped over.
- */
-const GATE_BOTTOM_Y = 148
 
 /** Either an obstacle sprite or a gate rectangle -- both carry x/y and data. */
 type Obstacle = Phaser.GameObjects.Sprite | Phaser.GameObjects.Rectangle
@@ -80,6 +70,8 @@ export class RunnerScene extends ModeScene {
   private onGround = false
   /** Set when a threat first appears, cleared when the player acts on it. */
   private threatSeenMs = 0
+  /** One "SLIDE" prompt per run, the first time a gate appears. */
+  private gateHintShown = false
 
   constructor() {
     super(SCENE.Runner)
@@ -93,6 +85,7 @@ export class RunnerScene extends ModeScene {
     this.nextSpawnMs = 0
     this.onGround = false
     this.threatSeenMs = 0
+    this.gateHintShown = false
 
     this.cameras.main.setBackgroundColor('#120a1e')
     this.physics.world.setBounds(0, -80, VIEW_W, VIEW_H + 160)
@@ -105,7 +98,7 @@ export class RunnerScene extends ModeScene {
 
     const dir = this.worldDir
     this.runner = this.physics.add
-      .sprite(dir === 1 ? 64 : VIEW_W - 64, GROUND_Y - 8, ATLAS_KEY, 'player-idle')
+      .sprite(dir === 1 ? 64 : VIEW_W - 64, FEET_Y, ATLAS_KEY, 'player-idle')
       .setDepth(DEPTH.Player)
       .setFlipX(dir === -1)
     this.applyBody(BODY_STAND)
@@ -129,7 +122,11 @@ export class RunnerScene extends ModeScene {
     this.handleSlide(input, time)
     this.updateFrame()
 
-    if (time >= this.nextSpawnMs) {
+    // Two gates, both of which must pass. The timer sets the desired density;
+    // gapClear() is the physical floor. When the gap blocks a spawn we
+    // deliberately do NOT advance nextSpawnMs, so the spawn happens the
+    // instant it becomes survivable rather than being skipped.
+    if (time >= this.nextSpawnMs && this.gapClear()) {
       this.spawnWave()
       this.nextSpawnMs = time + this.spawnIntervalMs(RUNNER_SPAWN_MS)
     }
@@ -168,29 +165,46 @@ export class RunnerScene extends ModeScene {
    */
   private rampSpeed(): void {
     const total = runState.stageDurationMs()
-    const progress = Math.min(1, (this.time.now - runState.stageStartMs) / total)
-    this.scrollSpeed =
-      (RUNNER_SCROLL_SPEED + (RUNNER_MAX_SCROLL_SPEED - RUNNER_SCROLL_SPEED) * progress) *
-      this.mods.playerSpeedScale
+    const progress = (this.time.now - runState.stageStartMs) / total
+    this.scrollSpeed = scrollSpeedAt(progress, this.mods.playerSpeedScale)
+  }
+
+  /** True when the last obstacle is far enough along to add another. */
+  private gapClear(): boolean {
+    const last = this.obstacles[this.obstacles.length - 1]
+    if (!last) return true
+    // Measured in worldDir terms so it holds when the stage is mirrored.
+    const travelled = (this.spawnX() - last.x) * this.worldDir
+    return travelled >= minGapPx(this.scrollSpeed, this.physics.world.gravity.y, this.mods.spawnRateScale)
+  }
+
+  private spawnX(): number {
+    return this.worldDir === 1 ? VIEW_W + 20 : -20
   }
 
   private applyGround(): void {
     const body = this.runner.body as Phaser.Physics.Arcade.Body
-    const feetY = GROUND_Y - 8
-    if (this.runner.y >= feetY) {
-      this.runner.y = feetY
+    const { lift, onGround } = resolveGround(body.bottom, body.velocity.y)
+
+    if (onGround) {
+      if (lift > 0) {
+        // Correct BOTH: the body so this frame's collision checks are right,
+        // and the sprite because postUpdate only adds a delta on top of it.
+        body.y -= lift
+        this.runner.y -= lift
+      }
       body.setVelocityY(0)
       if (!this.onGround) sfx.land()
-      this.onGround = true
-    } else {
-      this.onGround = false
     }
+    this.onGround = onGround
   }
 
   private handleJump(input: InputState): void {
     if (!input.jumpJustPressed || !this.onGround) return
     if (this.time.now < this.slideUntilMs) return
-    ;(this.runner.body as Phaser.Physics.Arcade.Body).setVelocityY(RUNNER_JUMP_VELOCITY)
+    ;(this.runner.body as Phaser.Physics.Arcade.Body).setVelocityY(
+      jumpVelocity(this.physics.world.gravity.y),
+    )
     this.onGround = false
     sfx.jump()
     metrics.jumped()
@@ -239,13 +253,21 @@ export class RunnerScene extends ModeScene {
 
   private spawnWave(): void {
     const dir = this.worldDir
-    const spawnX = dir === 1 ? VIEW_W + 20 : -20
+    const spawnX = this.spawnX()
     const kind: ObstacleKind = chance(this.rng, 0.5) ? OBSTACLE.Low : OBSTACLE.Gate
     const obs = kind === OBSTACLE.Low ? this.spawnBlock(spawnX) : this.spawnGate(spawnX)
 
     obs.setData('kind', kind)
     obs.setData('scored', false)
     this.obstacles.push(obs)
+
+    // Half of all obstacles are gates that CANNOT be jumped. That is the
+    // design, but nothing taught it, and players read an unjumpable obstacle
+    // as a broken jump. One prompt per run is enough.
+    if (kind === OBSTACLE.Gate && !this.gateHintShown) {
+      this.gateHintShown = true
+      this.showSlideHint()
+    }
 
     this.threatSeenMs = this.time.now
 
@@ -266,7 +288,7 @@ export class RunnerScene extends ModeScene {
   }
 
   private spawnBlock(x: number): Phaser.GameObjects.Sprite {
-    const obs = this.physics.add.sprite(x, GROUND_Y - 8, ATLAS_KEY, 'obstacle').setDepth(DEPTH.Enemy)
+    const obs = this.physics.add.sprite(x, FEET_Y, ATLAS_KEY, 'obstacle').setDepth(DEPTH.Enemy)
     ;(obs.body as Phaser.Physics.Arcade.Body).setAllowGravity(false).setSize(14, 14).setOffset(1, 1)
     return obs
   }
@@ -280,7 +302,46 @@ export class RunnerScene extends ModeScene {
     gate.setStrokeStyle(1, 0xffe14d, 0.9)
     this.physics.add.existing(gate)
     ;(gate.body as Phaser.Physics.Arcade.Body).setAllowGravity(false).setImmovable(true)
+
+    // A chevron at the beam's tip, pulsing downward. The affordance has to say
+    // "go under this", not just "hazard" -- the beam alone reads as something
+    // to jump, which is the one thing that cannot work.
+    const chevron = this.add
+      .triangle(x, GATE_BOTTOM_Y + 7, 0, 0, 10, 0, 5, 7, 0xffe14d, 0.95)
+      .setDepth(DEPTH.Enemy)
+    this.tweens.add({
+      targets: chevron,
+      y: GATE_BOTTOM_Y + 12,
+      duration: 380,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+    // Carried on the gate so scrollEntities moves and destroys them together.
+    gate.setData('chevron', chevron)
+
     return gate
+  }
+
+  /** One-shot "SLIDE" prompt above the avatar, the first time a gate appears. */
+  private showSlideHint(): void {
+    const hint = this.add
+      .text(this.runner.x, GROUND_Y - 58, 'SLIDE  ↓', {
+        fontFamily: 'ui-monospace, Menlo, Consolas, monospace',
+        fontSize: '11px',
+        color: '#ffe14d',
+      })
+      .setOrigin(0.5)
+      .setDepth(DEPTH.Fog)
+
+    this.tweens.add({
+      targets: hint,
+      y: GROUND_Y - 70,
+      alpha: 0,
+      delay: 1100,
+      duration: 700,
+      onComplete: () => hint.destroy(),
+    })
   }
 
   private scrollEntities(delta: number): void {
@@ -291,6 +352,10 @@ export class RunnerScene extends ModeScene {
       const obs = this.obstacles[i]
       obs.x += dx
 
+      // A gate's chevron is a separate object; it travels and dies with it.
+      const chevron = obs.getData('chevron') as Phaser.GameObjects.Triangle | undefined
+      if (chevron) chevron.x = obs.x
+
       // Cleared it: score once, as it passes behind the runner.
       if (!obs.getData('scored') && (obs.x - this.runner.x) * dir < -10) {
         obs.setData('scored', true)
@@ -299,6 +364,7 @@ export class RunnerScene extends ModeScene {
       }
 
       if (dir === 1 ? obs.x < -24 : obs.x > VIEW_W + 24) {
+        chevron?.destroy()
         obs.destroy()
       }
       if (!obs.active) this.obstacles.splice(i, 1)

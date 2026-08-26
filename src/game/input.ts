@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { runState } from '../state/runState.ts'
+import type { StageModifiers } from '../director/types.ts'
 import { touch } from './touch.ts'
 
 /**
@@ -46,10 +46,19 @@ export class InputReader {
   private readonly keyD: Phaser.Input.Keyboard.Key
   private readonly keyW: Phaser.Input.Keyboard.Key
   private readonly keyS: Phaser.Input.Keyboard.Key
+  /**
+   * The modifiers this SCENE was built with, not the live runState. The
+   * orchestrator commits the next stage's modifiers before the outgoing scene
+   * has finished stopping, so reading globally would flip a dying scene's
+   * controls for a frame. Every other modifier already goes through the
+   * ModeScene snapshot; this one now does too.
+   */
+  private readonly mods: StageModifiers
 
-  constructor(scene: Phaser.Scene) {
+  constructor(scene: Phaser.Scene, mods: StageModifiers) {
     const kb = scene.input.keyboard
     if (!kb) throw new Error('Keyboard plugin unavailable')
+    this.mods = mods
     this.cursors = kb.createCursorKeys()
     this.keyA = kb.addKey(Phaser.Input.Keyboard.KeyCodes.A)
     this.keyD = kb.addKey(Phaser.Input.Keyboard.KeyCodes.D)
@@ -81,7 +90,7 @@ export class InputReader {
     let dirY = axis(up, down)
 
     // Applied here and nowhere else, so no mode can forget to honour it.
-    if (runState.modifiers.invertControls) {
+    if (this.mods.invertControls) {
       dirX = -dirX as -1 | 0 | 1
       dirY = -dirY as -1 | 0 | 1
     }
@@ -93,6 +102,9 @@ export class InputReader {
       actionJustPressed,
       jumpHeld,
       jumpJustPressed,
+      // Deliberately NOT inverted. Slide is an action, not a direction --
+      // inverting it would bind "slide" to the up key, which reads as broken
+      // rather than as a challenge. The asymmetry with dirY is intentional.
       slideHeld: down || t.slide,
     }
   }

@@ -1,3 +1,4 @@
+import { CHAOS_LABEL } from '../director/modifiers.ts'
 import { MODE_LABEL } from '../state/types.ts'
 import { useGameState } from '../state/store.ts'
 
@@ -11,7 +12,7 @@ import { useGameState } from '../state/store.ts'
  * (art/corruption.ts) draws the other half.
  */
 export function GlitchOverlay() {
-  const { nextMode, score, health, maxHealth, lastDirectorNotes } = useGameState()
+  const { nextMode, score, health, maxHealth, lastDirectorNotes, activeChaos } = useGameState()
   const label = nextMode ? MODE_LABEL[nextMode] : 'RECONFIGURING'
 
   return (
@@ -23,6 +24,15 @@ export function GlitchOverlay() {
         <h2 className="glitch-title" data-text={label}>
           {label}
         </h2>
+
+        {/* Promoted out of the notes list: a modifier that changes how the
+            controls behave is the single most important thing on this screen,
+            and as one bullet among four it was reliably missed. */}
+        {activeChaos && (
+          <p className="glitch-chaos">
+            <span className="glitch-chaos-mark">⚠</span> {CHAOS_LABEL[activeChaos]}
+          </p>
+        )}
 
         <ul className="glitch-notes">
           {lastDirectorNotes.length > 0 ? (

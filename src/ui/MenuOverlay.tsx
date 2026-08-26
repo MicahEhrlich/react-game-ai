@@ -14,7 +14,7 @@ export function MenuOverlay() {
         </p>
 
         <ul className="panel-rules">
-          <li>The mode changes every 60–90 seconds. Score and core carry across.</li>
+          <li>The mode changes every 45–75 seconds. Score and core carry across.</li>
           <li>A director watches how you play and tunes what comes next.</li>
           <li>Clean play raises the multiplier. Any damage resets it.</li>
         </ul>

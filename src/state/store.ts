@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import { DEV } from '../dev.ts'
-import type { GameSnapshot } from './types.ts'
+import type { GameMode, GameSnapshot } from './types.ts'
 import { MODE, PHASE } from './types.ts'
 import { START_HEALTH } from '../game/constants.ts'
 
@@ -10,6 +10,8 @@ const INITIAL: GameSnapshot = {
   health: START_HEALTH,
   maxHealth: START_HEALTH,
   multiplier: 1,
+  // Placeholder for the menu, where no mode is running. startRun() installs
+  // the real one, which is random per run.
   mode: DEV.mode ?? MODE.Platformer,
   nextMode: null,
   shiftIndex: 0,
@@ -17,6 +19,7 @@ const INITIAL: GameSnapshot = {
   shiftWarning: false,
   lastRunScore: 0,
   lastDirectorNotes: [],
+  activeChaos: null,
 }
 
 let snapshot: GameSnapshot = INITIAL
@@ -64,12 +67,8 @@ export const gameStore = {
   bumpMultiplier: (by = 1, max = 8) =>
     patch({ multiplier: Math.min(max, snapshot.multiplier + by) }),
 
-  startRun: () =>
-    patch({
-      ...INITIAL,
-      phase: PHASE.Playing,
-      mode: DEV.mode ?? MODE.Platformer,
-    }),
+  /** `mode` comes from the orchestrator, which picks it once per run. */
+  startRun: (mode: GameMode) => patch({ ...INITIAL, phase: PHASE.Playing, mode }),
 
   toMenu: () => patch({ ...INITIAL, phase: PHASE.Menu }),
 }

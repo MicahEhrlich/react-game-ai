@@ -1,3 +1,4 @@
+import { CHAOS_LABEL } from '../director/modifiers.ts'
 import { MODE_LABEL } from '../state/types.ts'
 import { useGameState } from '../state/store.ts'
 
@@ -7,8 +8,17 @@ import { useGameState } from '../state/store.ts'
  * about once a second during play rather than once per frame.
  */
 export function Hud() {
-  const { score, health, maxHealth, multiplier, mode, shiftIndex, secondsToShift, shiftWarning } =
-    useGameState()
+  const {
+    score,
+    health,
+    maxHealth,
+    multiplier,
+    mode,
+    shiftIndex,
+    secondsToShift,
+    shiftWarning,
+    activeChaos,
+  } = useGameState()
 
   const healthPct = Math.max(0, Math.round((health / maxHealth) * 100))
 
@@ -47,6 +57,11 @@ export function Hud() {
           {secondsToShift}s
         </span>
       </div>
+
+      {/* Persists for the whole stage. Without it an inverted-controls stage
+          is indistinguishable from a bug -- the transition banner announces
+          it once, this is what answers the question 30 seconds later. */}
+      {activeChaos && <div className="hud-chaos">⚠ {CHAOS_LABEL[activeChaos]}</div>}
     </div>
   )
 }

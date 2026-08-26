@@ -1,6 +1,7 @@
 import type { GameMode } from '../state/types.ts'
 import { ALL_MODES, MODE_LABEL } from '../state/types.ts'
-import { clampModifiers, DEFAULT_MODIFIERS } from './modifiers.ts'
+import { CHAOS_FLAGS, CHAOS_LABEL, clampModifiers, DEFAULT_MODIFIERS } from './modifiers.ts'
+import { getPacing } from './pacing.ts'
 import type {
   Director,
   DirectorHistory,
@@ -30,14 +31,13 @@ const ACCURACY_LOW = 0.35
 const DPM_HIGH = 45
 const HEALTH_MERCY = 0.3
 
-const CHAOS_FLAGS = ['invertControls', 'mirrorWorld', 'fogOfWar'] as const
-type ChaosFlag = (typeof CHAOS_FLAGS)[number]
-
-const CHAOS_NOTE: Readonly<Record<ChaosFlag, string>> = {
-  invertControls: 'CONTROLS INVERTED',
-  mirrorWorld: 'WORLD MIRRORED',
-  fogOfWar: 'SIGNAL DEGRADED',
-}
+/**
+ * Chaos flags stay locked until this shift. Inverting a new player's controls
+ * during their second stage does not read as an escalation they earned -- it
+ * reads as the game being broken. By shift 3 they have seen all three modes
+ * and have a baseline to notice the change against.
+ */
+const CHAOS_UNLOCK_SHIFT = 3
 
 export class HeuristicDirector implements Director {
   /** Injectable so validate-director can make runs reproducible.
@@ -127,21 +127,31 @@ export class HeuristicDirector implements Director {
     }
 
     // --- spice: untouched for a whole stage ---------------------------
-    // Rate-limited to one chaos flag, never two stages running, so the game
-    // reads as escalating rather than as broken.
+    // Three gates, all of which have to pass: one flag at a time, never two
+    // stages running, and never before the player has seen the modes. A
+    // flawless stage that fails a gate still pays, just in score.
     const earnedChaos = m.damageTaken === 0 && m.healthFraction > HEALTH_MERCY
-    if (earnedChaos && !history.chaosLastStage) {
+    const chaosAllowed =
+      !history.chaosLastStage && history.shiftIndex >= CHAOS_UNLOCK_SHIFT
+
+    if (earnedChaos && chaosAllowed) {
       const flag = CHAOS_FLAGS[Math.floor(this.random() * CHAOS_FLAGS.length)]
       next[flag] = true
       next.scoreMultiplier = 1.5
-      notes.push(`FLAWLESS — ${CHAOS_NOTE[flag]}, x1.5 SCORE`)
+      notes.push(`FLAWLESS — ${CHAOS_LABEL[flag]}, x1.5 SCORE`)
     } else if (earnedChaos) {
       next.scoreMultiplier = 1.25
       notes.push('FLAWLESS — x1.25 SCORE')
     }
 
     // --- pacing: stages shorten as the run gets deeper -----------------
-    next.shiftDurationMs = 90_000 - Math.min(history.shiftIndex, 6) * 5_000
+    // Every number here comes from public/config/pacing.json. Defaults taper
+    // 75s down to 45s, which keeps the mean stage under a minute -- asserted
+    // by the pacing check in validate-director.
+    const pacing = getPacing()
+    next.shiftDurationMs =
+      pacing.baseStageMs -
+      Math.min(history.shiftIndex, pacing.taperShifts) * pacing.taperPerShiftMs
 
     if (notes.length === 0) notes.push('PARAMETERS HOLDING')
 

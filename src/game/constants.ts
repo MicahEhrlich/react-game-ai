@@ -32,10 +32,34 @@ export const SHOOTER_SPAWN_MS = 1100
 // --- Runner ---
 export const RUNNER_SCROLL_SPEED = 150
 /** The stage ramps from SCROLL_SPEED to this over its full duration. */
-export const RUNNER_MAX_SCROLL_SPEED = 290
+export const RUNNER_MAX_SCROLL_SPEED = 260
+/**
+ * Hard ceiling on scroll speed after playerSpeedScale is applied. Without it,
+ * a 1.4x speed stage leaves 0.68s between an obstacle appearing and reaching
+ * the player -- not enough to recognise it AND choose jump vs slide.
+ */
+export const RUNNER_SPEED_CAP = 300
 export const RUNNER_SPAWN_MS = 900
 export const RUNNER_SLIDE_MS = 420
-export const RUNNER_JUMP_VELOCITY = -330
+/**
+ * Jump height, not jump velocity. The launch velocity is derived from live
+ * gravity (see RunnerScene.jumpVelocity), so the director's gravityScale
+ * changes how the jump FEELS -- snappier or floatier -- without ever changing
+ * what it can clear. A fixed velocity would make apex = v²/2g, silently
+ * cutting the jump from 60px to 38px exactly when the stage gets harder.
+ *
+ * A low block needs 15px of clearance; the rest is deliberate margin.
+ */
+export const RUNNER_JUMP_APEX_PX = 64
+/**
+ * Breathing room added to the jump arc when spacing obstacles, at
+ * spawnRateScale 1. The director's spawnRateScale divides this, so a denser
+ * stage eats into the buffer -- and ONLY the buffer. The jump arc itself is
+ * never negotiable, which is what keeps every stage survivable.
+ */
+export const RUNNER_REACTION_BUFFER_SEC = 0.3
+/** The buffer floor. Below this, back-to-back obstacles stop being readable. */
+export const RUNNER_REACTION_BUFFER_MIN_SEC = 0.12
 
 // --- Feel ---
 export const INVULN_MS = 1000
@@ -65,7 +89,13 @@ export const SCORE_SURVIVE_SHIFT = 1000
 /** How far ahead of the shift the next stage is planned and the HUD warns. */
 export const SHIFT_WARNING_MS = 3000
 /** How long the glitch overlay covers the scene swap. */
-export const GLITCH_DURATION_MS = 900
+export const GLITCH_DURATION_MS = 1100
+/**
+ * A longer hold when the incoming stage carries a chaos flag. The player has
+ * to actually read "CONTROLS INVERTED" for it to be a challenge rather than a
+ * bug, and 900ms was not enough.
+ */
+export const GLITCH_DURATION_CHAOS_MS = 1800
 
 // --- Camera ---
 export const CAM_LERP = 0.12

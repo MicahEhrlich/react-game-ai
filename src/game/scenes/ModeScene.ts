@@ -68,7 +68,7 @@ export abstract class ModeScene extends Phaser.Scene {
     // not inherited from the game config (the shooter sets it to zero).
     this.physics.world.gravity.y = GRAVITY_Y * this.mods.gravityScale
 
-    this.controls = new InputReader(this)
+    this.controls = new InputReader(this, this.mods)
 
     this.setupMode()
 

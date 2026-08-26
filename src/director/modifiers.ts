@@ -1,3 +1,4 @@
+import { DEFAULT_PACING, getPacing } from './pacing.ts'
 import type { ModifierDraft, StageModifiers } from './types.ts'
 
 export const DEFAULT_MODIFIERS: StageModifiers = {
@@ -9,8 +10,28 @@ export const DEFAULT_MODIFIERS: StageModifiers = {
   invertControls: false,
   mirrorWorld: false,
   fogOfWar: false,
-  shiftDurationMs: 75_000,
+  // Only a shape default. The live value comes from pacing.ts, which is fed by
+  // public/config/pacing.json -- see clampStageMs below.
+  shiftDurationMs: DEFAULT_PACING.firstStageMs,
 }
+
+/**
+ * Player-facing names for the chaos flags. Lives here rather than in the
+ * director because both the director's notes and the HUD badge need it, and a
+ * second copy would drift.
+ */
+export const CHAOS_LABEL = {
+  invertControls: 'CONTROLS INVERTED',
+  mirrorWorld: 'WORLD MIRRORED',
+  fogOfWar: 'SIGNAL DEGRADED',
+} as const
+export type ChaosFlag = keyof typeof CHAOS_LABEL
+
+export const CHAOS_FLAGS: readonly ChaosFlag[] = [
+  'invertControls',
+  'mirrorWorld',
+  'fogOfWar',
+]
 
 /**
  * Hard playability bounds. Every numeric modifier is clamped to these before
@@ -24,13 +45,25 @@ const RANGE: Readonly<Record<string, readonly [number, number]>> = {
   spawnRateScale: [0.5, 2.0],
   projectileSpeedScale: [0.6, 1.8],
   scoreMultiplier: [1, 3],
-  shiftDurationMs: [60_000, 90_000],
+  // shiftDurationMs is NOT here -- its bounds are configurable and live in
+  // pacing.ts. See clampStageMs.
 }
 
 function clampNumber(key: keyof typeof RANGE, value: number, fallback: number): number {
   if (!Number.isFinite(value)) return fallback
   const [lo, hi] = RANGE[key]
   return Math.min(hi, Math.max(lo, value))
+}
+
+/**
+ * Stage length is clamped against the LIVE pacing config rather than a literal
+ * range, so `public/config/pacing.json` governs every path into a stage --
+ * the director, the server override, and the ?mods= dev override alike.
+ */
+function clampStageMs(value: number): number {
+  const p = getPacing()
+  if (!Number.isFinite(value)) return p.firstStageMs
+  return Math.min(p.maxStageMs, Math.max(p.minStageMs, value))
 }
 
 /**
@@ -59,15 +92,19 @@ export function clampModifiers(partial: ModifierDraft): StageModifiers {
     invertControls,
     mirrorWorld,
     fogOfWar,
-    shiftDurationMs: clampNumber(
-      'shiftDurationMs',
-      merged.shiftDurationMs,
-      DEFAULT_MODIFIERS.shiftDurationMs,
-    ),
+    shiftDurationMs: clampStageMs(merged.shiftDurationMs),
   }
 }
 
 /** True if any chaos flag is set -- used for the "never twice in a row" rule. */
 export function hasChaosFlag(m: StageModifiers): boolean {
   return m.invertControls || m.mirrorWorld || m.fogOfWar
+}
+
+/**
+ * Which chaos flag is active, if any. clampModifiers guarantees at most one,
+ * so returning a single value rather than a list is safe by construction.
+ */
+export function activeChaos(m: StageModifiers): ChaosFlag | null {
+  return CHAOS_FLAGS.find((f) => m[f]) ?? null
 }

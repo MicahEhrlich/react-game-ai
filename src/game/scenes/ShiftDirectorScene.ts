@@ -1,19 +1,25 @@
 import Phaser from 'phaser'
 import { DEV } from '../../dev.ts'
 import { HeuristicDirector } from '../../director/HeuristicDirector.ts'
-import { clampModifiers } from '../../director/modifiers.ts'
+import { activeChaos, clampModifiers } from '../../director/modifiers.ts'
 import { getOverride, primeOverrides } from '../../director/stageOverrides.ts'
 import { newRunId, telemetry } from '../../director/telemetry.ts'
 import type { Director, StagePlan } from '../../director/types.ts'
+import { loadPacing } from '../../director/pacing.ts'
 import { metrics } from '../../state/metrics.ts'
 import { commands } from '../../state/commands.ts'
-import { runState } from '../../state/runState.ts'
+import { pickStartMode, runState } from '../../state/runState.ts'
 import { gameStore } from '../../state/store.ts'
 import type { GameCommand, GameMode } from '../../state/types.ts'
 import { PHASE } from '../../state/types.ts'
 import { sfx, unlockAudio } from '../audio.ts'
 import { runCorruption } from '../art/corruption.ts'
-import { GLITCH_DURATION_MS, SCORE_SURVIVE_SHIFT, SHIFT_WARNING_MS } from '../constants.ts'
+import {
+  GLITCH_DURATION_CHAOS_MS,
+  GLITCH_DURATION_MS,
+  SCORE_SURVIVE_SHIFT,
+  SHIFT_WARNING_MS,
+} from '../constants.ts'
 import { TAUNT, playTaunt, prefetchTaunt } from '../taunts.ts'
 import { touch } from '../touch.ts'
 import { SCENE, SCENE_FOR_MODE } from './keys.ts'
@@ -123,10 +129,17 @@ export class ShiftDirectorScene extends Phaser.Scene {
       prefetchTaunt(id)
     }
     void primeOverrides()
+    // Re-read the pacing config each run, so editing public/config/pacing.json
+    // takes effect on the next run without a rebuild or even a reload.
+    void loadPacing()
+
+    // Picked ONCE and handed to both channels, so runState's mode history and
+    // gameStore's `mode` can never disagree about how the run began.
+    const mode = pickStartMode()
 
     metrics.resetRun()
-    runState.resetRun(this.time.now)
-    gameStore.startRun()
+    runState.resetRun(this.time.now, mode)
+    gameStore.startRun(mode)
 
     this.runId = newRunId()
     this.runStartedAt = Date.now()
@@ -134,11 +147,10 @@ export class ShiftDirectorScene extends Phaser.Scene {
     this.planned = false
     this.shifting = false
 
-    const mode = gameStore.get().mode
-    this.activeKey = SCENE_FOR_MODE[mode]
     // launch(), never start(): ScenePlugin.start queues a stop on the CALLING
     // scene, so starting a mode from here would shut the director down and
     // silently freeze the shift clock along with it.
+    this.activeKey = SCENE_FOR_MODE[mode]
     this.scene.launch(this.activeKey)
   }
 
@@ -221,24 +233,33 @@ export class ShiftDirectorScene extends Phaser.Scene {
     const s = gameStore.get()
     gameStore.addScore(Math.round(SCORE_SURVIVE_SHIFT * s.multiplier))
 
-    // Surface the INCOMING stage's notes now, not after the swap -- the
-    // overlay is the only place the player sees why the game just changed.
+    // Surface the INCOMING stage's notes and chaos flag now, not after the
+    // swap -- the overlay is the only place the player sees why the game just
+    // changed, and activeChaos also drives the HUD badge for the whole of the
+    // stage that is about to start.
+    const chaos = runState.pendingPlan ? activeChaos(runState.pendingPlan.modifiers) : null
+
     gameStore.patch({
       phase: PHASE.Shifting,
       secondsToShift: 0,
       nextMode: runState.pendingPlan?.mode ?? null,
       lastDirectorNotes: runState.pendingPlan?.notes ?? [],
+      activeChaos: chaos,
     })
     sfx.glitch()
     playTaunt(TAUNT.Shift, 0.55)
     touch.releaseAll()
 
+    // A stage that inverts your controls needs longer on screen than one that
+    // just nudges a spawn rate -- the player has to actually read it.
+    const duration = chaos ? GLITCH_DURATION_CHAOS_MS : GLITCH_DURATION_MS
+
     if (this.activeKey) {
       const active = this.scene.get(this.activeKey)
-      if (active) runCorruption(active, GLITCH_DURATION_MS)
+      if (active) runCorruption(active, duration)
     }
 
-    this.time.delayedCall(GLITCH_DURATION_MS, () => this.completeShift())
+    this.time.delayedCall(duration, () => this.completeShift())
   }
 
   private completeShift(): void {
