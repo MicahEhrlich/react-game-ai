@@ -25,13 +25,16 @@ export interface PacingConfig {
   readonly maxStageMs: number
 }
 
+// Mirrors public/config/pacing.json's committed values -- this is the
+// fallback if that file is ever missing or fails to parse, so it needs to
+// reflect the same intended pacing, not just be "some safe numbers".
 export const DEFAULT_PACING: PacingConfig = {
-  firstStageMs: 45_000,
-  baseStageMs: 75_000,
-  taperPerShiftMs: 5_000,
+  firstStageMs: 20_000,
+  baseStageMs: 30_000,
+  taperPerShiftMs: 2_000,
   taperShifts: 6,
-  minStageMs: 30_000,
-  maxStageMs: 90_000,
+  minStageMs: 18_000,
+  maxStageMs: 30_000,
 }
 
 /** Outer sanity bounds. Nothing in the file can escape these. */

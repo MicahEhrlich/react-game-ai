@@ -88,7 +88,7 @@ export const runState = {
 
   /**
    * Effective stage length. The ?shift= dev override deliberately bypasses the
-   * 30-90s clamp so transitions can be exercised in seconds.
+   * 18-30s clamp so transitions can be exercised in seconds.
    */
   stageDurationMs(): number {
     return DEV.shiftMs ?? state.modifiers.shiftDurationMs

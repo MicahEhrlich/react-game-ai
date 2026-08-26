@@ -229,7 +229,7 @@ export class SpaceShooterScene extends ModeScene {
 
   /**
    * Anything that leaves the view is destroyed rather than left drifting --
-   * a stage lasts 90s and a shooter can otherwise accumulate hundreds of
+   * a stage runs up to 30s and a shooter can otherwise accumulate plenty of
    * dead bodies with live physics.
    */
   private cullOffscreen(): void {

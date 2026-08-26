@@ -14,9 +14,10 @@
  * more likely to break than the heuristic is, which is why they are asserted
  * against the interface rather than against the implementation's internals.
  */
+import { readFileSync } from 'node:fs'
 import { HeuristicDirector } from '../src/director/HeuristicDirector.ts'
 import { clampModifiers, DEFAULT_MODIFIERS, hasChaosFlag } from '../src/director/modifiers.ts'
-import { applyPacing, resetPacing } from '../src/director/pacing.ts'
+import { applyPacing, getPacing, resetPacing } from '../src/director/pacing.ts'
 import type { DirectorHistory, RunMetrics, StageModifiers } from '../src/director/types.ts'
 import { ALL_MODES, MODE } from '../src/state/types.ts'
 import type { GameMode } from '../src/state/types.ts'
@@ -175,21 +176,48 @@ for (const [label, metrics] of Object.entries(PROFILES)) {
   if (flags.length !== 1) {
     fail(`clampModifiers let ${flags.length} chaos flags through (expected exactly 1)`)
   }
-  if (hostile.shiftDurationMs < 30_000) fail('clampModifiers let a sub-30s stage through')
-  if (hostile.shiftDurationMs > 90_000) fail('clampModifiers let an over-90s stage through')
+  // Bounds come from getPacing(), not copied literals -- a hardcoded 30_000/
+  // 90_000 here would have quietly stopped meaning anything the moment
+  // pacing.json's bounds changed, since clampModifiers clamps against the
+  // LIVE pacing config, not a fixed range.
+  const { minStageMs, maxStageMs } = getPacing()
+  if (hostile.shiftDurationMs < minStageMs) {
+    fail(`clampModifiers let a sub-${minStageMs / 1000}s stage through`)
+  }
+  if (hostile.shiftDurationMs > maxStageMs) {
+    fail(`clampModifiers let an over-${maxStageMs / 1000}s stage through`)
+  }
 }
 
 // --- 5: stage pacing ------------------------------------------------------
-// The product requirement, as an assertion: an opening stage around 45s, a
-// mean under a minute, and nothing over 90s. Tuning drifts; this is what stops
-// it drifting past what the game is supposed to feel like.
+// The product requirement, as an assertion: an opening stage around 20s, a
+// mean around 20s, and NOTHING over 30s -- stages were deliberately shortened
+// from the original 45-90s range so the game feels faster. Tuning drifts;
+// this is what stops it drifting past what the game is supposed to feel like.
 {
-  const MEAN_CEILING_MS = 60_000
-  const HARD_CEILING_MS = 90_000
+  const MEAN_CEILING_MS = 25_000
+  const HARD_CEILING_MS = 30_000
 
-  if (DEFAULT_MODIFIERS.shiftDurationMs > 45_000) {
+  // Independent literal, NOT derived from getPacing() -- check 4 already
+  // confirms clampModifiers respects whatever maxStageMs currently says, but
+  // that check is circular with respect to the NUMBER itself: it would pass
+  // just as happily if maxStageSeconds were bumped back to 90 in pacing.json
+  // or DEFAULT_PACING, as long as clampModifiers kept obeying it. This is the
+  // one place the literal "no stage over 30s" requirement is asserted against
+  // the actual config value, not against itself. (Confirmed by mutation
+  // testing: reverting maxStageMs alone, with baseStageMs left at 30s, passed
+  // every other check in this file -- the director's own requests never
+  // approached the loosened ceiling, so nothing else would have caught it.)
+  if (getPacing().maxStageMs > HARD_CEILING_MS) {
     fail(
-      `opening stage is ${DEFAULT_MODIFIERS.shiftDurationMs / 1000}s, expected 45s or less`,
+      `configured maxStageMs (${getPacing().maxStageMs / 1000}s) exceeds the ` +
+        `${HARD_CEILING_MS / 1000}s product requirement`,
+    )
+  }
+
+  if (DEFAULT_MODIFIERS.shiftDurationMs > 20_000) {
+    fail(
+      `opening stage is ${DEFAULT_MODIFIERS.shiftDurationMs / 1000}s, expected 20s or less`,
     )
   }
 
@@ -257,6 +285,38 @@ for (const [label, metrics] of Object.entries(PROFILES)) {
     if (stage < p.minStageMs || stage > p.maxStageMs) {
       fail(`pacing "${label}": clampModifiers produced ${stage}, outside [${p.minStageMs}, ${p.maxStageMs}]`)
     }
+  }
+
+  resetPacing()
+}
+
+// --- 7: the COMMITTED public/config/pacing.json meets the product
+//        requirement, not just DEFAULT_PACING ------------------------------
+// Checks 4-6 exercise DEFAULT_PACING (the TS-level fallback) and synthetic
+// hostile payloads -- neither one ever reads the actual file the README and
+// CLAUDE.md tell you to hand-edit. applyPacing()'s own bounds only reject
+// truly broken input (negative, non-finite, outside 5s-600s); a well-formed
+// but too-generous value like maxStageSeconds: 60 would sail through
+// unclamped by applyPacing itself. This is the one check that would catch
+// someone loosening the actual shipped file.
+{
+  const raw: unknown = JSON.parse(
+    readFileSync(new URL('../public/config/pacing.json', import.meta.url), 'utf8'),
+  )
+  const committed = applyPacing(raw)
+  const PRODUCT_MAX_MS = 30_000
+
+  if (committed.maxStageMs > PRODUCT_MAX_MS) {
+    fail(
+      `public/config/pacing.json's maxStageSeconds (${committed.maxStageMs / 1000}s) exceeds ` +
+        `the ${PRODUCT_MAX_MS / 1000}s product requirement`,
+    )
+  }
+  if (committed.firstStageMs > PRODUCT_MAX_MS) {
+    fail(
+      `public/config/pacing.json's firstStageSeconds (${committed.firstStageMs / 1000}s) exceeds ` +
+        `the ${PRODUCT_MAX_MS / 1000}s product requirement`,
+    )
   }
 
   resetPacing()

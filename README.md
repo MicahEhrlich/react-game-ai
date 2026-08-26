@@ -1,7 +1,7 @@
 # Glitch Shift Arcade
 
 A high-dopamine web arcade game. You are inside a corrupted arcade machine that
-cannot hold one game for long: the **mode** swaps every 45–75 seconds —
+cannot hold one game for long: the **mode** swaps every 18–30 seconds —
 platformer → space shooter → endless runner — while your score, core health and
 multiplier carry straight across the break.
 
@@ -48,15 +48,18 @@ Stage lengths live in [`public/config/pacing.json`](public/config/pacing.json),
 in seconds. Edit it and start a new run — no rebuild, no reload:
 
 ```json
-{ "firstStageSeconds": 45, "baseStageSeconds": 75,
-  "taperPerShiftSeconds": 5, "taperShifts": 6,
-  "minStageSeconds": 30,    "maxStageSeconds": 90 }
+{ "firstStageSeconds": 20, "baseStageSeconds": 30,
+  "taperPerShiftSeconds": 2, "taperShifts": 6,
+  "minStageSeconds": 18,    "maxStageSeconds": 30 }
 ```
 
-Defaults give a 45s opener, then 75s tapering to 45s. Every value is validated
-and clamped on load, so a typo degrades to the built-ins rather than breaking
-the game, and `min`/`maxStageSeconds` bound *every* path into a stage —
-the director, server overrides, and dev overrides alike.
+Defaults give a 20s opener, then stages starting at 30s and tapering down to
+18s over the next 6 shifts. Every value is validated and clamped on load, so a
+typo degrades to the built-ins rather than breaking the game, and
+`min`/`maxStageSeconds` bound *every* path into a stage — the director, server
+overrides, and dev overrides alike. `maxStageSeconds` is the actual guarantee
+that no stage ever runs longer than that, independent of what the other
+fields compute.
 
 ## Scripts
 
@@ -64,14 +67,39 @@ the director, server overrides, and dev overrides alike.
 npm run build                 # tsc -b && vite build
 npm run typecheck             # tsc -b
 npm run lint                  # oxlint
-npm run validate              # all three invariant scripts below
+npm run validate              # all four invariant scripts below
 npm run validate-director     # asserts the Director can never emit an unplayable stage
 npm run validate-runner       # asserts every reachable runner stage is survivable
 npm run validate-llm-director # asserts a hostile model response can't reach a stage
+npm run validate-levels       # asserts the curated easy levels stay playable
+npm run gen-levels            # (re)curates the easy platformer level pack
 ```
 
 `validate-llm-director` needs no API key and makes no network call — it drives
 the real `LlmDirector` with a fake transport and a corpus of hostile responses.
+
+## Difficulty presets and level curation
+
+Add `?difficulty=easy` or `?difficulty=hard` to the URL to play at either end
+of the modifier range instead of whatever the director is currently choosing
+(`?difficulty=normal` for the untouched default). For the platformer, Easy
+also swaps in a level from a curated pack instead of a fully random seed.
+
+That pack isn't hand-authored. `npm run gen-levels` sweeps thousands of seeds
+at the Easy preset, checks each against the player's actual jump physics —
+[`src/game/levels/levelCheck.ts`](src/game/levels/levelCheck.ts), not the
+generator's own "this should be fine" comments — and writes the gentlest ones
+to [`src/game/levels/easyPlatformerLevels.ts`](src/game/levels/easyPlatformerLevels.ts).
+`npm run validate-levels` re-checks that committed list on every run, so a
+change to the generator or the preset that would make one of those levels
+unfair fails immediately instead of showing up in someone's playthrough.
+
+Building the checker surfaced a real bug along the way: the platformer's jump
+launched at a fixed velocity regardless of `gravityScale`, so a high-gravity
+stage silently shrank the jump below what pit widths assume are clearable —
+the same class of bug already fixed for the runner (see CLAUDE.md invariant
+8), just never applied to the platformer. Fixed the same way, with a
+regression check across the full modifier space.
 
 ## The live director (optional)
 
@@ -98,8 +126,11 @@ How it stays safe:
   can't see, and strips control characters and markdown out of anything headed
   for the screen.
 - Timing, not speed, is what makes it work: the request is issued the instant a
-  stage starts and is not needed until three seconds before that stage ends, so
-  it has the whole 30–90s stage to answer.
+  stage starts and is not needed until three seconds before that stage ends,
+  giving it up to the stage's own length (18–30s) to answer. At the short end
+  that's tight against the request's own 20s timeout, so on the shortest
+  stages the heuristic ends up serving more often — a safe degradation, not a
+  bug, but worth knowing if the `⌁` marker seems rare.
 
 A `⌁` beside `SHIFT n` in the HUD marks a stage the live director wrote.
 `?ai=0` forces the rules engine, `?ai=1` forces the live director on.

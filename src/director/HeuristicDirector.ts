@@ -144,8 +144,8 @@ export class HeuristicDirector implements Director {
 
     // --- pacing: stages shorten as the run gets deeper -----------------
     // Every number here comes from public/config/pacing.json. Defaults taper
-    // 75s down to 45s, which keeps the mean stage under a minute -- asserted
-    // by the pacing check in validate-director.
+    // 30s down to 18s, keeping the mean stage around 20s -- asserted by the
+    // pacing check in validate-director.
     const pacing = getPacing()
     next.shiftDurationMs =
       pacing.baseStageMs -

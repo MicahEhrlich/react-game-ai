@@ -1,6 +1,6 @@
 # glitch-shift-arcade
 
-An arcade game where the gameplay **mode** swaps every 45–75s (platformer →
+An arcade game where the gameplay **mode** swaps every 18–30s (platformer →
 shooter → runner) while score, health and multiplier carry across, and a
 Game Director reads the player's metrics to tune the next stage.
 
@@ -22,15 +22,24 @@ npm run dev                # dev server on :5173 (prefer the preview tooling ove
 npm run build              # tsc -b && vite build
 npm run typecheck          # tsc -b
 npm run lint               # oxlint
-npm run validate              # all three scripts below
+npm run validate              # all four scripts below
 npm run validate-director     # asserts the Director's invariants over ~1800 cases
 npm run validate-runner       # asserts every reachable runner stage is survivable
 npm run validate-llm-director # asserts a hostile model response can't reach a stage
+npm run validate-levels       # asserts the curated easy levels & difficulty presets hold
+npm run gen-levels            # re-curates the easy platformer level pack (not a check)
 ```
 
 `validate-llm-director` needs no API key and makes no network call: the
 transport is an injected interface, so it drives the real `LlmDirector` with a
 corpus of hostile responses. Run it after touching anything in `src/director/`.
+
+`gen-levels` sweeps a few thousand platformer seeds at the Easy difficulty
+preset, checks each with the real jump physics (`levelCheck.ts`), and writes
+the gentlest ones to `src/game/levels/easyPlatformerLevels.ts` — a generated
+file, not hand-edited. Run it after changing `generatePlatformer.ts`,
+`platformerPacing.ts`, or the Easy preset in `difficulty.ts`; `validate-levels`
+then re-checks that committed list against whatever changed.
 
 ### Tuning stage length (`public/config/pacing.json`)
 
@@ -39,9 +48,9 @@ start a new run — no rebuild, no reload. `ShiftDirectorScene.startRun()`
 re-reads it every run.
 
 ```json
-{ "firstStageSeconds": 45, "baseStageSeconds": 75,
-  "taperPerShiftSeconds": 5, "taperShifts": 6,
-  "minStageSeconds": 30,    "maxStageSeconds": 90 }
+{ "firstStageSeconds": 20, "baseStageSeconds": 30,
+  "taperPerShiftSeconds": 2, "taperShifts": 6,
+  "minStageSeconds": 18,    "maxStageSeconds": 30 }
 ```
 
 The file is hand-edited, so `applyPacing` treats it as untrusted: every field
@@ -61,11 +70,12 @@ bypasses the clamp, and a leftover one is indistinguishable from a bug.
 | Param | Effect |
 | --- | --- |
 | `?mode=shooter` | Boot straight into one mode (`platformer`/`shooter`/`runner`) |
-| `?shift=5000` | 5s stages. Deliberately bypasses the 30–90s clamp |
+| `?shift=5000` | 5s stages. Deliberately bypasses the 18–30s clamp |
 | `?mods=invertControls` | Force modifiers. Also `?mods=spawnRateScale=2` |
 | `?physics=1` | Arcade physics debug bodies |
 | `?god=1` | Ignore all damage |
 | `?ai=0` | Force the heuristic director. `?ai=1` forces the live one on |
+| `?difficulty=easy` | Apply the Easy modifier preset; platformer also draws from the curated easy level pack instead of a random seed. `?difficulty=hard` for the other end |
 
 **`?shift=` and the live director don't mix.** A 5s stage cannot fit a request
 plus the 3s warning window, so every stage falls back to the heuristic. That is
@@ -83,10 +93,13 @@ src/director/   Director interface, HeuristicDirector, clampModifiers,
 server/         dev+preview-only POST /api/director; the API key lives here and
                 never reaches the browser. Excluded from every build.
 src/game/       config, constants, unified input, touch, audio, taunts,
-                runnerPacing (pure jump/spacing maths, asserted by a script)
+                runnerPacing / platformerPacing (pure jump maths, asserted by
+                a script)
   art/          ASCII pixel sprites -> one canvas atlas, built at boot
   entities/     Avatar (platformer), Walker/Flyer
-  levels/       seeded procedural platformer generator
+  levels/       seeded procedural platformer generator, levelCheck (real
+                playability check), difficulty (Easy/Normal/Hard presets),
+                easyPlatformerLevels (generated, see `npm run gen-levels`)
   scenes/       BootScene, ShiftDirectorScene (orchestrator), ModeScene (base),
                 PlatformerScene, SpaceShooterScene, RunnerScene
 src/ui/         React shell; GameCanvas.tsx mounts Phaser
@@ -225,6 +238,21 @@ Two rules follow:
 
 The maths lives in `game/runnerPacing.ts` (pure, no Phaser) so
 `npm run validate-runner` can assert it across the whole modifier space.
+
+**The platformer had the sibling bug, unfixed, until `game/platformerPacing.ts`
+existed.** `Avatar.drive()` launched every jump at a fixed `JUMP_VELOCITY`
+while `ModeScene.create()` scales gravity by `mods.gravityScale` — so at
+`gravityScale` above ~1.1, `apex = v²/(2·gravityY·scale)` quietly shrinks the
+jump below what `generatePlatformer`'s pit widths assume. It went unnoticed
+because the heuristic director never raises `gravityScale` above 1; only
+`?mods=` or a live LLM director's full allowed range would ever hit it. Fixed
+the same way: `platformerPacing.jumpVelocity(gravityY)` derives launch speed
+from a fixed apex, `Avatar` reads live gravity instead of the constant, and
+`generatePlatformer`'s pit-width cap is derived from the same real jump
+distance rather than a bare `randInt(2, 3)`. `scripts/validate-levels.ts`
+sweeps the full modifier space asserting every pit stays clearable, and
+proves (check 3b) that the pre-fix cap would actually have failed the harsh
+case — so it isn't asserting against a bug that could never have happened.
 
 ### 9. Per-scene gravity
 

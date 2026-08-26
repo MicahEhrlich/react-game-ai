@@ -8,9 +8,9 @@ import {
   COYOTE_MS,
   DRAG_AIR,
   DRAG_GROUND,
+  GRAVITY_Y,
   JUMP_BUFFER_MS,
   JUMP_CUT_VELOCITY,
-  JUMP_VELOCITY,
   MAX_FALL_SPEED,
   PLAYER_BODY_H,
   PLAYER_BODY_OFF_X,
@@ -19,6 +19,7 @@ import {
   RUN_SPEED_MAX,
 } from '../constants.ts'
 import type { InputState } from '../input.ts'
+import { jumpVelocity } from '../platformerPacing.ts'
 import { metrics } from '../../state/metrics.ts'
 
 /**
@@ -63,7 +64,11 @@ export class Avatar extends Phaser.Physics.Arcade.Sprite {
     if (input.dirX !== 0) this.setFlipX(input.dirX < 0)
 
     if (this.bufferMs > 0 && this.coyoteMs > 0) {
-      body.setVelocityY(JUMP_VELOCITY)
+      // Derived from the LIVE world gravity, not a fixed constant: gravityScale
+      // must change how the jump feels, never what it can clear. See
+      // platformerPacing.ts for the bug this fixes.
+      const gravityY = this.scene.physics.world.gravity.y || GRAVITY_Y
+      body.setVelocityY(jumpVelocity(gravityY))
       this.bufferMs = 0
       this.coyoteMs = 0
       this.jumping = true

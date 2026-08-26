@@ -1,4 +1,5 @@
-import { TILE_SIZE, VIEW_H } from '../constants.ts'
+import { GRAVITY_Y, TILE_SIZE, VIEW_H } from '../constants.ts'
+import { maxJumpDistanceTiles } from '../platformerPacing.ts'
 import { chance, makeRng, randInt } from '../rng.ts'
 import type { Rng } from '../rng.ts'
 
@@ -10,7 +11,9 @@ import type { Rng } from '../rng.ts'
  */
 export const ROWS = Math.floor(VIEW_H / TILE_SIZE) // 12
 export const COLS = 140
-const GROUND_ROW = ROWS - 2
+// Exported so levelCheck.ts can find the ground row without a second,
+// driftable copy of ROWS - 2.
+export const GROUND_ROW = ROWS - 2
 
 export const SOLID = {
   None: 0,
@@ -52,12 +55,32 @@ const tileCentre = (col: number, row: number) => ({
   y: row * TILE_SIZE + TILE_SIZE / 2,
 })
 
-export function generatePlatformer(seed: number, spawnRateScale: number): PlatformerLevel {
+/**
+ * `gravityY` and `playerSpeedScale` default to the neutral (scale-1) case, so
+ * every other caller keeps generating exactly what it always has. Only a
+ * caller that cares about the harsh end of the modifier range -- the live
+ * scene, and the level tooling in scripts/ -- needs to pass the real ones.
+ */
+export function generatePlatformer(
+  seed: number,
+  spawnRateScale: number,
+  gravityY: number = GRAVITY_Y,
+  playerSpeedScale = 1,
+): PlatformerLevel {
   const rng = makeRng(seed)
   const grid: SolidKind[][] = Array.from({ length: ROWS }, () =>
     Array.from({ length: COLS }, () => SOLID.None),
   )
   const spawns: Spawn[] = []
+
+  // The pit width this stage's actual jump can clear, with a tile of margin
+  // for imperfect timing -- the same margin levelCheck.ts flags a pit at.
+  // At typical modifiers this is well above 3, so it changes nothing; it
+  // only engages at the harsh end of gravityScale/playerSpeedScale, where an
+  // uncapped 2-3 tile pit could otherwise be wider than the jump that has to
+  // clear it. Exactly the bug CLAUDE.md invariant 8 already fixed for the
+  // runner's obstacle spacing, here for the platformer's pits instead.
+  const maxPitTiles = Math.max(1, Math.floor(maxJumpDistanceTiles(gravityY, playerSpeedScale)) - 1)
 
   // --- ground, punctuated by pits -------------------------------------
   // Tracks which columns are walkable so hazards and enemies are never
@@ -74,7 +97,10 @@ export function generatePlatformer(seed: number, spawnRateScale: number): Platfo
       grid[GROUND_ROW + 1][col] = SOLID.Ground
     }
     if (col > 8 && col < COLS - 10) {
-      const pit = randInt(rng, 2, 3)
+      // randInt is still called unconditionally, so the RNG stream -- and
+      // every level's reproducibility at typical modifiers -- is unchanged;
+      // only the rare capped draw actually shrinks.
+      const pit = Math.min(randInt(rng, 2, 3), maxPitTiles)
       for (let i = 0; i < pit && col < COLS; i++, col++) solidGround[col] = false
     }
   }

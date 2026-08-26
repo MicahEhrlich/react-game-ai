@@ -2,16 +2,16 @@
   "_comment": "Stage lengths, in SECONDS. Edit and start a new run to see the change -- no rebuild needed. Every value is validated and clamped on load (see src/director/pacing.ts), so a typo here degrades to the built-in defaults rather than breaking the game.",
 
   "_firstStageSeconds": "The opening stage, before the director has any metrics to judge.",
-  "firstStageSeconds": 45,
+  "firstStageSeconds": 20,
 
   "_baseStageSeconds": "What the director asks for on the first shift, before any taper.",
-  "baseStageSeconds": 75,
+  "baseStageSeconds": 30,
 
-  "_taper": "Each successive stage is taperPerShiftSeconds shorter, for taperShifts shifts, then flattens. 75 -> 70 -> 65 ... -> 45.",
-  "taperPerShiftSeconds": 5,
+  "_taper": "Each successive stage is taperPerShiftSeconds shorter, for taperShifts shifts, then flattens. 30 -> 28 -> 26 ... -> 18.",
+  "taperPerShiftSeconds": 2,
   "taperShifts": 6,
 
-  "_bounds": "Hard floor and ceiling. Enforced by clampModifiers on EVERY path into a stage, including server overrides and a future LLM director.",
-  "minStageSeconds": 30,
-  "maxStageSeconds": 90
+  "_bounds": "Hard floor and ceiling. Enforced by clampModifiers on EVERY path into a stage, including server overrides and a future LLM director. maxStageSeconds is the real guarantee that no stage runs longer than this, regardless of what the fields above compute.",
+  "minStageSeconds": 18,
+  "maxStageSeconds": 30
 }

@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { DEV } from '../../dev.ts'
 import { metrics } from '../../state/metrics.ts'
 import type { GameMode } from '../../state/types.ts'
 import { MODE } from '../../state/types.ts'
@@ -23,6 +24,8 @@ import { Avatar } from '../entities/Avatar.ts'
 import type { InputState } from '../input.ts'
 import { generatePlatformer, randomSeed, SOLID, SPAWN } from '../levels/generatePlatformer.ts'
 import type { PlatformerLevel } from '../levels/generatePlatformer.ts'
+import { pickEasyPlatformerSeed } from '../levels/easyPlatformerLevels.ts'
+import { LEVEL_DIFFICULTY } from '../levels/difficulty.ts'
 import { ModeScene } from './ModeScene.ts'
 import { SCENE } from './keys.ts'
 
@@ -50,7 +53,21 @@ export class PlatformerScene extends ModeScene {
 
     this.cameras.main.setBackgroundColor('#0d0a20')
 
-    this.level = generatePlatformer(randomSeed(), this.mods.spawnRateScale)
+    // ?difficulty=easy draws from a curated, pre-checked pool instead of a
+    // fully random seed (scripts/gen-levels.ts curates it, levelCheck.ts
+    // checked it) -- everything else about generation, including the
+    // pit-width safety margin below, applies regardless.
+    const seed =
+      import.meta.env.DEV && DEV.difficulty === LEVEL_DIFFICULTY.Easy
+        ? pickEasyPlatformerSeed()
+        : randomSeed()
+
+    this.level = generatePlatformer(
+      seed,
+      this.mods.spawnRateScale,
+      this.physics.world.gravity.y,
+      this.mods.playerSpeedScale,
+    )
     this.buildTerrain()
     this.buildStarfield()
 
@@ -93,8 +110,11 @@ export class PlatformerScene extends ModeScene {
 
     if (this.player.y > this.level.heightPx + 48) this.onPitFall()
 
-    // Reaching the far end regenerates the level ahead. A stage is 45-75s and
-    // the level is 140 tiles, so this is a safety net, not the usual path.
+    // Reaching the far end regenerates the level ahead. At 105px/s top speed
+    // the 140-tile level takes ~21s to cross, close to a stage's own 18-30s
+    // length -- so unlike when stages ran 45-75s, this is a path a fast
+    // player will actually reach within a single stage, not just a rare
+    // safety net.
     if (this.player.x > this.level.widthPx - TILE_SIZE * 3) this.regenerate()
   }
 
