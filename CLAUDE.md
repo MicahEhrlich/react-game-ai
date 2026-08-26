@@ -1,6 +1,6 @@
 # glitch-shift-arcade
 
-An arcade game where the gameplay **mode** swaps every 60–90s (platformer →
+An arcade game where the gameplay **mode** swaps every 45–75s (platformer →
 shooter → runner) while score, health and multiplier carry across, and a
 Game Director reads the player's metrics to tune the next stage.
 
@@ -22,18 +22,41 @@ npm run dev                # dev server on :5173 (prefer the preview tooling ove
 npm run build              # tsc -b && vite build
 npm run typecheck          # tsc -b
 npm run lint               # oxlint
+npm run validate           # both scripts below
 npm run validate-director  # asserts the Director's invariants over ~1800 cases
+npm run validate-runner    # asserts every reachable runner stage is survivable
 ```
+
+### Tuning stage length (`public/config/pacing.json`)
+
+Stage lengths are **config, not code**. Edit the JSON (values in seconds) and
+start a new run — no rebuild, no reload. `ShiftDirectorScene.startRun()`
+re-reads it every run.
+
+```json
+{ "firstStageSeconds": 45, "baseStageSeconds": 75,
+  "taperPerShiftSeconds": 5, "taperShifts": 6,
+  "minStageSeconds": 30,    "maxStageSeconds": 90 }
+```
+
+The file is hand-edited, so `applyPacing` treats it as untrusted: every field
+is validated and clamped, an inverted min/max is corrected, and a malformed or
+missing file leaves `DEFAULT_PACING` standing. It can't break the game.
+`min`/`maxStageSeconds` become the bounds `clampModifiers` enforces, so they
+govern the director, server overrides and `?mods=` alike.
 
 ### Dev URL overrides (`src/dev.ts`)
 
-These make transition bugs reproducible in seconds instead of 90. All are
-stripped from production builds.
+These make transition bugs reproducible in seconds instead of a minute. All
+are stripped from production builds.
+
+**If a stage feels far too short, check for `?shift=` in the URL first** — it
+bypasses the clamp, and a leftover one is indistinguishable from a bug.
 
 | Param | Effect |
 | --- | --- |
 | `?mode=shooter` | Boot straight into one mode (`platformer`/`shooter`/`runner`) |
-| `?shift=5000` | 5s stages. Deliberately bypasses the 60–90s clamp |
+| `?shift=5000` | 5s stages. Deliberately bypasses the 30–90s clamp |
 | `?mods=invertControls` | Force modifiers. Also `?mods=spawnRateScale=2` |
 | `?physics=1` | Arcade physics debug bodies |
 | `?god=1` | Ignore all damage |
@@ -45,7 +68,8 @@ src/state/      store (discrete -> React), commands (React -> Phaser),
                 runState (survives scene swaps), metrics (per-frame safe)
 src/director/   Director interface, HeuristicDirector, clampModifiers,
                 telemetry sink, stage overrides  (Tasks: AI director + API seam)
-src/game/       config, constants, unified input, touch, audio, taunts
+src/game/       config, constants, unified input, touch, audio, taunts,
+                runnerPacing (pure jump/spacing maths, asserted by a script)
   art/          ASCII pixel sprites -> one canvas atlas, built at boot
   entities/     Avatar (platformer), Walker/Flyer
   levels/       seeded procedural platformer generator
@@ -58,8 +82,8 @@ src/scores/     high scores, localStorage behind a swappable interface
 ## Invariants
 
 Break one of these and you get a bug that looks unrelated to the change that
-caused it. Several are inherited from the sibling `react-game` project; two
-were found the hard way here and are marked.
+caused it. Several are inherited from the sibling `react-game` project; four
+were found the hard way here and are marked ⚠️.
 
 ### 1. Reset every scene field at the top of `create()` / `setupMode()`
 
@@ -131,14 +155,54 @@ reaches a scene has skipped it. This is what makes a future LLM-backed
 `runState.modifiers` is snapshotted into `ModeScene.mods` at `create()`, so a
 running scene can never desync from the world it built.
 
-### 7. Per-scene gravity
+### 7. ⚠️ In `scene.update()`, read the BODY — the sprite is a frame stale
+
+Phaser's per-frame order is `world.update` (bodies integrate) → `scene.update`
+→ `world.postUpdate` (**sprite ← body**). So inside `update()` a sprite's `x`/`y`
+is still where the *previous* frame left it, while `body.bottom` / `body.y` are
+current.
+
+`RunnerScene.applyGround()` read `this.runner.y`. One frame after a jump
+launched, the stale value still read "on the ground", so the clamp zeroed the
+upward velocity: **the jump collapsed from 64px to 5.4px** and the player could
+not clear a 15px block. It presented as "the jump feels weak", which points
+nowhere near the cause.
+
+Anything doing manual collision or position clamping reads the body
+(`resolveGround` in `runnerPacing.ts`), and treats an upward velocity as
+never-grounded regardless of position. `body.y` also has a setter — correcting
+the body *and* the sprite is needed, since `postUpdate` only adds a delta.
+
+### 8. ⚠️ Runner obstacle spacing is derived from the jump arc, never from a timer
+
+`RunnerScene` spawns on a timer **and** a distance gate (`gapClear()`), and the
+distance gate is load-bearing. Timer-only spawning shipped once: the director's
+`spawnRateScale = 1.45` — its reward for good shooting — produced 180px gaps
+against a 213px jump arc, so *every* such stage was unwinnable. It presented as
+"the jump feels too weak", which points nowhere near the cause.
+
+Two rules follow:
+
+- **The jump arc is not negotiable.** `spawnRateScale` spends the reaction
+  *buffer* only (`runnerPacing.reactionBufferSec`). The arc itself is always
+  fully protected.
+- **Jump height is a distance, not a velocity.** `RUNNER_JUMP_APEX_PX` is fed
+  through `jumpVelocity(gravityY)`, so `gravityScale` changes how the jump feels
+  and never what it can clear. A fixed velocity makes apex = v²/2g, which
+  silently cut the jump from 60px to 38px exactly when the director raised
+  gravity to make a stage harder.
+
+The maths lives in `game/runnerPacing.ts` (pure, no Phaser) so
+`npm run validate-runner` can assert it across the whole modifier space.
+
+### 9. Per-scene gravity
 
 Each scene owns its own arcade World. The gravity in `config.ts` is only a
 default — every `ModeScene.create()` sets `this.physics.world.gravity.y`
 itself, and `SpaceShooterScene` sets it to `0`. A shooter running under the
 platformer's gravity is the exact bug this prevents.
 
-### 8. Assets: procedural first, files optional
+### 10. Assets: procedural first, files optional
 
 All art is ASCII pixel data in `art/sprites.ts` composited into one canvas
 atlas at boot; all core audio is synthesised WebAudio. **There is no
@@ -147,7 +211,7 @@ lazily *after* audio unlock, and falling back to a synthesised phrase when
 absent — which is the repo's default state. Drop files at
 `public/audio/taunts/<id>.webm` to enable them; no code change needed.
 
-### 9. StrictMode double-invokes
+### 11. StrictMode double-invokes
 
 `main.tsx` renders in StrictMode, so mount → unmount → mount happens in dev.
 Anything registered globally needs an idempotence guard, as `buildAtlas`

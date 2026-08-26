@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(grep -v \"^$\")",
+      "Bash(node -e ' *)",
+      "Bash(cp src/game/constants.ts /tmp/constants.bak)",
+      "Bash(sed -i '' -e 's/export const RUNNER_REACTION_BUFFER_SEC = 0.3/export const RUNNER_REACTION_BUFFER_SEC = 0/' -e 's/export const RUNNER_REACTION_BUFFER_MIN_SEC = 0.12/export const RUNNER_REACTION_BUFFER_MIN_SEC = 0/' src/game/constants.ts)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(cp /tmp/constants.bak src/game/constants.ts)",
+      "Bash(rm /tmp/constants.bak)",
+      "Bash(sed -i '' -e 's/export const RUNNER_REACTION_BUFFER_SEC = 0.3/export const RUNNER_REACTION_BUFFER_SEC = 0/' -e 's/export const RUNNER_REACTION_BUFFER_MIN_SEC = 0.12/export const RUNNER_REACTION_BUFFER_MIN_SEC = 0.12000001/' src/game/constants.ts)",
+      "Bash(cp src/game/constants.ts /tmp/c.bak)",
+      "Bash(sed -i '' -e 's/RUNNER_REACTION_BUFFER_SEC = 0.3/RUNNER_REACTION_BUFFER_SEC = 0/' -e 's/RUNNER_REACTION_BUFFER_MIN_SEC = 0.12/RUNNER_REACTION_BUFFER_MIN_SEC = 0/' src/game/constants.ts)",
+      "Bash(cp /tmp/c.bak src/game/constants.ts)",
+      "Bash(cp src/game/runnerPacing.ts /tmp/p.bak)",
+      "Bash(sed -i '' 's|return -Math.sqrt\\(2 \\\\* gravityY \\\\* RUNNER_JUMP_APEX_PX\\)|return -330|' src/game/runnerPacing.ts)",
+      "Bash(cp /tmp/p.bak src/game/runnerPacing.ts)",
+      "Bash(rm /tmp/c.bak /tmp/p.bak)",
+      "Bash(sed -i '' -e '165s/^### 8\\\\. Assets/### 9. Assets/' -e '174s/^### 9\\\\. StrictMode/### 10. StrictMode/' CLAUDE.md)",
+      "Bash(sed -i '' -e 's/^Several are inherited from the sibling `react-game` project; two/Several are inherited from the sibling `react-game` project; three/' CLAUDE.md)",
+      "Bash(node --experimental-strip-types scratch-check.ts)",
+      "Bash(sed -i '' -e 's|5s stages instead of 90-120s|5s stages instead of 45-75s|' -e 's|shiftDurationMs'\\\\''s 90-120s clamp|shiftDurationMs'\\\\''s 30-90s clamp|' src/dev.ts)",
+      "Bash(sed -i '' 's|The mode changes every 90–120 seconds.|The mode changes every 45–75 seconds.|' src/ui/MenuOverlay.tsx)",
+      "Bash(sed -i '' 's|A stage is 90-120s and|A stage is 45-75s and|' src/game/scenes/PlatformerScene.ts)",
+      "Bash(sed -i '' 's|90-120s clamp so transitions|30-90s clamp so transitions|' src/state/runState.ts)",
+      "Bash(sed -i '' 's|swaps every 90–120 seconds|swaps every 45–75 seconds|' README.md)"
+    ]
+  }
+}

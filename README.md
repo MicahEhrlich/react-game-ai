@@ -1,7 +1,7 @@
 # Glitch Shift Arcade
 
 A high-dopamine web arcade game. You are inside a corrupted arcade machine that
-cannot hold one game for long: the **mode** swaps every 60–90 seconds —
+cannot hold one game for long: the **mode** swaps every 45–75 seconds —
 platformer → space shooter → endless runner — while your score, core health and
 multiplier carry straight across the break.
 
@@ -38,13 +38,34 @@ slide `↓` · pause `Esc`. Touch controls appear automatically on touch devices
 Art is ASCII pixel data compiled to a canvas atlas at boot and audio is
 synthesised WebAudio, so there is no asset pipeline and no loading screen.
 
+Every run opens on a **random** one of the three modes, so no two runs start the
+same way.
+
+## Tuning
+
+Stage lengths live in [`public/config/pacing.json`](public/config/pacing.json),
+in seconds. Edit it and start a new run — no rebuild, no reload:
+
+```json
+{ "firstStageSeconds": 45, "baseStageSeconds": 75,
+  "taperPerShiftSeconds": 5, "taperShifts": 6,
+  "minStageSeconds": 30,    "maxStageSeconds": 90 }
+```
+
+Defaults give a 45s opener, then 75s tapering to 45s. Every value is validated
+and clamped on load, so a typo degrades to the built-ins rather than breaking
+the game, and `min`/`maxStageSeconds` bound *every* path into a stage —
+the director, server overrides, and dev overrides alike.
+
 ## Scripts
 
 ```bash
 npm run build              # tsc -b && vite build
 npm run typecheck          # tsc -b
 npm run lint               # oxlint
+npm run validate           # both invariant scripts below
 npm run validate-director  # asserts the Director can never emit an unplayable stage
+npm run validate-runner    # asserts every reachable runner stage is survivable
 ```
 
 ## Extending it

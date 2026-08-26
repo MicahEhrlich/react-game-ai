@@ -15,7 +15,8 @@
  * against the interface rather than against the implementation's internals.
  */
 import { HeuristicDirector } from '../src/director/HeuristicDirector.ts'
-import { clampModifiers, hasChaosFlag } from '../src/director/modifiers.ts'
+import { clampModifiers, DEFAULT_MODIFIERS, hasChaosFlag } from '../src/director/modifiers.ts'
+import { applyPacing, resetPacing } from '../src/director/pacing.ts'
 import type { DirectorHistory, RunMetrics, StageModifiers } from '../src/director/types.ts'
 import { ALL_MODES, MODE } from '../src/state/types.ts'
 import type { GameMode } from '../src/state/types.ts'
@@ -97,6 +98,14 @@ for (const [label, metrics] of Object.entries(PROFILES)) {
         fail(`${label}/${currentMode}/seed ${seed}: chaos flag two stages running`)
       }
 
+      // Chaos stays locked until shift 3: a new player must not have their
+      // controls inverted before they have seen all three modes.
+      if (history.shiftIndex < 3 && hasChaosFlag(plan.modifiers)) {
+        fail(
+          `${label}/${currentMode}/seed ${seed}: chaos flag at shift ${history.shiftIndex} (locked until 3)`,
+        )
+      }
+
       if (plan.mode === currentMode) {
         fail(`${label}/${currentMode}/seed ${seed}: repeated the current mode`)
       }
@@ -133,6 +142,9 @@ for (const [label, metrics] of Object.entries(PROFILES)) {
     if (chaosLastStage && hasChaosFlag(plan.modifiers)) {
       fail(`run sim shift ${shiftIndex}: chaos flag two stages running`)
     }
+    if (shiftIndex < 3 && hasChaosFlag(plan.modifiers)) {
+      fail(`run sim shift ${shiftIndex}: chaos flag before the shift-3 unlock`)
+    }
     chaosLastStage = hasChaosFlag(plan.modifiers)
     currentMode = plan.mode
     modeHistory.push(currentMode)
@@ -163,7 +175,91 @@ for (const [label, metrics] of Object.entries(PROFILES)) {
   if (flags.length !== 1) {
     fail(`clampModifiers let ${flags.length} chaos flags through (expected exactly 1)`)
   }
-  if (hostile.shiftDurationMs < 60_000) fail('clampModifiers let a sub-60s stage through')
+  if (hostile.shiftDurationMs < 30_000) fail('clampModifiers let a sub-30s stage through')
+  if (hostile.shiftDurationMs > 90_000) fail('clampModifiers let an over-90s stage through')
+}
+
+// --- 5: stage pacing ------------------------------------------------------
+// The product requirement, as an assertion: an opening stage around 45s, a
+// mean under a minute, and nothing over 90s. Tuning drifts; this is what stops
+// it drifting past what the game is supposed to feel like.
+{
+  const MEAN_CEILING_MS = 60_000
+  const HARD_CEILING_MS = 90_000
+
+  if (DEFAULT_MODIFIERS.shiftDurationMs > 45_000) {
+    fail(
+      `opening stage is ${DEFAULT_MODIFIERS.shiftDurationMs / 1000}s, expected 45s or less`,
+    )
+  }
+
+  const director = new HeuristicDirector(makeRng(5))
+  let currentMode: GameMode = MODE.Platformer
+  const modeHistory: GameMode[] = [currentMode]
+  // The opening stage counts toward the average the player actually feels.
+  const durations: number[] = [DEFAULT_MODIFIERS.shiftDurationMs]
+
+  for (let shiftIndex = 0; shiftIndex < 12; shiftIndex++) {
+    const plan = director.decide(baseMetrics({ mode: currentMode }), {
+      shiftIndex,
+      currentMode,
+      modeHistory,
+      chaosLastStage: false,
+    })
+    durations.push(plan.modifiers.shiftDurationMs)
+    currentMode = plan.mode
+    modeHistory.push(currentMode)
+  }
+
+  const mean = durations.reduce((a, b) => a + b, 0) / durations.length
+  const max = Math.max(...durations)
+
+  if (mean > MEAN_CEILING_MS) {
+    fail(`mean stage ${(mean / 1000).toFixed(1)}s exceeds the ${MEAN_CEILING_MS / 1000}s target`)
+  }
+  if (max > HARD_CEILING_MS) {
+    fail(`longest stage ${(max / 1000).toFixed(1)}s exceeds the ${HARD_CEILING_MS / 1000}s ceiling`)
+  }
+}
+
+// --- 6: the pacing config is hand-edited, so treat it as hostile input -----
+// public/config/pacing.json is meant to be tuned by hand. A typo in it must
+// degrade to something playable, never break the game or escape the clamp.
+{
+  const cases: Array<[string, unknown]> = [
+    ['null', null],
+    ['not an object', 42],
+    ['empty', {}],
+    ['negative', { firstStageSeconds: -10, minStageSeconds: -5, maxStageSeconds: -1 }],
+    ['NaN-ish', { firstStageSeconds: 'forty', taperShifts: 1.5 }],
+    ['absurd', { firstStageSeconds: 1e9, maxStageSeconds: 1e9, taperPerShiftSeconds: 1e9 }],
+    ['inverted bounds', { minStageSeconds: 90, maxStageSeconds: 10 }],
+    ['zero taper', { taperPerShiftSeconds: 0, taperShifts: 0 }],
+  ]
+
+  for (const [label, payload] of cases) {
+    const p = applyPacing(payload)
+
+    const finite = Object.values(p).every((v) => Number.isFinite(v))
+    if (!finite) fail(`pacing "${label}": produced a non-finite value`)
+    if (p.minStageMs > p.maxStageMs) {
+      fail(`pacing "${label}": min ${p.minStageMs} exceeds max ${p.maxStageMs}`)
+    }
+    if (p.firstStageMs < p.minStageMs || p.firstStageMs > p.maxStageMs) {
+      fail(`pacing "${label}": first stage ${p.firstStageMs} outside its own bounds`)
+    }
+    if (p.taperShifts < 0 || !Number.isInteger(p.taperShifts)) {
+      fail(`pacing "${label}": taperShifts ${p.taperShifts} is not a non-negative integer`)
+    }
+
+    // And the clamp must still hold the line against whatever was installed.
+    const stage = clampModifiers({ shiftDurationMs: 1 }).shiftDurationMs
+    if (stage < p.minStageMs || stage > p.maxStageMs) {
+      fail(`pacing "${label}": clampModifiers produced ${stage}, outside [${p.minStageMs}, ${p.maxStageMs}]`)
+    }
+  }
+
+  resetPacing()
 }
 
 if (failures > 0) {

@@ -4,10 +4,10 @@ import { ALL_MODES } from './state/types.ts'
 
 /**
  * Dev-only URL overrides, parsed once at module load. These exist so a
- * transition bug takes seconds to reproduce instead of 90:
+ * transition bug takes seconds to reproduce instead of a minute:
  *
  *   ?mode=shooter                     boot straight into one mode
- *   ?shift=5000                       5s stages instead of 60-90s
+ *   ?shift=5000                       5s stages instead of 45-75s
  *   ?mods=invertControls,mirrorWorld  force chaos flags on every stage
  *   ?physics=1                        arcade physics debug bodies
  *   ?god=1                            ignore all damage
@@ -24,9 +24,14 @@ function isMode(s: string): s is GameMode {
 }
 
 function parse() {
-  // `import.meta.env.DEV` is statically false in a production build, so this
-  // whole block (and every override it can apply) is tree-shaken out.
-  if (!import.meta.env.DEV || typeof window === 'undefined') {
+  // The window check comes FIRST so this short-circuits under plain Node,
+  // where `import.meta.env` does not exist at all -- that is what lets the
+  // validate-* scripts import modules that reach dev.ts.
+  //
+  // `import.meta.env.DEV` is statically false in a production build, so the
+  // condition still collapses to `true` there and every override below is
+  // tree-shaken out.
+  if (typeof window === 'undefined' || !import.meta.env.DEV) {
     return { mode: null, shiftMs: null, mods: {}, physics: false, god: false }
   }
 
@@ -36,8 +41,9 @@ function parse() {
   const mode = rawMode && isMode(rawMode) ? rawMode : null
 
   const rawShift = Number(q.get('shift'))
-  // Deliberately NOT range-checked against shiftDurationMs's 60-90s clamp:
-  // the whole point is to allow the 5s stages the clamp would forbid.
+  // Deliberately NOT range-checked against shiftDurationMs's 30-90s clamp:
+  // the whole point is to allow the 5s stages the clamp would forbid. If a
+  // stage feels far too short, check for this parameter in the URL first.
   const shiftMs = Number.isFinite(rawShift) && rawShift >= 500 ? rawShift : null
 
   const mods: ModifierDraft = {}

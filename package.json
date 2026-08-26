@@ -9,7 +9,9 @@
     "typecheck": "tsc -b",
     "lint": "oxlint",
     "preview": "vite preview",
-    "validate-director": "node --experimental-strip-types scripts/validate-director.ts"
+    "validate-director": "node --experimental-strip-types scripts/validate-director.ts",
+    "validate-runner": "node --experimental-strip-types scripts/validate-runner.ts",
+    "validate": "npm run validate-director && npm run validate-runner"
   },
   "dependencies": {
     "phaser": "^4.2.1",
