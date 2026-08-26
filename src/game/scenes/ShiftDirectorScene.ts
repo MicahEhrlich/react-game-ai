@@ -1,10 +1,18 @@
 import Phaser from 'phaser'
 import { DEV } from '../../dev.ts'
-import { HeuristicDirector } from '../../director/HeuristicDirector.ts'
+import { makeDirector } from '../../director/index.ts'
 import { activeChaos, clampModifiers } from '../../director/modifiers.ts'
 import { getOverride, primeOverrides } from '../../director/stageOverrides.ts'
 import { newRunId, telemetry } from '../../director/telemetry.ts'
-import type { Director, StagePlan } from '../../director/types.ts'
+import type { StageRecord } from '../../director/telemetry.ts'
+import { isLiveDirector, PLAN_SOURCE } from '../../director/types.ts'
+import type {
+  Director,
+  LiveDirector,
+  RunMetrics,
+  StageBrief,
+  StagePlan,
+} from '../../director/types.ts'
 import { loadPacing } from '../../director/pacing.ts'
 import { metrics } from '../../state/metrics.ts'
 import { commands } from '../../state/commands.ts'
@@ -41,8 +49,27 @@ import type { SceneKey } from './keys.ts'
  * which is what makes pausing free: a paused scene's update() is never
  * called, so the countdown simply stops advancing.
  */
+/** StageRecord is what telemetry stores; StageBrief is what a director is
+ *  allowed to see. maxHealth is constant across a run, so it comes from the
+ *  store rather than being duplicated into every record. */
+function toStageBrief(r: StageRecord, maxHealth: number): StageBrief {
+  return {
+    shiftIndex: r.shiftIndex,
+    mode: r.mode,
+    seconds: Math.round(r.durationMs / 1000),
+    scoreAtEnd: r.scoreAtEnd,
+    healthPct: maxHealth > 0 ? Math.round((r.healthAtEnd / maxHealth) * 100) : 0,
+    damageTaken: r.damageTaken,
+    accuracyPct: r.shotsFired > 0 ? Math.round((r.shotsHit / r.shotsFired) * 100) : null,
+    notes: r.directorNotes,
+  }
+}
+
 export class ShiftDirectorScene extends Phaser.Scene {
-  private director: Director = new HeuristicDirector()
+  private director: Director = makeDirector()
+  /** The same object as `director` when it can talk to something slow, else
+   *  null. Kept separately so the hot path never re-narrows. */
+  private live: LiveDirector | null = null
   private activeKey: SceneKey | null = null
   private stageElapsedMs = 0
   private planned = false
@@ -59,7 +86,8 @@ export class ShiftDirectorScene extends Phaser.Scene {
   create(): void {
     // This scene is never stopped, so create() runs once per Phaser.Game --
     // but StrictMode builds two Games in dev, so resetting is still correct.
-    this.director = new HeuristicDirector()
+    this.director = makeDirector()
+    this.live = isLiveDirector(this.director) ? this.director : null
     this.activeKey = null
     this.stageElapsedMs = 0
     this.planned = false
@@ -147,6 +175,10 @@ export class ShiftDirectorScene extends Phaser.Scene {
     this.planned = false
     this.shifting = false
 
+    // Drops every scrap of the previous run and aborts anything still in
+    // flight from it. Same fire-and-forget spirit as the two calls above.
+    this.live?.beginRun(this.runId)
+
     // launch(), never start(): ScenePlugin.start queues a stop on the CALLING
     // scene, so starting a mode from here would shut the director down and
     // silently freeze the shift clock along with it.
@@ -207,6 +239,12 @@ export class ShiftDirectorScene extends Phaser.Scene {
   /**
    * Server payload first, then the ?mods= dev override, then the clamp. The
    * clamp is last on purpose: nothing that reaches a scene has skipped it.
+   *
+   * Note what clampModifiers does NOT do: it bounds numbers and allows at most
+   * one chaos flag, but it has never seen `plan.mode` and knows no history. So
+   * "never repeat the current mode" and the two chaos-timing rules are not
+   * enforced here. For an untrusted (model-authored) plan they are enforced in
+   * director/llmPlan.ts, and nowhere else.
    */
   private applyOverrides(plan: StagePlan, shiftIndex: number): StagePlan {
     const notes = [...plan.notes]
@@ -273,7 +311,17 @@ export class ShiftDirectorScene extends Phaser.Scene {
     // arriving at the swap without one must never be fatal.
     const plan = runState.pendingPlan ?? this.fallbackPlan()
 
-    this.recordStage(plan)
+    // Snapshotted ONCE, before metrics.rollShift() clears the window below.
+    // Telemetry and the director then describe identical numbers, and the
+    // director gets the stage that actually just happened.
+    const closing = gameStore.get()
+    const closingMetrics = metrics.snapshot(
+      closing.mode,
+      this.stageElapsedMs,
+      closing.maxHealth > 0 ? closing.health / closing.maxHealth : 0,
+    )
+
+    this.recordStage(plan, closingMetrics)
 
     const previousKey = this.activeKey
     runState.commitPlan(plan, this.time.now)
@@ -295,7 +343,42 @@ export class ShiftDirectorScene extends Phaser.Scene {
       shiftWarning: false,
       lastDirectorNotes: plan.notes,
       secondsToShift: Math.ceil(runState.stageDurationMs() / 1000),
+      // Rides this patch rather than adding one: no extra re-render, and
+      // nothing per-frame reaches the store (invariant 2).
+      directorSource: this.live?.lastSource ?? PLAN_SOURCE.Heuristic,
     })
+
+    // LAST, so it reads the post-patch shiftIndex. See primeDirector().
+    this.primeDirector(closingMetrics)
+  }
+
+  /**
+   * Prefetch the plan for the stage AFTER the one that just started, giving it
+   * a whole stage -- 30 to 90 seconds -- instead of the 3s warning window.
+   * Fire-and-forget: a stage must never wait on this, and a failure just means
+   * the heuristic decides.
+   *
+   * The shift index has to match what planNextStage() will pass to decide():
+   * both read gameStore.shiftIndex for the stage being PLAYED, and the plan is
+   * for that index plus one. Reading it from the store after the patch above
+   * -- rather than computing it here -- is what keeps the two in step. Get
+   * this wrong by one and nothing errors: the cache simply never hits and the
+   * heuristic quietly serves every stage.
+   */
+  private primeDirector(closingMetrics: RunMetrics): void {
+    if (!this.live) return
+    const s = gameStore.get()
+    const stages = telemetry.currentStages().map((r) => toStageBrief(r, s.maxHealth))
+    this.live.prime(
+      closingMetrics,
+      {
+        shiftIndex: s.shiftIndex,
+        currentMode: s.mode,
+        modeHistory: runState.modeHistory,
+        chaosLastStage: runState.chaosLastStage,
+      },
+      stages,
+    )
   }
 
   private fallbackPlan(): StagePlan {
@@ -314,9 +397,10 @@ export class ShiftDirectorScene extends Phaser.Scene {
 
   // --- telemetry & end of run -------------------------------------------
 
-  private recordStage(plan: StagePlan): void {
+  /** `totals` is passed in rather than sampled here, so the record and the
+   *  director's view of the stage cannot disagree. */
+  private recordStage(plan: StagePlan, totals: RunMetrics): void {
     const s = gameStore.get()
-    const totals = metrics.snapshot(s.mode, this.stageElapsedMs, s.health / s.maxHealth)
     telemetry.stageCompleted({
       shiftIndex: s.shiftIndex,
       mode: s.mode,
@@ -339,6 +423,7 @@ export class ShiftDirectorScene extends Phaser.Scene {
 
   private endRun(): void {
     const s = gameStore.get()
+    const final = metrics.snapshot(s.mode, this.stageElapsedMs, 0)
 
     // Record the stage in progress so a run that ends mid-stage is not a hole
     // in the telemetry.
@@ -348,12 +433,15 @@ export class ShiftDirectorScene extends Phaser.Scene {
       durationMs: Math.round(this.stageElapsedMs),
       scoreAtEnd: s.score,
       healthAtEnd: 0,
-      damageTaken: metrics.snapshot(s.mode, this.stageElapsedMs, 0).damageTaken,
-      shotsFired: metrics.snapshot(s.mode, this.stageElapsedMs, 0).shotsFired,
-      shotsHit: metrics.snapshot(s.mode, this.stageElapsedMs, 0).shotsHit,
+      damageTaken: final.damageTaken,
+      shotsFired: final.shotsFired,
+      shotsHit: final.shotsHit,
       modifiers: runState.modifiers,
       directorNotes: s.lastDirectorNotes,
     })
+
+    // Read BEFORE runCompleted, which flushes the sink's buffer.
+    const stages = telemetry.currentStages().map((r) => toStageBrief(r, s.maxHealth))
 
     telemetry.runCompleted({
       runId: this.runId,
@@ -364,8 +452,41 @@ export class ShiftDirectorScene extends Phaser.Scene {
       stages: [],
     })
 
+    this.requestEpitaph(s.lastRunScore || s.score, s.shiftIndex, s.mode, stages)
+
     // Let the death land before the scene disappears.
     this.time.delayedCall(600, () => this.stopActive())
+  }
+
+  /**
+   * The last thing the player reads before deciding whether to go again.
+   *
+   * Deliberately not awaited and deliberately not blocking the panel: it
+   * arrives a second or two late, which reads as the machine composing the
+   * line rather than as a delay. The patch is issued from here because the
+   * orchestrator owns the Phaser->React channel -- a director reaching into
+   * gameStore itself would be a third bridge (invariant 3).
+   */
+  private requestEpitaph(
+    finalScore: number,
+    shifts: number,
+    finalMode: GameMode,
+    stages: readonly StageBrief[],
+  ): void {
+    if (!this.live) return
+    const runId = this.runId
+
+    void this.live
+      .epitaph({ runId, finalScore, shifts, finalMode, stages })
+      .then((line) => {
+        if (!line) return
+        // The player may have restarted or walked back to the menu while this
+        // was in flight; either way the line is about a run that is no longer
+        // on screen.
+        if (this.runId !== runId) return
+        if (gameStore.get().phase !== PHASE.GameOver) return
+        gameStore.patch({ runEpitaph: line })
+      })
   }
 
   private stopActive(): void {

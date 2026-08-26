@@ -33,6 +33,14 @@ export interface TelemetrySink {
   stageCompleted(record: StageRecord): void
   runCompleted(record: RunRecord): void
   recentRuns(limit: number): RunRecord[]
+  /**
+   * Stages recorded for the run IN PROGRESS, oldest first; empty between runs.
+   *
+   * recentRuns() only ever sees completed runs, so this is the only way to
+   * give a live director the narrative of the run it is currently directing.
+   * Read it before runCompleted(), which flushes the buffer.
+   */
+  currentStages(): readonly StageRecord[]
 }
 
 const KEY = 'glitch-shift:telemetry'
@@ -54,6 +62,10 @@ export class LocalTelemetrySink implements TelemetrySink {
     } catch {
       // Private-browsing / quota. Telemetry is never worth breaking a run over.
     }
+  }
+
+  currentStages(): readonly StageRecord[] {
+    return this.stages
   }
 
   recentRuns(limit: number): RunRecord[] {

@@ -1,4 +1,5 @@
 import { CHAOS_LABEL } from '../director/modifiers.ts'
+import { PLAN_SOURCE } from '../director/types.ts'
 import { MODE_LABEL } from '../state/types.ts'
 import { useGameState } from '../state/store.ts'
 
@@ -18,6 +19,7 @@ export function Hud() {
     secondsToShift,
     shiftWarning,
     activeChaos,
+    directorSource,
   } = useGameState()
 
   const healthPct = Math.max(0, Math.round((health / maxHealth) * 100))
@@ -52,7 +54,18 @@ export function Hud() {
       </div>
 
       <div className="hud-row">
-        <span className="hud-label">SHIFT {shiftIndex}</span>
+        <span className="hud-label">
+          SHIFT {shiftIndex}
+          {/* Marks a stage a live director chose. It is the fastest way to
+              tell "the AI is off" from "the AI answered too late", which are
+              otherwise identical from the outside. */}
+          {directorSource === PLAN_SOURCE.Llm && (
+            <span className="hud-ai" title="stage written by the live director">
+              {' '}
+              ⌁
+            </span>
+          )}
+        </span>
         <span className={shiftWarning ? 'hud-value hud-value--warn' : 'hud-value'}>
           {secondsToShift}s
         </span>

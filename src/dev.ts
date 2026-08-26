@@ -11,6 +11,8 @@ import { ALL_MODES } from './state/types.ts'
  *   ?mods=invertControls,mirrorWorld  force chaos flags on every stage
  *   ?physics=1                        arcade physics debug bodies
  *   ?god=1                            ignore all damage
+ *   ?ai=0                             force the heuristic director
+ *   ?ai=1                             force the live director on
  */
 const CHAOS_KEYS = ['invertControls', 'mirrorWorld', 'fogOfWar'] as const
 type ChaosKey = (typeof CHAOS_KEYS)[number]
@@ -32,7 +34,7 @@ function parse() {
   // condition still collapses to `true` there and every override below is
   // tree-shaken out.
   if (typeof window === 'undefined' || !import.meta.env.DEV) {
-    return { mode: null, shiftMs: null, mods: {}, physics: false, god: false }
+    return { mode: null, shiftMs: null, mods: {}, physics: false, god: false, ai: null }
   }
 
   const q = new URLSearchParams(window.location.search)
@@ -57,12 +59,18 @@ function parse() {
     }
   }
 
+  // Tri-state: null means "whatever the build defaults to", so ?ai=0 can turn
+  // the live director off in dev without ?ai=1 being needed to keep it on.
+  const rawAi = q.get('ai')
+  const ai = rawAi === '1' ? true : rawAi === '0' ? false : null
+
   return {
     mode,
     shiftMs,
     mods,
     physics: q.get('physics') === '1',
     god: q.get('god') === '1',
+    ai,
   }
 }
 

@@ -6,7 +6,7 @@ import { MODE_LABEL } from '../state/types.ts'
 import { HighScoreTable } from './HighScoreTable.tsx'
 
 export function GameOverOverlay() {
-  const { lastRunScore, shiftIndex, mode } = useGameState()
+  const { lastRunScore, shiftIndex, mode, runEpitaph } = useGameState()
   const [name, setName] = useState('')
   const [submitted, setSubmitted] = useState(false)
 
@@ -36,6 +36,12 @@ export function GameOverOverlay() {
           {shiftIndex} {shiftIndex === 1 ? 'shift' : 'shifts'} survived · fell in{' '}
           {MODE_LABEL[mode]}
         </p>
+
+        {/* The director's parting shot, when there is a live one. It lands a
+            second or two after this panel opens, so it fades in rather than
+            popping -- and its absence is the normal, unremarkable case.
+            Rendered as a text node: never dangerouslySetInnerHTML. */}
+        {runEpitaph && <p className="panel-epitaph">{runEpitaph}</p>}
 
         {qualifies && !submitted && (
           <div className="submit-row">

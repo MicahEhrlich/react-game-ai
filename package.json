@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "validate-director": "node --experimental-strip-types scripts/validate-director.ts",
     "validate-runner": "node --experimental-strip-types scripts/validate-runner.ts",
-    "validate": "npm run validate-director && npm run validate-runner"
+    "validate-llm-director": "node --experimental-strip-types scripts/validate-llm-director.ts",
+    "validate": "npm run validate-director && npm run validate-runner && npm run validate-llm-director"
   },
   "dependencies": {
     "phaser": "^4.2.1",
@@ -19,6 +20,7 @@
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "^0.120.0",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",

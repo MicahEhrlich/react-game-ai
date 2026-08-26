@@ -72,3 +72,69 @@ export interface DirectorHistory {
   /** True if the previous stage already had a chaos flag on. */
   readonly chaosLastStage: boolean
 }
+
+/** Which director actually produced the plan the player is about to play. */
+export const PLAN_SOURCE = {
+  Heuristic: 'heuristic',
+  Llm: 'llm',
+} as const
+export type PlanSource = (typeof PLAN_SOURCE)[keyof typeof PLAN_SOURCE]
+
+/** One finished stage, flattened for a director's run narrative. */
+export interface StageBrief {
+  readonly shiftIndex: number
+  readonly mode: GameMode
+  readonly seconds: number
+  readonly scoreAtEnd: number
+  readonly healthPct: number
+  readonly damageTaken: number
+  /** null when the mode fired no shots, so "0%" is never claimed falsely. */
+  readonly accuracyPct: number | null
+  readonly notes: readonly string[]
+}
+
+/** The whole run, handed over once at game over. */
+export interface RunSummary {
+  readonly runId: string
+  readonly finalScore: number
+  readonly shifts: number
+  readonly finalMode: GameMode
+  readonly stages: readonly StageBrief[]
+}
+
+/**
+ * A Director that can also talk to something slow.
+ *
+ * Everything added here is OPTIONAL BEHAVIOUR, not an extension of the
+ * contract above: `decide` is still the only thing the game requires, still
+ * synchronous, and still guaranteed to return. These members exist so the
+ * orchestrator can hand a live director time (`prime`, called a whole stage
+ * ahead) and run boundaries (`beginRun`), neither of which `decide` can
+ * express. A director that implements them must still be fully correct when
+ * every one of them fails.
+ */
+export interface LiveDirector extends Director {
+  /** Called at START_RUN. Must drop every scrap of the previous run. */
+  beginRun(runId: string): void
+  /**
+   * Called just after a stage swap commits. Fire-and-forget; never awaited.
+   *
+   * `stages` is the run so far, oldest first. It is passed in rather than
+   * read, because a director must not depend on the telemetry module: that
+   * module reaches localStorage, and the validate-* scripts run under a
+   * tsconfig with no DOM lib.
+   */
+  prime(
+    metrics: RunMetrics,
+    history: DirectorHistory,
+    stages: readonly StageBrief[],
+  ): void
+  /** Never rejects. Resolves null when there is nothing to say. */
+  epitaph(summary: RunSummary): Promise<string | null>
+  /** How the most recent decide() was served. */
+  readonly lastSource: PlanSource
+}
+
+export function isLiveDirector(d: Director): d is LiveDirector {
+  return typeof (d as Partial<LiveDirector>).prime === 'function'
+}

@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import { DEV } from '../dev.ts'
+import { PLAN_SOURCE } from '../director/types.ts'
 import type { GameMode, GameSnapshot } from './types.ts'
 import { MODE, PHASE } from './types.ts'
 import { START_HEALTH } from '../game/constants.ts'
@@ -20,6 +21,8 @@ const INITIAL: GameSnapshot = {
   lastRunScore: 0,
   lastDirectorNotes: [],
   activeChaos: null,
+  directorSource: PLAN_SOURCE.Heuristic,
+  runEpitaph: null,
 }
 
 let snapshot: GameSnapshot = INITIAL

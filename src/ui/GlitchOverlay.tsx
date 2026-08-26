@@ -34,9 +34,15 @@ export function GlitchOverlay() {
           </p>
         )}
 
+        {/* Notes are de-duplicated and capped in director/llmPlan.ts, but this
+            list can render model-authored text, so the index is folded into
+            the key and the length is capped here too. Neither should ever
+            matter; both are cheap. */}
         <ul className="glitch-notes">
           {lastDirectorNotes.length > 0 ? (
-            lastDirectorNotes.map((note) => <li key={note}>{note}</li>)
+            lastDirectorNotes
+              .slice(0, 4)
+              .map((note, i) => <li key={`${i}-${note}`}>{note}</li>)
           ) : (
             <li>DIRECTOR ONLINE</li>
           )}

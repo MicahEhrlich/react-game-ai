@@ -33,6 +33,7 @@ slide `↓` · pause `Esc`. Touch controls appear automatically on touch devices
 | The three modes | `src/game/scenes/*Scene.ts`, all extending `ModeScene` |
 | The Glitch Engine | `src/game/scenes/ShiftDirectorScene.ts` + `ui/GlitchOverlay.tsx` |
 | The AI Director | `src/director/` — a rules engine behind a `Director` interface |
+| The live director | `src/director/LlmDirector.ts` + `server/` — optional, falls back to the rules engine |
 | Run analytics + API seam | `src/director/telemetry.ts`, `stageOverrides.ts` |
 
 Art is ASCII pixel data compiled to a canvas atlas at boot and audio is
@@ -60,13 +61,51 @@ the director, server overrides, and dev overrides alike.
 ## Scripts
 
 ```bash
-npm run build              # tsc -b && vite build
-npm run typecheck          # tsc -b
-npm run lint               # oxlint
-npm run validate           # both invariant scripts below
-npm run validate-director  # asserts the Director can never emit an unplayable stage
-npm run validate-runner    # asserts every reachable runner stage is survivable
+npm run build                 # tsc -b && vite build
+npm run typecheck             # tsc -b
+npm run lint                  # oxlint
+npm run validate              # all three invariant scripts below
+npm run validate-director     # asserts the Director can never emit an unplayable stage
+npm run validate-runner       # asserts every reachable runner stage is survivable
+npm run validate-llm-director # asserts a hostile model response can't reach a stage
 ```
+
+`validate-llm-director` needs no API key and makes no network call — it drives
+the real `LlmDirector` with a fake transport and a corpus of hostile responses.
+
+## The live director (optional)
+
+By default the game ships with the deterministic rules engine and no network
+dependency at all. Add an API key and a **live director** takes over the writing:
+the glitch overlay's notes become taunts about the run you are actually having,
+and the game-over panel gets a one-line epitaph.
+
+```bash
+echo 'ANTHROPIC_API_KEY=sk-ant-...' > .env.local   # already gitignored
+npm run dev
+```
+
+How it stays safe:
+
+- The key never reaches the browser. `server/directorEndpoint.ts` is a Vite
+  middleware serving `POST /api/director` in **dev and preview only**, so
+  `npm run build` produces a static bundle with no endpoint and no key.
+- **No key is the normal path, not an error path.** With no key, no server, a
+  timeout, or a garbage response, the endpoint answers `204` and the rules
+  engine decides. The game is indistinguishable from before.
+- The model's answer is treated as hostile input. `src/director/llmPlan.ts`
+  bounds every number, enforces the mode and chaos rules `clampModifiers()`
+  can't see, and strips control characters and markdown out of anything headed
+  for the screen.
+- Timing, not speed, is what makes it work: the request is issued the instant a
+  stage starts and is not needed until three seconds before that stage ends, so
+  it has the whole 30–90s stage to answer.
+
+A `⌁` beside `SHIFT n` in the HUD marks a stage the live director wrote.
+`?ai=0` forces the rules engine, `?ai=1` forces the live director on.
+
+Shipping this for real would need the same handler behind a serverless function
+with the key as a platform secret, plus rate limiting and a spend cap.
 
 ## Extending it
 
@@ -77,10 +116,10 @@ scene, a modifier, or a collider.
 The two seams built for a future backend both follow the same swappable-
 interface pattern already used for high scores:
 
-- **`Director`** (`src/director/types.ts`) — implement it with an LLM call and
-  drop it into `ShiftDirectorScene`. `clampModifiers()` sits between any
-  director and the game, so a bad or hostile decision still can't produce an
-  unplayable stage.
+- **`Director`** (`src/director/types.ts`) — `LlmDirector` is the worked
+  example. `clampModifiers()` sits between any director and the game, so a bad
+  or hostile decision can't produce an out-of-range stage; the rules it *can't*
+  see (mode repeats, chaos timing) live in `src/director/llmPlan.ts`.
 - **`TelemetrySink`** — `LocalTelemetrySink` writes runs to `localStorage`
   today; an `HttpTelemetrySink` against a Node/Express API is a drop-in.
 

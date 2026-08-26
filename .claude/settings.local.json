@@ -24,7 +24,8 @@
       "Bash(sed -i '' 's|The mode changes every 90–120 seconds.|The mode changes every 45–75 seconds.|' src/ui/MenuOverlay.tsx)",
       "Bash(sed -i '' 's|A stage is 90-120s and|A stage is 45-75s and|' src/game/scenes/PlatformerScene.ts)",
       "Bash(sed -i '' 's|90-120s clamp so transitions|30-90s clamp so transitions|' src/state/runState.ts)",
-      "Bash(sed -i '' 's|swaps every 90–120 seconds|swaps every 45–75 seconds|' README.md)"
+      "Bash(sed -i '' 's|swaps every 90–120 seconds|swaps every 45–75 seconds|' README.md)",
+      "Bash(node --experimental-strip-types scripts/validate-llm-director.ts)"
     ]
   }
 }

@@ -34,6 +34,19 @@ export const CHAOS_FLAGS: readonly ChaosFlag[] = [
 ]
 
 /**
+ * Chaos flags stay locked until this shift. Inverting a new player's controls
+ * during their second stage does not read as an escalation they earned -- it
+ * reads as the game being broken. By shift 3 they have seen all three modes
+ * and have a baseline to notice the change against.
+ *
+ * Lives here rather than in HeuristicDirector because every director path has
+ * to honour it: the heuristic applies it when choosing, and llmPlan.ts
+ * re-applies it when validating a model's plan. Two copies would drift, and
+ * the drift would surface as exactly the "game is broken" reading above.
+ */
+export const CHAOS_UNLOCK_SHIFT = 3
+
+/**
  * Hard playability bounds. Every numeric modifier is clamped to these before
  * it can reach a scene -- this is the guard that stops a bad decision from
  * producing an unplayable stage, and it matters most for a future LLM-backed

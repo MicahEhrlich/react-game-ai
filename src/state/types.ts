@@ -1,4 +1,5 @@
 import type { ChaosFlag } from '../director/modifiers.ts'
+import type { PlanSource } from '../director/types.ts'
 
 /**
  * The three microgame modes. `erasableSyntaxOnly` bans TS enums, so this is
@@ -63,6 +64,20 @@ export interface GameSnapshot {
    * player has no way to tell an intentional modifier from a bug.
    */
   readonly activeChaos: ChaosFlag | null
+  /**
+   * Which director produced the plan for the CURRENT stage. Rides the existing
+   * per-shift patch rather than adding one, so it costs no extra re-render.
+   * Surfaced in the HUD: it is how you tell a live-director run from a
+   * heuristic one while tuning, and a small hook for the player besides.
+   */
+  readonly directorSource: PlanSource
+  /**
+   * One line about the run just ended, written by the live director. Null
+   * whenever there is no live director, it had nothing to say, or the answer
+   * arrived too late to matter. Arrives a second or two AFTER the game-over
+   * panel opens, which reads as the machine composing the burn.
+   */
+  readonly runEpitaph: string | null
 }
 
 export type GameCommand =

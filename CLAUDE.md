@@ -22,10 +22,15 @@ npm run dev                # dev server on :5173 (prefer the preview tooling ove
 npm run build              # tsc -b && vite build
 npm run typecheck          # tsc -b
 npm run lint               # oxlint
-npm run validate           # both scripts below
-npm run validate-director  # asserts the Director's invariants over ~1800 cases
-npm run validate-runner    # asserts every reachable runner stage is survivable
+npm run validate              # all three scripts below
+npm run validate-director     # asserts the Director's invariants over ~1800 cases
+npm run validate-runner       # asserts every reachable runner stage is survivable
+npm run validate-llm-director # asserts a hostile model response can't reach a stage
 ```
+
+`validate-llm-director` needs no API key and makes no network call: the
+transport is an injected interface, so it drives the real `LlmDirector` with a
+corpus of hostile responses. Run it after touching anything in `src/director/`.
 
 ### Tuning stage length (`public/config/pacing.json`)
 
@@ -60,6 +65,11 @@ bypasses the clamp, and a leftover one is indistinguishable from a bug.
 | `?mods=invertControls` | Force modifiers. Also `?mods=spawnRateScale=2` |
 | `?physics=1` | Arcade physics debug bodies |
 | `?god=1` | Ignore all damage |
+| `?ai=0` | Force the heuristic director. `?ai=1` forces the live one on |
+
+**`?shift=` and the live director don't mix.** A 5s stage cannot fit a request
+plus the 3s warning window, so every stage falls back to the heuristic. That is
+expected, and it looks exactly like the live director being broken.
 
 ## Layout
 
@@ -68,6 +78,10 @@ src/state/      store (discrete -> React), commands (React -> Phaser),
                 runState (survives scene swaps), metrics (per-frame safe)
 src/director/   Director interface, HeuristicDirector, clampModifiers,
                 telemetry sink, stage overrides  (Tasks: AI director + API seam)
+                LlmDirector (cache + fallback), llmPlan (untrusted-response
+                validation), httpTransport, index.ts (the one on/off switch)
+server/         dev+preview-only POST /api/director; the API key lives here and
+                never reaches the browser. Excluded from every build.
 src/game/       config, constants, unified input, touch, audio, taunts,
                 runnerPacing (pure jump/spacing maths, asserted by a script)
   art/          ASCII pixel sprites -> one canvas atlas, built at boot
@@ -94,6 +108,11 @@ fields; each subclass resets its own at the top of `setupMode()`.
 
 **Adding a field and adding its reset is one edit, never two.** Forgetting it
 looks like: stage 1 fine, stage 2 has ghost objects or a flag stuck `true`.
+
+The same rule applies to any non-scene object that outlives a run.
+`LlmDirector` is one: `beginRun()` is its `create()`, and it must reset every
+field and abort anything still in flight. Forgetting it there looks like: run 2
+opens with taunts about run 1.
 
 ### 2. `gameStore` holds discrete state only
 
@@ -149,8 +168,20 @@ member, including `allowGravity: true`, which undoes `Flyer`'s
 and each `setupMode()` interprets. `clampModifiers` forces the numbers into
 playable ranges and enforces "at most one chaos flag". It is applied **last**,
 after the server override and the `?mods=` dev override, so nothing that
-reaches a scene has skipped it. This is what makes a future LLM-backed
-`Director` safe to drop in behind the same interface.
+reaches a scene has skipped it.
+
+**But know what it does not cover.** `clampModifiers` never sees `plan.mode`
+and has no history, so three invariants are outside it entirely:
+
+- the next mode is never the current mode,
+- a chaos flag never lands two stages running,
+- a chaos flag never lands before `CHAOS_UNLOCK_SHIFT`.
+
+`HeuristicDirector` gets all three right by construction. A model does not, so
+for an untrusted plan they are enforced in `director/llmPlan.ts` — **the only
+place**, and the same file that bounds note text before it reaches the overlay.
+A second director path that skips `applyLlmPlan` would break them silently.
+`CHAOS_UNLOCK_SHIFT` lives in `modifiers.ts` so both directors read one copy.
 
 `runState.modifiers` is snapshotted into `ModeScene.mods` at `create()`, so a
 running scene can never desync from the world it built.

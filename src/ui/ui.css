@@ -65,6 +65,11 @@
   color: var(--text);
 }
 
+/* Marks a stage the live director wrote. */
+.hud-ai {
+  color: var(--hot);
+}
+
 .hud-value--mode {
   color: var(--cool);
 }
@@ -153,6 +158,36 @@
   font-size: 12px;
   line-height: 1.6;
   color: var(--dim);
+}
+
+/* The director's parting line. Fades in because it arrives a beat after the
+   panel does -- the delay is the effect, so it should not pop. */
+.panel-epitaph {
+  margin: 0 0 16px;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--warn);
+  border-left: 2px solid var(--hot);
+  text-align: left;
+  animation: epitaph-in 420ms ease-out both;
+}
+
+@keyframes epitaph-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel-epitaph {
+    animation: none;
+  }
 }
 
 .panel-score {

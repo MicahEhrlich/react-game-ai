@@ -1,6 +1,12 @@
 import type { GameMode } from '../state/types.ts'
 import { ALL_MODES, MODE_LABEL } from '../state/types.ts'
-import { CHAOS_FLAGS, CHAOS_LABEL, clampModifiers, DEFAULT_MODIFIERS } from './modifiers.ts'
+import {
+  CHAOS_FLAGS,
+  CHAOS_LABEL,
+  CHAOS_UNLOCK_SHIFT,
+  clampModifiers,
+  DEFAULT_MODIFIERS,
+} from './modifiers.ts'
 import { getPacing } from './pacing.ts'
 import type {
   Director,
@@ -30,14 +36,6 @@ const ACCURACY_LOW = 0.35
 /** Damage per minute above this reads as "this player is drowning". */
 const DPM_HIGH = 45
 const HEALTH_MERCY = 0.3
-
-/**
- * Chaos flags stay locked until this shift. Inverting a new player's controls
- * during their second stage does not read as an escalation they earned -- it
- * reads as the game being broken. By shift 3 they have seen all three modes
- * and have a baseline to notice the change against.
- */
-const CHAOS_UNLOCK_SHIFT = 3
 
 export class HeuristicDirector implements Director {
   /** Injectable so validate-director can make runs reproducible.
