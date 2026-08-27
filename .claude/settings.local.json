@@ -25,7 +25,11 @@
       "Bash(sed -i '' 's|A stage is 90-120s and|A stage is 45-75s and|' src/game/scenes/PlatformerScene.ts)",
       "Bash(sed -i '' 's|90-120s clamp so transitions|30-90s clamp so transitions|' src/state/runState.ts)",
       "Bash(sed -i '' 's|swaps every 90–120 seconds|swaps every 45–75 seconds|' README.md)",
-      "Bash(node --experimental-strip-types scripts/validate-llm-director.ts)"
+      "Bash(node --experimental-strip-types scripts/validate-llm-director.ts)",
+      "Bash(node --experimental-strip-types scripts/validate-director.ts)",
+      "Bash(node --experimental-strip-types scripts/validate-modes.ts)",
+      "Bash(curl -s http://localhost:9222/json/version)",
+      "Bash(node boot-check.mjs \"http://localhost:5173/?ai=0\" p0-baseline.png)"
     ]
   }
 }

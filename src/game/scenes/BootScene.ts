@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { createAnims } from '../art/anims.ts'
 import { buildAtlas } from '../art/atlas.ts'
-import { SCENE } from './keys.ts'
+import { assertModeScenesRegistered, SCENE } from './keys.ts'
 
 /**
  * There is no preload(): all art is built from ASCII pixel data and all core
@@ -15,6 +15,10 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Before anything can launch a mode: fail loudly here rather than with a
+    // black screen twenty seconds into someone's run.
+    assertModeScenesRegistered(this)
+
     buildAtlas(this)
     createAnims(this)
 

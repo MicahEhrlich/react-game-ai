@@ -67,7 +67,8 @@ fields compute.
 npm run build                 # tsc -b && vite build
 npm run typecheck             # tsc -b
 npm run lint                  # oxlint
-npm run validate              # all four invariant scripts below
+npm run validate              # all five invariant scripts below
+npm run validate-modes        # asserts every game mode is fully registered
 npm run validate-director     # asserts the Director can never emit an unplayable stage
 npm run validate-runner       # asserts every reachable runner stage is survivable
 npm run validate-llm-director # asserts a hostile model response can't reach a stage

@@ -1,3 +1,4 @@
+import { ALL_MODES } from '../state/types.ts'
 import { DEFAULT_PACING, getPacing } from './pacing.ts'
 import type { ModifierDraft, StageModifiers } from './types.ts'
 
@@ -36,15 +37,20 @@ export const CHAOS_FLAGS: readonly ChaosFlag[] = [
 /**
  * Chaos flags stay locked until this shift. Inverting a new player's controls
  * during their second stage does not read as an escalation they earned -- it
- * reads as the game being broken. By shift 3 they have seen all three modes
- * and have a baseline to notice the change against.
+ * reads as the game being broken. The player needs ONE FULL SWEEP of the modes
+ * first, so they have a baseline to notice the change against.
+ *
+ * Derived from the mode count, not a literal: "one sweep" is the actual rule,
+ * and a hardcoded 3 was only ever the right number while there happened to be
+ * exactly three modes. A fourth mode would have silently under-protected new
+ * players, which is the one failure this constant exists to prevent.
  *
  * Lives here rather than in HeuristicDirector because every director path has
  * to honour it: the heuristic applies it when choosing, and llmPlan.ts
  * re-applies it when validating a model's plan. Two copies would drift, and
  * the drift would surface as exactly the "game is broken" reading above.
  */
-export const CHAOS_UNLOCK_SHIFT = 3
+export const CHAOS_UNLOCK_SHIFT = ALL_MODES.length
 
 /**
  * Hard playability bounds. Every numeric modifier is clamped to these before

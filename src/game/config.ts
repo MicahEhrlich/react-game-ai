@@ -1,11 +1,31 @@
 import Phaser from 'phaser'
 import { DEV } from '../dev.ts'
+import { ALL_MODES, MODE } from '../state/types.ts'
+import type { GameMode } from '../state/types.ts'
 import { GRAVITY_Y, VIEW_H, VIEW_W } from './constants.ts'
 import { BootScene } from './scenes/BootScene.ts'
 import { PlatformerScene } from './scenes/PlatformerScene.ts'
 import { RunnerScene } from './scenes/RunnerScene.ts'
 import { ShiftDirectorScene } from './scenes/ShiftDirectorScene.ts'
 import { SpaceShooterScene } from './scenes/SpaceShooterScene.ts'
+
+/**
+ * Every mode scene, keyed by mode.
+ *
+ * A Record<GameMode, ...> rather than a bare array, so a mode added to MODE is
+ * a COMPILE ERROR here. The array version failed silently in the worst
+ * possible way: a mode missing from it made ShiftDirectorScene's
+ * `scene.launch()` a no-op, so the run continued with a black screen and
+ * nothing logged anywhere.
+ *
+ * Lives here rather than in scenes/keys.ts because every mode scene imports
+ * keys.ts -- putting scene classes there would be an import cycle.
+ */
+const MODE_SCENES: Readonly<Record<GameMode, new () => Phaser.Scene>> = {
+  [MODE.Platformer]: PlatformerScene,
+  [MODE.Shooter]: SpaceShooterScene,
+  [MODE.Runner]: RunnerScene,
+}
 
 /** Largest integer zoom that fits VIEW_W x VIEW_H inside the given box. */
 export function computeZoom(availW: number, availH: number): number {
@@ -56,12 +76,7 @@ export function createGameConfig(parent: HTMLElement): Phaser.Types.Core.GameCon
     },
     // Only the first entry auto-starts (SceneManager sets autoStart on i===0).
     // Everything else stays inert until BootScene launches or starts it.
-    scene: [
-      BootScene,
-      ShiftDirectorScene,
-      PlatformerScene,
-      SpaceShooterScene,
-      RunnerScene,
-    ],
+    // Mode scenes come from MODE_SCENES so the list can never fall behind MODE.
+    scene: [BootScene, ShiftDirectorScene, ...ALL_MODES.map((m) => MODE_SCENES[m])],
   }
 }

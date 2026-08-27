@@ -2,8 +2,13 @@ import type { ChaosFlag } from '../director/modifiers.ts'
 import type { PlanSource } from '../director/types.ts'
 
 /**
- * The three microgame modes. `erasableSyntaxOnly` bans TS enums, so this is
- * the `as const` object + indexed-union idiom used throughout the codebase.
+ * The microgame modes. `erasableSyntaxOnly` bans TS enums, so this is the
+ * `as const` object + indexed-union idiom used throughout the codebase.
+ *
+ * Adding one here is the start of a trail the compiler walks you down: every
+ * Record<GameMode, ...> below and in keys.ts / config.ts becomes an error
+ * until it is filled in, and `npm run validate-modes` covers the handful of
+ * places no type can reach.
  */
 export const MODE = {
   Platformer: 'platformer',
@@ -12,12 +17,47 @@ export const MODE = {
 } as const
 export type GameMode = (typeof MODE)[keyof typeof MODE]
 
-export const ALL_MODES: readonly GameMode[] = [MODE.Platformer, MODE.Shooter, MODE.Runner]
+/**
+ * DERIVED from MODE, never hand-listed.
+ *
+ * This used to be a literal array, and it was the single most dangerous line
+ * in the codebase for adding a mode: omitting an entry compiled perfectly and
+ * the mode simply ceased to exist -- never picked by either director, rejected
+ * by llmPlan's validation, unreachable via ?mode=. Every other omission at
+ * least broke loudly somewhere.
+ */
+export const ALL_MODES: readonly GameMode[] = Object.values(MODE)
 
+/**
+ * The player-facing name. Keep it to 9 characters or fewer -- it renders in
+ * the HUD's mode slot and as the glitch overlay's headline, and
+ * `npm run validate-modes` fails the build if it grows past that.
+ */
 export const MODE_LABEL: Readonly<Record<GameMode, string>> = {
   [MODE.Platformer]: 'PLATFORM',
   [MODE.Shooter]: 'STARFIGHT',
   [MODE.Runner]: 'OVERDRIVE',
+}
+
+/**
+ * One line per mode, written for the Director's system prompt so the model
+ * knows what it is choosing between.
+ *
+ * A Record rather than prose inside directorPrompt.ts, so a new mode CANNOT
+ * ship undescribed -- previously the prompt listed the modes by hand, and a
+ * mode missing from that list was one the model would pick blind and then
+ * write wrong-flavour taunts about, with nothing anywhere to flag it.
+ *
+ * Build-time constant text only. It is interpolated into SYSTEM, and the
+ * prompt-cache contract requires SYSTEM to be byte-identical on every request
+ * -- "frozen" means "never varies at runtime", not "never computed".
+ */
+export const MODE_BLURB: Readonly<Record<GameMode, string>> = {
+  [MODE.Platformer]:
+    'run and jump across procedural terrain with pits, spikes, fire, walkers and flyers. Rewards patience.',
+  [MODE.Shooter]: 'zero-gravity wave shooter. The only mode that measures accuracy.',
+  [MODE.Runner]:
+    'auto-scrolling. Jump the low blocks, slide the gates. Rewards reaction time.',
 }
 
 export const PHASE = {

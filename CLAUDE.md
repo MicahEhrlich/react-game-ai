@@ -22,7 +22,8 @@ npm run dev                # dev server on :5173 (prefer the preview tooling ove
 npm run build              # tsc -b && vite build
 npm run typecheck          # tsc -b
 npm run lint               # oxlint
-npm run validate              # all four scripts below
+npm run validate              # all five scripts below
+npm run validate-modes        # asserts every game mode is fully registered
 npm run validate-director     # asserts the Director's invariants over ~1800 cases
 npm run validate-runner       # asserts every reachable runner stage is survivable
 npm run validate-llm-director # asserts a hostile model response can't reach a stage
@@ -33,6 +34,28 @@ npm run gen-levels            # re-curates the easy platformer level pack (not a
 `validate-llm-director` needs no API key and makes no network call: the
 transport is an injected interface, so it drives the real `LlmDirector` with a
 corpus of hostile responses. Run it after touching anything in `src/director/`.
+
+### Adding a game mode
+
+Add a key to `MODE` in `src/state/types.ts` and **follow the compile errors** —
+that is the whole procedure. `ALL_MODES` is derived from `MODE`, and every
+place that needs a per-mode decision is a `Record<GameMode, …>`, so the
+compiler names each one: `MODE_LABEL`, `MODE_BLURB` (the line the Director's
+prompt shows the model), `SCENE_FOR_MODE`, and `MODE_SCENES` in `config.ts`.
+Everything mechanical — the metrics fixtures, the response schema's mode enum,
+the telemetry payload, the prompt's "# THE MODES" block — derives from
+`ALL_MODES` and needs no edit at all.
+
+Two things no type can reach, both covered by `npm run validate-modes`: the
+label must be **≤ 9 characters** (it renders in the HUD's mode slot and as the
+glitch overlay's headline), and the blurb must actually describe the mode.
+`BootScene` additionally asserts at boot that every mode routes to a registered
+scene that declares the matching `modeId` — the failure that otherwise shows up
+as a black screen twenty seconds into a run, pointing nowhere near its cause.
+
+`CHAOS_UNLOCK_SHIFT` is `ALL_MODES.length`: chaos flags stay locked until the
+player has seen one full sweep of the modes, so adding a mode delays the first
+chaos flag by one shift automatically.
 
 `gen-levels` sweeps a few thousand platformer seeds at the Easy difficulty
 preset, checks each with the real jump physics (`levelCheck.ts`), and writes

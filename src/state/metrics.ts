@@ -1,6 +1,6 @@
 import type { RunMetrics } from '../director/types.ts'
 import type { GameMode } from './types.ts'
-import { ALL_MODES, MODE } from './types.ts'
+import { ALL_MODES } from './types.ts'
 
 /**
  * Per-frame-safe metric accumulator. This is a plain module with NO listeners,
@@ -35,8 +35,13 @@ function emptyCounters(): Counters {
   }
 }
 
+/** Built from ALL_MODES rather than listed, so a new mode starts at zero
+ *  without an edit here. Same idiom as ratePerMode() below. The cast is only
+ *  safe because ALL_MODES is derived from MODE and so covers every key. */
 function emptyPerMode(): Record<GameMode, number> {
-  return { [MODE.Platformer]: 0, [MODE.Shooter]: 0, [MODE.Runner]: 0 }
+  const out = {} as Record<GameMode, number>
+  for (const m of ALL_MODES) out[m] = 0
+  return out
 }
 
 let windowC = emptyCounters()

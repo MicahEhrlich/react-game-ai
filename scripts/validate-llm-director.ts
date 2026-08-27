@@ -35,6 +35,7 @@ import type {
   StagePlan,
 } from '../src/director/types.ts'
 import { ALL_MODES, MODE, MODE_LABEL } from '../src/state/types.ts'
+import type { GameMode } from '../src/state/types.ts'
 import { makeRng } from '../src/game/rng.ts'
 
 let failures = 0
@@ -48,6 +49,14 @@ function fail(msg: string): void {
  *  pending microtask, however many hops the continuation takes. */
 const tick = (): Promise<void> => new Promise((r) => setTimeout(r, 0))
 
+/** Per-mode fixture with every mode present and zero the default, so adding a
+ *  mode needs no edit here -- an unplayed mode is always legitimately zero. */
+function perMode(over: Partial<Record<GameMode, number>> = {}): Record<GameMode, number> {
+  const out = {} as Record<GameMode, number>
+  for (const m of ALL_MODES) out[m] = 0
+  return { ...out, ...over }
+}
+
 function baseMetrics(over: Partial<RunMetrics> = {}): RunMetrics {
   return {
     mode: MODE.Platformer,
@@ -59,10 +68,18 @@ function baseMetrics(over: Partial<RunMetrics> = {}): RunMetrics {
     jumps: 22,
     avgReactionMs: 310,
     healthFraction: 0.8,
-    msPerMode: { [MODE.Platformer]: 75_000, [MODE.Shooter]: 20_000, [MODE.Runner]: 0 },
+    msPerMode: perMode({ [MODE.Platformer]: 75_000, [MODE.Shooter]: 20_000 }),
     ...over,
   }
 }
+
+/**
+ * A mode string that must NEVER be real, used as the "model invented a mode"
+ * case below. Guarded, because the day someone actually ships a mode by this
+ * name the case silently stops testing anything -- it would start feeding
+ * applyLlmPlan a perfectly valid mode and asserting it gets rejected.
+ */
+const UNKNOWN_MODE = 'roguelike'
 
 function history(over: Partial<DirectorHistory> = {}): DirectorHistory {
   return {
@@ -138,6 +155,16 @@ function assertPlanInvariants(plan: StagePlan, h: DirectorHistory, label: string
 
 console.log('validate-llm-director')
 
+// --- 0: the fixtures themselves are still valid ---------------------------
+// A test corpus can rot into uselessness without ever failing. This is the
+// one fixture whose meaning depends on the rest of the codebase.
+if ((ALL_MODES as readonly string[]).includes(UNKNOWN_MODE)) {
+  fail(
+    `the known-bad mode fixture "${UNKNOWN_MODE}" is now a REAL mode -- ` +
+      'the "mode unknown" case is testing nothing; pick another string',
+  )
+}
+
 // --- 1: a hostile response can never produce an unplayable or unrenderable
 //        stage. Every case is fed through the real applyLlmPlan. -------------
 {
@@ -155,7 +182,7 @@ console.log('validate-llm-director')
     // mode
     ['mode === currentMode', { mode: MODE.Platformer }],
     ['mode wrong case', { mode: 'PLATFORMER' }],
-    ['mode unknown', { mode: 'roguelike' }],
+    ['mode unknown', { mode: UNKNOWN_MODE }],
     ['mode null', { mode: null }],
     ['mode number', { mode: 42 }],
 
@@ -205,10 +232,17 @@ console.log('validate-llm-director')
   const HISTORIES: Array<[string, DirectorHistory]> = [
     ['mid-run', history()],
     ['shift 0', history({ shiftIndex: 0 })],
-    ['shift 2', history({ shiftIndex: 2 })],
+    [
+      `shift ${CHAOS_UNLOCK_SHIFT - 1} (just below the chaos unlock)`,
+      history({ shiftIndex: CHAOS_UNLOCK_SHIFT - 1 }),
+    ],
     ['chaos last stage', history({ shiftIndex: 6, chaosLastStage: true })],
-    ['current=runner', history({ currentMode: MODE.Runner, shiftIndex: 5 })],
-    ['current=shooter', history({ currentMode: MODE.Shooter, shiftIndex: 7 })],
+    // One row per mode as the forbidden current mode, derived so a new mode
+    // joins the hostile-response sweep without an edit here.
+    ...ALL_MODES.map((m, i): [string, DirectorHistory] => [
+      `current=${m}`,
+      history({ currentMode: m, shiftIndex: 5 + i }),
+    ]),
   ]
 
   for (const [hLabel, h] of HISTORIES) {

@@ -16,7 +16,12 @@
  */
 import { readFileSync } from 'node:fs'
 import { HeuristicDirector } from '../src/director/HeuristicDirector.ts'
-import { clampModifiers, DEFAULT_MODIFIERS, hasChaosFlag } from '../src/director/modifiers.ts'
+import {
+  CHAOS_UNLOCK_SHIFT,
+  clampModifiers,
+  DEFAULT_MODIFIERS,
+  hasChaosFlag,
+} from '../src/director/modifiers.ts'
 import { applyPacing, getPacing, resetPacing } from '../src/director/pacing.ts'
 import type { DirectorHistory, RunMetrics, StageModifiers } from '../src/director/types.ts'
 import { ALL_MODES, MODE } from '../src/state/types.ts'
@@ -30,6 +35,14 @@ function fail(msg: string): void {
   failures++
 }
 
+/** Per-mode fixture with every mode present and zero the default, so adding a
+ *  mode needs no edit here -- an unplayed mode is always legitimately zero. */
+function perMode(over: Partial<Record<GameMode, number>> = {}): Record<GameMode, number> {
+  const out = {} as Record<GameMode, number>
+  for (const m of ALL_MODES) out[m] = 0
+  return { ...out, ...over }
+}
+
 function baseMetrics(over: Partial<RunMetrics> = {}): RunMetrics {
   return {
     mode: MODE.Platformer,
@@ -41,7 +54,7 @@ function baseMetrics(over: Partial<RunMetrics> = {}): RunMetrics {
     jumps: 0,
     avgReactionMs: 0,
     healthFraction: 1,
-    msPerMode: { [MODE.Platformer]: 75_000, [MODE.Shooter]: 0, [MODE.Runner]: 0 },
+    msPerMode: perMode({ [MODE.Platformer]: 75_000 }),
     ...over,
   }
 }
@@ -99,11 +112,12 @@ for (const [label, metrics] of Object.entries(PROFILES)) {
         fail(`${label}/${currentMode}/seed ${seed}: chaos flag two stages running`)
       }
 
-      // Chaos stays locked until shift 3: a new player must not have their
-      // controls inverted before they have seen all three modes.
-      if (history.shiftIndex < 3 && hasChaosFlag(plan.modifiers)) {
+      // Chaos stays locked until the player has seen one full sweep of the
+      // modes. Asserted against the constant, not a literal 3, so the check
+      // tracks the mode count instead of silently weakening when it grows.
+      if (history.shiftIndex < CHAOS_UNLOCK_SHIFT && hasChaosFlag(plan.modifiers)) {
         fail(
-          `${label}/${currentMode}/seed ${seed}: chaos flag at shift ${history.shiftIndex} (locked until 3)`,
+          `${label}/${currentMode}/seed ${seed}: chaos flag at shift ${history.shiftIndex} (locked until ${CHAOS_UNLOCK_SHIFT})`,
         )
       }
 
@@ -132,19 +146,19 @@ for (const [label, metrics] of Object.entries(PROFILES)) {
         mode: currentMode,
         damageTaken: shiftIndex % 3 === 0 ? 0 : 30,
         healthFraction: 0.4 + (shiftIndex % 5) * 0.12,
-        msPerMode: {
+        msPerMode: perMode({
           [MODE.Platformer]: 60_000,
           [MODE.Shooter]: 40_000,
           [MODE.Runner]: 20_000,
-        },
+        }),
       }),
       { shiftIndex, currentMode, modeHistory, chaosLastStage },
     )
     if (chaosLastStage && hasChaosFlag(plan.modifiers)) {
       fail(`run sim shift ${shiftIndex}: chaos flag two stages running`)
     }
-    if (shiftIndex < 3 && hasChaosFlag(plan.modifiers)) {
-      fail(`run sim shift ${shiftIndex}: chaos flag before the shift-3 unlock`)
+    if (shiftIndex < CHAOS_UNLOCK_SHIFT && hasChaosFlag(plan.modifiers)) {
+      fail(`run sim shift ${shiftIndex}: chaos flag before the shift-${CHAOS_UNLOCK_SHIFT} unlock`)
     }
     chaosLastStage = hasChaosFlag(plan.modifiers)
     currentMode = plan.mode
