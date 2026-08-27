@@ -111,7 +111,7 @@ ${MODE_LINES}
 
 Pick values inside these ranges. 1.0 is neutral; deviate only when the telemetry justifies it.
 
-  gravityScale         0.5-1.6  floaty <-> heavy. Shooter reads it as downward drift.
+  gravityScale         0.5-1.6  floaty <-> heavy. Shooter reads it as downward drift; BREAKDOWN as how fast the ball accelerates through the stage.
   playerSpeedScale     0.7-1.4  how fast the player moves.
   spawnRateScale       0.5-2.0  hazard density, wave rate, obstacle rate.
   projectileSpeedScale 0.6-1.8  enemy and bullet speed.

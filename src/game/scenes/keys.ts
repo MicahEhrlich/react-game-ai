@@ -8,6 +8,7 @@ export const SCENE = {
   Platformer: 'Platformer',
   Shooter: 'Shooter',
   Runner: 'Runner',
+  Brick: 'Brick',
 } as const
 export type SceneKey = (typeof SCENE)[keyof typeof SCENE]
 
@@ -16,6 +17,7 @@ export const SCENE_FOR_MODE: Readonly<Record<GameMode, SceneKey>> = {
   [MODE.Platformer]: SCENE.Platformer,
   [MODE.Shooter]: SCENE.Shooter,
   [MODE.Runner]: SCENE.Runner,
+  [MODE.Brick]: SCENE.Brick,
 }
 
 /**

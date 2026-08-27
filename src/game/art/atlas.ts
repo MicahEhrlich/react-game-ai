@@ -2,6 +2,9 @@ import type Phaser from 'phaser'
 import { drawSprite, makeCanvas } from './pixels.ts'
 import type { PixelSprite } from './pixels.ts'
 import {
+  BALL,
+  BRICK,
+  BRICK_CRACKED,
   CHIP,
   CROWN,
   DOOR_LOCKED,
@@ -90,6 +93,10 @@ const FRAMES: readonly FrameDef[] = [
   { name: 'shot-enemy', sprite: SHOT_ENEMY },
   // runner
   { name: 'obstacle', sprite: OBSTACLE_BLOCK },
+  // breakout -- no paddle frame, it's a Phaser Rectangle, not a sprite
+  { name: 'ball', sprite: BALL },
+  { name: 'brick', sprite: BRICK },
+  { name: 'brick-cracked', sprite: BRICK_CRACKED },
 ]
 
 /**

@@ -61,6 +61,67 @@ export const RUNNER_REACTION_BUFFER_SEC = 0.3
 /** The buffer floor. Below this, back-to-back obstacles stop being readable. */
 export const RUNNER_REACTION_BUFFER_MIN_SEC = 0.12
 
+// --- Brick (BREAKDOWN) ---
+// Entity-prefixed (BRICK_/PADDLE_/BALL_) rather than mode-prefixed, matching
+// the shooter's SHIP_/SHOT_ style. The maths that consumes these lives in
+// game/brickPacing.ts, pure and Phaser-free, so validate-brick can assert the
+// real numbers rather than copies.
+
+export const BRICK_COLS = 8
+export const BRICK_W = 32
+export const BRICK_H = 16
+export const BRICK_MAX_ROWS = 3
+/** Left edge of the wall. 32 + 8*32 = 288, leaving a 32px margin each side. */
+export const BRICK_WALL_X0 = 32
+/** Centre of the top brick row. Rows step down by BRICK_H from here. */
+export const BRICK_WALL_TOP_Y = 26
+/** A ball rattling with nothing to show for it for this long gets kicked
+ *  toward the wall. Backstop only -- the real anti-stall is the minimum
+ *  vertical velocity fraction below. */
+export const BRICK_STALL_MS = 4000
+
+export const PADDLE_Y = 178
+export const PADDLE_W = 48
+export const PADDLE_H = 8
+/** Instant velocity, not acceleration: InputState has no analog axis, so the
+ *  paddle is driven by a -1|0|1 and an accel curve would feel broken. */
+export const PADDLE_SPEED = 420
+
+export const BALL_R = 3
+export const BALL_SPEED = 140
+/**
+ * Hard ceiling on ball speed after projectileSpeedScale and the gravity ramp.
+ * Load-bearing, exactly like RUNNER_SPEED_CAP: uncapped, the fastest legal
+ * stage puts the ball's HORIZONTAL speed above what the slowest legal paddle
+ * can track, and no amount of skill intercepts it. validate-brick proves the
+ * uncapped case would fail, so this can never be mistaken for belt-and-braces.
+ */
+export const BALL_SPEED_CAP = 195
+/**
+ * Floor on |vy| as a fraction of total speed. A ball trapped in a near-
+ * horizontal bounce is both unwinnable and indistinguishable from a freeze;
+ * this is what makes that shape unrepresentable rather than merely unlikely.
+ */
+export const BALL_MIN_VY_FRACTION = 0.35
+/** Floor on |vx|, so a bounce cannot leave the ball a vertical metronome. */
+export const BALL_MIN_VX_FRACTION = 0.15
+/**
+ * Widest angle off vertical a paddle hit can impart, in degrees. Chosen so a
+ * full-edge hit still leaves |vy| = cos(60°) = 0.5 of total speed, comfortably
+ * above BALL_MIN_VY_FRACTION -- which is what lets deflect() stay a pure,
+ * monotonic rotation with no clamping to distort the player's control.
+ */
+export const BALL_MAX_DEFLECT_DEG = 60
+/**
+ * How much of gravityScale feeds the ball's speed ramp across a stage. The
+ * world's gravity is 0 in this mode (invariant 9), so "the world pulls
+ * harder" has to mean something else; here it means the stage tightens as it
+ * runs. Real downward gravity was rejected -- it destroys the constant-speed
+ * assumption every other piece of this maths rests on, and an accelerating
+ * ball cannot be capped.
+ */
+export const BALL_GRAVITY_RAMP = 0.35
+
 // --- Feel ---
 export const INVULN_MS = 1000
 export const INVULN_BLINK_MS = 80
@@ -78,12 +139,19 @@ export const DMG_ENEMY = 15
 export const DMG_PROJECTILE = 10
 export const DMG_PIT = 25
 export const DMG_OBSTACLE = 20
+/** Losing the ball. Between a projectile (10) and an obstacle (20): six
+ *  losses kill from full, so a bad stage costs you without ending the run. */
+export const DMG_BALL_LOST = 15
 
 // --- Scoring (pre-multiplier base values) ---
 export const SCORE_PICKUP = 100
 export const SCORE_KILL = 150
 export const SCORE_DODGE = 25
 export const SCORE_SURVIVE_SHIFT = 1000
+/** One brick. Between a dodge (25) and a kill (150). */
+export const SCORE_BRICK = 60
+/** Clearing a whole wall, on top of the bricks themselves. */
+export const SCORE_WALL_CLEAR = 500
 
 // --- Shift engine ---
 /** How far ahead of the shift the next stage is planned and the HUD warns. */

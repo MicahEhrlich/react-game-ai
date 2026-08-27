@@ -4,6 +4,7 @@ import { ALL_MODES, MODE } from '../state/types.ts'
 import type { GameMode } from '../state/types.ts'
 import { GRAVITY_Y, VIEW_H, VIEW_W } from './constants.ts'
 import { BootScene } from './scenes/BootScene.ts'
+import { BrickScene } from './scenes/BrickScene.ts'
 import { PlatformerScene } from './scenes/PlatformerScene.ts'
 import { RunnerScene } from './scenes/RunnerScene.ts'
 import { ShiftDirectorScene } from './scenes/ShiftDirectorScene.ts'
@@ -25,6 +26,7 @@ const MODE_SCENES: Readonly<Record<GameMode, new () => Phaser.Scene>> = {
   [MODE.Platformer]: PlatformerScene,
   [MODE.Shooter]: SpaceShooterScene,
   [MODE.Runner]: RunnerScene,
+  [MODE.Brick]: BrickScene,
 }
 
 /** Largest integer zoom that fits VIEW_W x VIEW_H inside the given box. */

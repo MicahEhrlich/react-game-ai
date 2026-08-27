@@ -14,8 +14,9 @@
     "validate-runner": "node --experimental-strip-types scripts/validate-runner.ts",
     "validate-llm-director": "node --experimental-strip-types scripts/validate-llm-director.ts",
     "validate-levels": "node --experimental-strip-types scripts/validate-levels.ts",
+    "validate-brick": "node --experimental-strip-types scripts/validate-brick.ts",
     "gen-levels": "node --experimental-strip-types scripts/gen-levels.ts",
-    "validate": "npm run validate-modes && npm run validate-director && npm run validate-runner && npm run validate-llm-director && npm run validate-levels"
+    "validate": "npm run validate-modes && npm run validate-director && npm run validate-runner && npm run validate-llm-director && npm run validate-levels && npm run validate-brick"
   },
   "dependencies": {
     "phaser": "^4.2.1",

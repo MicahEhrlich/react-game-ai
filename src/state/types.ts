@@ -14,6 +14,7 @@ export const MODE = {
   Platformer: 'platformer',
   Shooter: 'shooter',
   Runner: 'runner',
+  Brick: 'brick',
 } as const
 export type GameMode = (typeof MODE)[keyof typeof MODE]
 
@@ -37,6 +38,10 @@ export const MODE_LABEL: Readonly<Record<GameMode, string>> = {
   [MODE.Platformer]: 'PLATFORM',
   [MODE.Shooter]: 'STARFIGHT',
   [MODE.Runner]: 'OVERDRIVE',
+  // 9 chars, ties STARFIGHT for the longest -- both the wall breaking down
+  // and the machine breaking down, matching the double meaning every other
+  // label carries.
+  [MODE.Brick]: 'BREAKDOWN',
 }
 
 /**
@@ -58,6 +63,8 @@ export const MODE_BLURB: Readonly<Record<GameMode, string>> = {
   [MODE.Shooter]: 'zero-gravity wave shooter. The only mode that measures accuracy.',
   [MODE.Runner]:
     'auto-scrolling. Jump the low blocks, slide the gates. Rewards reaction time.',
+  [MODE.Brick]:
+    'break the wall with a paddle and a ball. Rewards precision and nerve.',
 }
 
 export const PHASE = {

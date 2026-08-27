@@ -533,3 +533,82 @@ export const PLAYER_SLIDE: PixelSprite = [
   '....MMM..MMM....',
   '................',
 ]
+
+// --- Breakout mode ------------------------------------------------------
+// BREAKDOWN's paddle is a Phaser Rectangle, not a sprite -- it needs no art
+// here. The ball and the two brick states are the whole of this section.
+
+/** The ball: a filled circle roughly matching BALL_R's 3px physics radius,
+ *  drawn a touch larger so it reads clearly against the wall and paddle. */
+export const BALL: PixelSprite = [
+  '................',
+  '................',
+  '................',
+  '................',
+  '......CCCC......',
+  '.....CccccC.....',
+  '....CccwcccC....',
+  '....CcwwcccC....',
+  '....CccccccC....',
+  '....CccccccC....',
+  '.....CccccC.....',
+  '......CCCC......',
+  '................',
+  '................',
+  '................',
+  '................',
+]
+
+/**
+ * A single brick, at full health. Drawn at setScale(2, 1) in the scene, so
+ * only horizontal detail gets stretched -- the bevel is what survives that:
+ * a bright top/left edge, a dark bottom/right edge, and a mortar course
+ * through the middle so it still reads as "brick" rather than "button".
+ */
+export const BRICK: PixelSprite = [
+  'mmmmmmmmmmmmmmmm',
+  'mddddddddddddddM',
+  'mddddddddddddddM',
+  'mddddddddddddddM',
+  'mddddddddddddddM',
+  'mddddddddddddddM',
+  'mddddddddddddddM',
+  'mkkkkkkkkkkkkkkM',
+  'mkkkkkkkkkkkkkkM',
+  'mddddddddddddddM',
+  'mddddddddddddddM',
+  'mddddddddddddddM',
+  'mddddddddddddddM',
+  'mddddddddddddddM',
+  'mddddddddddddddM',
+  'mMMMMMMMMMMMMMMM',
+]
+
+/**
+ * The same brick after its first hit -- a visible fracture, so a two-hit
+ * brick reads as "about to break" rather than looking untouched.
+ *
+ * The crack is 'k' (near-black, #08060f) against the 'd' fill (#1b1830) --
+ * genuinely darker, so it reads as a shadowed fracture. The first attempt
+ * used 'D' (#3b3560), which is LIGHTER than the fill: backwards for a crack,
+ * and too low-contrast to read at gameplay scale. Two pixels wide so it
+ * survives the scene's setScale(2, 1) stretch.
+ */
+export const BRICK_CRACKED: PixelSprite = [
+  'mmmmmmmmmmmmmmmm',
+  'mddddddddddddddM',
+  'mddddddddddddddM',
+  'mdkkkdddkddddddM',
+  'mddkkkddkddddddM',
+  'mdddkkkddkdddddM',
+  'mddddkkkdkdddddM',
+  'mkkkkkkkkkkkkkkM',
+  'mkkkkkkkkkkkkkkM',
+  'mddddddddkkkdddM',
+  'mdddddddddkkkddM',
+  'mddddddddddkkkdM',
+  'mdddddddddddkkkM',
+  'mddddddddddddddM',
+  'mddddddddddddddM',
+  'mMMMMMMMMMMMMMMM',
+]

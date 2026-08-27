@@ -27,6 +27,18 @@ import { addFog } from '../art/fog.ts'
  * its own at the top of setupMode(). Adding a field and its reset is one edit,
  * never two.
  */
+/**
+ * What the base class needs from "the player's on-screen thing": a position
+ * to centre the fog on, and a visibility flag to blink for i-frames. A plain
+ * Sprite satisfies this, and so does a Rectangle -- which is what widens this
+ * from Sprite to an intersection: BREAKDOWN's paddle is a
+ * Phaser.GameObjects.Rectangle, not a sprite, and both classes already
+ * implement Transform and Visible directly (verified against phaser.d.ts).
+ */
+type AvatarLike = Phaser.GameObjects.GameObject &
+  Phaser.GameObjects.Components.Transform &
+  Phaser.GameObjects.Components.Visible
+
 export abstract class ModeScene extends Phaser.Scene {
   abstract readonly modeId: GameMode
 
@@ -38,7 +50,7 @@ export abstract class ModeScene extends Phaser.Scene {
   protected controls!: InputReader
 
   /** Assigned by setupMode(); the base handles its invulnerability blink. */
-  protected avatar: Phaser.GameObjects.Sprite | null = null
+  protected avatar: AvatarLike | null = null
 
   private invulnUntil = 0
   private fog: Phaser.GameObjects.Image | null = null
@@ -55,6 +67,27 @@ export abstract class ModeScene extends Phaser.Scene {
 
   protected get isInvulnerable(): boolean {
     return this.time.now < this.invulnUntil
+  }
+
+  /**
+   * What the fog spotlight follows. Defaults to the avatar, which is right
+   * for every mode where the player character is the thing you must watch.
+   *
+   * BREAKDOWN is not one of those: the player controls the paddle at a fixed
+   * y near the bottom of the view, but must watch the BALL, which spends most
+   * of a rally far from the paddle. A paddle-anchored spotlight would leave
+   * the ball dim-to-invisible for most of its flight (measured against the
+   * fog's actual gradient stops: the clear radius from a paddle at y=178
+   * only reaches y=~109). BrickScene overrides this to return the ball.
+   *
+   * A GETTER, not a field: a field would need its own invariant-1 reset, and
+   * worse, it would go on pointing at a destroyed ball across a respawn --
+   * updateFog() reads .x/.y on a destroyed GameObject without throwing, so
+   * the spotlight would silently freeze at the point of loss. Overriding the
+   * getter to always return the CURRENT ball sidesteps both problems.
+   */
+  protected get fogAnchor(): AvatarLike | null {
+    return this.avatar
   }
 
   create(): void {
@@ -186,10 +219,10 @@ export abstract class ModeScene extends Phaser.Scene {
     )
   }
 
-  /** Keeps the fog spotlight centred on the avatar's on-screen position. */
+  /** Keeps the fog spotlight centred on the anchor's on-screen position. */
   private updateFog(): void {
     const f = this.fog
-    const a = this.avatar
+    const a = this.fogAnchor
     if (!f || !a) return
     const cam = this.cameras.main
     f.setPosition(a.x - cam.scrollX, a.y - cam.scrollY)
