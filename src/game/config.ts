@@ -3,6 +3,7 @@ import { DEV } from '../dev.ts'
 import { ALL_MODES, MODE } from '../state/types.ts'
 import type { GameMode } from '../state/types.ts'
 import { GRAVITY_Y, VIEW_H, VIEW_W } from './constants.ts'
+import { computeZoom } from './scale.ts'
 import { BootScene } from './scenes/BootScene.ts'
 import { BrickScene } from './scenes/BrickScene.ts'
 import { PlatformerScene } from './scenes/PlatformerScene.ts'
@@ -29,10 +30,7 @@ const MODE_SCENES: Readonly<Record<GameMode, new () => Phaser.Scene>> = {
   [MODE.Brick]: BrickScene,
 }
 
-/** Largest integer zoom that fits VIEW_W x VIEW_H inside the given box. */
-export function computeZoom(availW: number, availH: number): number {
-  return Math.max(1, Math.floor(Math.min(availW / VIEW_W, availH / VIEW_H)))
-}
+export { computeZoom }
 
 export function createGameConfig(parent: HTMLElement): Phaser.Types.Core.GameConfig {
   return {

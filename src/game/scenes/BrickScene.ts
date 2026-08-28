@@ -106,7 +106,13 @@ export class BrickScene extends ModeScene {
 
   protected updateMode(input: InputState, time: number, _delta: number): void {
     const body = this.paddle.body as Phaser.Physics.Arcade.Body
-    body.setVelocityX(input.dirX * this.playerSpeed(PADDLE_SPEED))
+    if (input.directTouch && input.aimX !== null) {
+      const dx = input.aimX - this.paddle.x
+      const deadZone = 4
+      body.setVelocityX(Math.abs(dx) > deadZone ? Math.sign(dx) * this.playerSpeed(PADDLE_SPEED) : 0)
+    } else {
+      body.setVelocityX(input.dirX * this.playerSpeed(PADDLE_SPEED))
+    }
 
     this.rampBallSpeed()
     this.handleBounds()

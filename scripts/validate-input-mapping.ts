@@ -1,7 +1,9 @@
 import { DEFAULT_MODIFIERS } from '../src/director/modifiers.ts'
 import { mapInputForMode } from '../src/game/inputMapping.ts'
 import type { RawInputState } from '../src/game/inputMapping.ts'
+import { VIEW_H, VIEW_W } from '../src/game/constants.ts'
 import { MODE } from '../src/state/types.ts'
+import { viewportToGamePoint } from '../src/ui/touchGeometry.ts'
 
 function fail(message: string): never {
   console.error(`validate-input-mapping: ${message}`)
@@ -19,6 +21,9 @@ const neutral: RawInputState = {
   slideJustPressed: false,
   actionHeld: false,
   actionJustPressed: false,
+  aimX: null,
+  aimY: null,
+  directTouch: false,
 }
 
 const normal = DEFAULT_MODIFIERS
@@ -81,6 +86,30 @@ const inverted = { ...DEFAULT_MODIFIERS, invertControls: true }
   if (input.dirX !== -1 || input.dirY !== -1) fail('runner inverted axes should not flip')
 }
 
+{
+  const input = mapInputForMode(
+    { ...neutral, directTouch: true, aimX: 120, aimY: 80 },
+    MODE.Shooter,
+    normal,
+  )
+  if (!input.actionHeld) fail('mobile shooter did not auto-fire')
+  if (input.aimX !== 120 || input.aimY !== 80 || !input.directTouch) {
+    fail('mobile shooter target did not survive input mapping')
+  }
+}
+
+{
+  const input = mapInputForMode(
+    { ...neutral, directTouch: true, aimX: 40, aimY: 120 },
+    MODE.Brick,
+    normal,
+  )
+  if (input.aimX !== 40 || input.aimY !== 120 || !input.directTouch) {
+    fail('mobile brick target did not survive input mapping')
+  }
+  if (input.actionHeld) fail('mobile brick incorrectly auto-fired')
+}
+
 for (const mode of Object.values(MODE)) {
   const input = mapInputForMode(neutral, mode, inverted)
   if (
@@ -90,10 +119,25 @@ for (const mode of Object.values(MODE)) {
     input.actionJustPressed ||
     input.jumpHeld ||
     input.jumpJustPressed ||
-    input.slideHeld
+    input.slideHeld ||
+    input.directTouch ||
+    input.aimX !== null ||
+    input.aimY !== null
   ) {
     fail(`${mode} neutral input was not neutral`)
   }
+}
+
+{
+  const rect = { left: 10, top: 20, width: 640, height: 360 }
+  const topLeft = viewportToGamePoint(10, 20, rect)
+  const bottomRight = viewportToGamePoint(650, 380, rect)
+  const clamped = viewportToGamePoint(999, -999, rect)
+  if (topLeft.x !== 0 || topLeft.y !== 0) fail('touch geometry did not map top-left to 0,0')
+  if (bottomRight.x !== VIEW_W || bottomRight.y !== VIEW_H) {
+    fail('touch geometry did not map bottom-right to game bounds')
+  }
+  if (clamped.x !== VIEW_W || clamped.y !== 0) fail('touch geometry did not clamp out-of-bounds input')
 }
 
 console.log('validate-input-mapping')

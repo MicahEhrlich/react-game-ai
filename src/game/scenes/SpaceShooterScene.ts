@@ -100,7 +100,17 @@ export class SpaceShooterScene extends ModeScene {
 
   protected updateMode(input: InputState, time: number, _delta: number): void {
     const speed = this.playerSpeed(SHIP_SPEED)
-    this.ship.setVelocity(input.dirX * speed, input.dirY * speed)
+    if (input.directTouch && input.aimX !== null && input.aimY !== null) {
+      const dx = input.aimX - this.ship.x
+      const dy = input.aimY - this.ship.y
+      const deadZone = 5
+      this.ship.setVelocity(
+        Math.abs(dx) > deadZone ? Math.sign(dx) * speed : 0,
+        Math.abs(dy) > deadZone ? Math.sign(dy) * speed : 0,
+      )
+    } else {
+      this.ship.setVelocity(input.dirX * speed, input.dirY * speed)
+    }
 
     // gravityScale has no gravity to scale here, so the shooter reads it as a
     // constant downward drift -- the modifier still means "the world pulls on

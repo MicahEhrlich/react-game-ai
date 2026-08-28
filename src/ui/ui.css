@@ -507,6 +507,14 @@
   pointer-events: none;
 }
 
+.touch--direct {
+  inset: 0;
+  display: block;
+  padding: 0;
+  pointer-events: auto;
+  touch-action: none;
+}
+
 .touch-pad,
 .touch-actions {
   display: flex;
@@ -543,6 +551,15 @@
 
 .touch-btn--fire {
   border-color: var(--hot);
+}
+
+.touch-btn--runner-slide {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  width: 68px;
+  height: 58px;
+  pointer-events: auto;
 }
 
 @media (prefers-reduced-motion: reduce) {

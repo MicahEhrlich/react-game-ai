@@ -7,6 +7,9 @@
 export interface TouchState {
   dirX: -1 | 0 | 1
   dirY: -1 | 0 | 1
+  aimX: number | null
+  aimY: number | null
+  directTouch: boolean
   action: boolean
   jumpHeld: boolean
   /** Set true for exactly one read by the consumer, then cleared. */
@@ -19,6 +22,9 @@ export interface TouchState {
 const state: TouchState = {
   dirX: 0,
   dirY: 0,
+  aimX: null,
+  aimY: null,
+  directTouch: false,
   action: false,
   jumpHeld: false,
   jumpEdge: false,
@@ -46,6 +52,27 @@ export const touch = {
     state.action = down
     touchSeen = true
   },
+  setAim(x: number, y: number): void {
+    state.aimX = x
+    state.aimY = y
+    state.directTouch = true
+    touchSeen = true
+  },
+  clearAim(): void {
+    state.aimX = null
+    state.aimY = null
+    state.directTouch = false
+  },
+  releaseHeld(): void {
+    state.dirX = 0
+    state.dirY = 0
+    state.aimX = null
+    state.aimY = null
+    state.directTouch = false
+    state.action = false
+    state.jumpHeld = false
+    state.slide = false
+  },
   setSlide(down: boolean): void {
     if (down && !state.slide) state.slideEdge = true
     state.slide = down
@@ -72,6 +99,9 @@ export const touch = {
   releaseAll(): void {
     state.dirX = 0
     state.dirY = 0
+    state.aimX = null
+    state.aimY = null
+    state.directTouch = false
     state.action = false
     state.jumpHeld = false
     state.jumpEdge = false

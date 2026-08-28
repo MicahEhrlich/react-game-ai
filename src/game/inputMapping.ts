@@ -5,6 +5,9 @@ import type { GameMode } from '../state/types.ts'
 export interface InputState {
   readonly dirX: -1 | 0 | 1
   readonly dirY: -1 | 0 | 1
+  readonly aimX: number | null
+  readonly aimY: number | null
+  readonly directTouch: boolean
   readonly actionHeld: boolean
   readonly actionJustPressed: boolean
   readonly jumpHeld: boolean
@@ -15,6 +18,9 @@ export interface InputState {
 export const NEUTRAL_INPUT: InputState = {
   dirX: 0,
   dirY: 0,
+  aimX: null,
+  aimY: null,
+  directTouch: false,
   actionHeld: false,
   actionJustPressed: false,
   jumpHeld: false,
@@ -33,6 +39,9 @@ export interface RawInputState {
   readonly slideJustPressed: boolean
   readonly actionHeld: boolean
   readonly actionJustPressed: boolean
+  readonly aimX: number | null
+  readonly aimY: number | null
+  readonly directTouch: boolean
 }
 
 function axis(neg: boolean, pos: boolean): -1 | 0 | 1 {
@@ -51,6 +60,7 @@ export function mapInputForMode(
   let jumpHeld = raw.jumpHeld
   let jumpJustPressed = raw.jumpJustPressed
   let slideHeld = raw.slideHeld
+  let actionHeld = raw.actionHeld
 
   if (mods.invertControls && modeId === MODE.Runner) {
     jumpHeld = raw.slideHeld
@@ -61,10 +71,15 @@ export function mapInputForMode(
     dirY = -dirY as -1 | 0 | 1
   }
 
+  if (raw.directTouch && modeId === MODE.Shooter) actionHeld = true
+
   return {
     dirX,
     dirY,
-    actionHeld: raw.actionHeld,
+    aimX: raw.aimX,
+    aimY: raw.aimY,
+    directTouch: raw.directTouch,
+    actionHeld,
     actionJustPressed: raw.actionJustPressed,
     jumpHeld,
     jumpJustPressed,

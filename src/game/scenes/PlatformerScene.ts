@@ -97,7 +97,7 @@ export class PlatformerScene extends ModeScene {
   }
 
   protected updateMode(input: InputState, _time: number, delta: number): void {
-    this.player.drive(input, delta)
+    this.player.drive(this.mobileSteeringInput(input), delta)
     for (const e of this.enemies) e.patrol()
 
     const body = this.player.body as Phaser.Physics.Arcade.Body
@@ -219,6 +219,14 @@ export class PlatformerScene extends ModeScene {
   }
 
   // --- events -------------------------------------------------------------
+
+  private mobileSteeringInput(input: InputState): InputState {
+    if (!input.directTouch || input.aimX === null) return input
+    const targetX = this.cameras.main.scrollX + input.aimX
+    const deadZone = 8
+    const dirX = targetX < this.player.x - deadZone ? -1 : targetX > this.player.x + deadZone ? 1 : 0
+    return { ...input, dirX }
+  }
 
   private collectChip(chip: Phaser.Physics.Arcade.Sprite): void {
     if (!chip.active) return

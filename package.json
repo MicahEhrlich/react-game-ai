@@ -21,8 +21,9 @@
     "validate-audio-settings": "node --experimental-strip-types scripts/validate-audio-settings.ts",
     "validate-phase-damage": "node --experimental-strip-types scripts/validate-phase-damage.ts",
     "validate-input-mapping": "node --experimental-strip-types scripts/validate-input-mapping.ts",
+    "validate-scale": "node --experimental-strip-types scripts/validate-scale.ts",
     "gen-levels": "node --experimental-strip-types scripts/gen-levels.ts",
-    "validate": "npm run validate-modes && npm run validate-director && npm run validate-runner && npm run validate-llm-director && npm run validate-levels && npm run validate-brick && npm run validate-meme-theme && npm run validate-trend-seeds && npm run validate-music && npm run validate-audio-settings && npm run validate-phase-damage && npm run validate-input-mapping"
+    "validate": "npm run validate-modes && npm run validate-director && npm run validate-runner && npm run validate-llm-director && npm run validate-levels && npm run validate-brick && npm run validate-meme-theme && npm run validate-trend-seeds && npm run validate-music && npm run validate-audio-settings && npm run validate-phase-damage && npm run validate-input-mapping && npm run validate-scale"
   },
   "dependencies": {
     "phaser": "^4.2.1",
