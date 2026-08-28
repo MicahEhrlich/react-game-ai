@@ -164,6 +164,7 @@ export class PlatformerScene extends ModeScene {
           h.setTexture(sprite.key, sprite.frame)
           h.setDepth(DEPTH.Terrain)
           h.setTint(this.memeAccent(1, 0xff3ea5))
+          this.addMemeDecal(s.x, s.y - 13, this.memeTheme.modeFlavor[this.modeId].hazard, 1)
           if (s.kind === SPAWN.Fire && sprite.key === ATLAS_KEY) h.anims.play(ANIM.Fire, true)
           break
         }
@@ -184,6 +185,7 @@ export class PlatformerScene extends ModeScene {
           )
           w.setDepth(DEPTH.Enemy)
           w.setTint(this.memeAccent(0, 0x3ef0ff))
+          this.addMemeDecal(s.x, s.y - 16, this.memeTheme.modeFlavor[this.modeId].enemy, 0)
           this.physics.add.collider(w, this.solids)
           this.enemies.push(w)
           break
@@ -199,6 +201,7 @@ export class PlatformerScene extends ModeScene {
           )
           f.setDepth(DEPTH.Enemy)
           f.setTint(this.memeAccent(2, 0xff3ea5))
+          this.addMemeDecal(s.x, s.y - 15, this.memeTheme.modeFlavor[this.modeId].enemy, 2)
           this.enemies.push(f)
           break
         }
@@ -227,6 +230,18 @@ export class PlatformerScene extends ModeScene {
       ...input,
       dirX: platformerTouchDirX(input.aimX, this.cameras.main.scrollX, this.player.x),
     }
+  }
+
+  private addMemeDecal(x: number, y: number, label: string, paletteIndex: number): void {
+    this.add
+      .text(x, y, label, {
+        fontFamily: 'ui-monospace, Menlo, Consolas, monospace',
+        fontSize: '7px',
+        color: this.memeTheme.palette[paletteIndex % this.memeTheme.palette.length] ?? '#3ef0ff',
+      })
+      .setOrigin(0.5)
+      .setDepth(DEPTH.Background)
+      .setAlpha(0.82)
   }
 
   private collectChip(chip: Phaser.Physics.Arcade.Sprite): void {

@@ -166,6 +166,7 @@ export class SpaceShooterScene extends ModeScene {
     bolt.setTint(this.memeAccent(0, 0x3ef0ff))
     bolt.setVelocityX(dir * this.projectileSpeed(SHOT_SPEED))
     ;(bolt.body as Phaser.Physics.Arcade.Body).setAllowGravity(false).setSize(10, 4).setOffset(3, 6)
+    this.addMemeTrail(bolt.x - dir * 13, bolt.y - 6, this.memeTheme.modeFlavor[this.modeId].projectile, 0)
     sfx.shoot()
     metrics.shotFired()
   }
@@ -183,6 +184,7 @@ export class SpaceShooterScene extends ModeScene {
       .setDepth(DEPTH.Enemy)
       .setFlipX(dir === -1)
     enemy.setTint(this.memeAccent(1, 0xff3ea5))
+    this.addMemeTrail(enemy.x - dir * 16, enemy.y - 13, this.memeTheme.modeFlavor[this.modeId].enemy, 1)
     if (sprite.key === ATLAS_KEY) enemy.anims.play(ANIM.Gunship, true)
     ;(enemy.body as Phaser.Physics.Arcade.Body)
       .setAllowGravity(false)
@@ -216,7 +218,21 @@ export class SpaceShooterScene extends ModeScene {
     bolt.setTint(this.memeAccent(2, 0xffe14d))
     bolt.setVelocityX(-dir * this.projectileSpeed(ENEMY_SHOT_SPEED))
     ;(bolt.body as Phaser.Physics.Arcade.Body).setAllowGravity(false).setSize(6, 6).setOffset(5, 5)
+    this.addMemeTrail(bolt.x + dir * 11, bolt.y - 6, this.memeTheme.modeFlavor[this.modeId].projectile, 2)
     sfx.enemyShoot()
+  }
+
+  private addMemeTrail(x: number, y: number, label: string, paletteIndex: number): void {
+    const txt = this.add
+      .text(x, y, label, {
+        fontFamily: 'ui-monospace, Menlo, Consolas, monospace',
+        fontSize: '7px',
+        color: this.memeTheme.palette[paletteIndex % this.memeTheme.palette.length] ?? '#3ef0ff',
+      })
+      .setOrigin(0.5)
+      .setDepth(DEPTH.Background)
+      .setAlpha(0.85)
+    this.tweens.add({ targets: txt, alpha: 0, y: y - 6, duration: 900, onComplete: () => txt.destroy() })
   }
 
   private onShotHit(

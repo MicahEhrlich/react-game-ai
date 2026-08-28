@@ -1,7 +1,9 @@
 import {
   MEME_THEME_SOURCE,
   OFFLINE_MEME_THEMES,
+  OFFLINE_MEME_THEME_IDS,
   normaliseMemeTheme,
+  offlineMemeThemeById,
   offlineMemeThemeForDate,
   ALL_MEME_SPRITE_ROLES,
 } from '../src/memeTheme/index.ts'
@@ -76,6 +78,16 @@ const validDraft = {
 
 console.log('validate-meme-theme')
 
+{
+  const seen = new Set<string>()
+  for (const id of OFFLINE_MEME_THEME_IDS) {
+    if (!/^[a-z0-9-]+$/.test(id)) fail(`offline theme id ${id} is not URL-safe`)
+    if (seen.has(id)) fail(`duplicate offline theme id ${id}`)
+    seen.add(id)
+  }
+  if (seen.size !== OFFLINE_MEME_THEMES.length) fail('offline theme id export drifted')
+}
+
 for (const t of OFFLINE_MEME_THEMES) {
   const theme = normaliseMemeTheme(t, '2026-08-27', MEME_THEME_SOURCE.Offline)
   if (!theme) {
@@ -87,6 +99,30 @@ for (const t of OFFLINE_MEME_THEMES) {
   } else {
     for (const role of ALL_MEME_SPRITE_ROLES) {
       if (!theme.spritePack[role]) fail(`offline theme ${t.id} is missing ${role}`)
+    }
+  }
+}
+
+{
+  const sixSeven = offlineMemeThemeById('six-seven', '2026-08-27')
+  if (!sixSeven || sixSeven.label !== 'SIX SEVEN' || !sixSeven.spritePack || !sixSeven.musicPlan) {
+    fail('offlineMemeThemeById did not return a valid SIX SEVEN theme')
+  }
+  if (offlineMemeThemeById('not-a-theme', '2026-08-27') !== null) {
+    fail('offlineMemeThemeById accepted an invalid id')
+  }
+}
+
+{
+  const byId = new Map(OFFLINE_MEME_THEMES.map((t) => [t.id, t]))
+  const trendIds = ['six-seven', 'rizz-circuit', 'npc-stream'] as const
+  for (const id of trendIds) {
+    const theme = byId.get(id)
+    if (!theme?.spritePack) fail(`${id} has no sprite pack`)
+    for (const other of OFFLINE_MEME_THEMES) {
+      if (other.id !== id && other.spritePack === theme?.spritePack) {
+        fail(`${id} reuses sprite pack object from ${other.id}`)
+      }
     }
   }
 }
@@ -189,6 +225,38 @@ for (const [name, fetcher] of failingFetchers) {
   await loadDailyMemeTheme('2026-08-27', fetcher, store)
   await loadDailyMemeTheme('2026-08-27', fetcher, store)
   if (calls !== 1) fail(`daily failed-attempt cache called fetch ${calls} times`)
+}
+
+{
+  let calls = 0
+  const theme = await loadDailyMemeTheme(
+    '2026-08-27',
+    async () => {
+      calls++
+      return response(200, validDraft)
+    },
+    memoryStorage(),
+    'six-seven',
+  )
+  if (theme.id !== 'six-seven' || theme.source !== MEME_THEME_SOURCE.Offline) {
+    fail('forced offline meme id did not win over live fetch')
+  }
+  if (calls !== 0) fail('forced offline meme id still called live fetch')
+}
+
+{
+  let calls = 0
+  const theme = await loadDailyMemeTheme(
+    '2026-08-27',
+    async () => {
+      calls++
+      return response(200, validDraft)
+    },
+    memoryStorage(),
+    'not-a-theme',
+  )
+  if (theme.source !== MEME_THEME_SOURCE.Live) fail('invalid forced meme id did not fall back to normal daily flow')
+  if (calls !== 1) fail('invalid forced meme id did not attempt live fetch')
 }
 
 if (failures > 0) {

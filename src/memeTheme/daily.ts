@@ -2,6 +2,7 @@ import {
   MEME_THEME_SOURCE,
   localDateKey,
   normaliseMemeTheme,
+  offlineMemeThemeById,
   offlineMemeThemeForDate,
 } from './index.ts'
 import type { MemeTheme } from './index.ts'
@@ -98,7 +99,11 @@ export async function loadDailyMemeTheme(
   date = localDateKey(),
   fetcher: MemeThemeFetch = fetch,
   store: MemeThemeStorage | null = storage(),
+  forcedOfflineId?: string | null,
 ): Promise<MemeTheme> {
+  const forced = offlineMemeThemeById(forcedOfflineId, date)
+  if (forced) return forced
+
   const offline = offlineMemeThemeForDate(date)
   const cached = readCached(store, date)
   if (cached?.date === date) return cached

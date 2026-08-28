@@ -45,6 +45,7 @@ export class BrickScene extends ModeScene {
   private paddle!: Phaser.GameObjects.Rectangle
   private ball!: Phaser.Physics.Arcade.Sprite
   private bricks!: Phaser.Physics.Arcade.StaticGroup
+  private brickLabels: Phaser.GameObjects.Text[] = []
   private rng: Rng = makeRng(1)
   private lastUsefulHitMs = 0
 
@@ -60,6 +61,7 @@ export class BrickScene extends ModeScene {
 
   protected setupMode(): void {
     this.rng = makeRng(Math.floor(Math.random() * 0xffffffff))
+    this.brickLabels = []
     this.lastUsefulHitMs = this.time.now
 
     // A shooter (or a stub) with the platformer's gravity still applied is
@@ -124,6 +126,7 @@ export class BrickScene extends ModeScene {
 
   protected teardownMode(): void {
     this.bricks?.clear(true, true)
+    this.clearBrickLabels()
   }
 
   private buildBackdrop(): void {
@@ -136,6 +139,7 @@ export class BrickScene extends ModeScene {
 
   private buildWall(): void {
     this.bricks.clear(true, true)
+    this.clearBrickLabels()
     const sprite = this.memeSprite(MEME_SPRITE_ROLE.Brick, 'brick')
     for (const spec of wallLayout(this.mods.spawnRateScale, this.mods.mirrorWorld, this.rng)) {
       const brick = this.bricks
@@ -143,10 +147,27 @@ export class BrickScene extends ModeScene {
         .setDepth(DEPTH.Terrain)
         .setScale(2, 1) as Brick
       brick.setTint(this.memeAccent(spec.row, 0xff3ea5))
+      if (spec.col === 0 || spec.col === 6) {
+        const label = this.add
+          .text(spec.x, spec.y, this.brickStamp(spec.row), {
+            fontFamily: 'ui-monospace, Menlo, Consolas, monospace',
+            fontSize: '8px',
+            color: this.memeTheme.palette[(spec.row + 1) % this.memeTheme.palette.length] ?? '#ffffff',
+          })
+          .setOrigin(0.5)
+          .setDepth(DEPTH.Terrain + 1)
+          .setAlpha(0.86)
+        this.brickLabels.push(label)
+      }
       brick.setData('hp', spec.hits)
       brick.refreshBody()
       ;(brick.body as Phaser.Physics.Arcade.StaticBody).setSize(BRICK_W, BRICK_H).updateFromGameObject()
     }
+  }
+
+  private clearBrickLabels(): void {
+    for (const label of this.brickLabels) label.destroy()
+    this.brickLabels = []
   }
 
   private spawnBall(): void {
@@ -162,6 +183,13 @@ export class BrickScene extends ModeScene {
       .setBounce(1, 1)
     this.launchBall(-1)
     this.lastUsefulHitMs = this.time.now
+  }
+
+  private brickStamp(row: number): string {
+    if (this.memeTheme.id === 'six-seven') return row % 2 === 0 ? '6' : '7'
+    if (this.memeTheme.id === 'npc-stream') return row % 2 === 0 ? 'NPC' : 'LOOP'
+    if (this.memeTheme.id === 'rizz-circuit') return row % 2 === 0 ? 'AURA' : 'RIZZ'
+    return this.memeTheme.modeFlavor[this.modeId].brick.slice(0, 4)
   }
 
   private launchBall(verticalSign: 1 | -1): void {

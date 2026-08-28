@@ -15,6 +15,7 @@ import { ALL_MODES } from './state/types.ts'
  *   ?god=1                            ignore all damage
  *   ?ai=0                             force the heuristic director
  *   ?ai=1                             force the live director on
+ *   ?meme=six-seven                   force a bundled offline meme theme
  *   ?difficulty=easy                  apply the Easy modifier preset, and
  *                                     have the platformer pick from the
  *                                     curated easy level pack instead of a
@@ -53,6 +54,7 @@ function parse() {
       god: false,
       ai: null,
       difficulty: null,
+      memeId: null,
     }
   }
 
@@ -87,6 +89,7 @@ function parse() {
   // the live director off in dev without ?ai=1 being needed to keep it on.
   const rawAi = q.get('ai')
   const ai = rawAi === '1' ? true : rawAi === '0' ? false : null
+  const memeId = q.get('meme')
 
   return {
     mode,
@@ -96,6 +99,7 @@ function parse() {
     god: q.get('god') === '1',
     ai,
     difficulty,
+    memeId,
   }
 }
 

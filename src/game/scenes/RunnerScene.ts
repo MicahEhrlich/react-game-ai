@@ -330,6 +330,14 @@ export class RunnerScene extends ModeScene {
     const chevron = this.add
       .triangle(x, GATE_BOTTOM_Y + 7, 0, 0, 10, 0, 5, 7, this.memeAccent(2, 0xffe14d), 0.95)
       .setDepth(DEPTH.Enemy)
+    const label = this.add
+      .text(x, GATE_BOTTOM_Y + 18, this.memeTheme.modeFlavor[this.modeId].hazard, {
+        fontFamily: 'ui-monospace, Menlo, Consolas, monospace',
+        fontSize: '7px',
+        color: this.memeTheme.palette[0] ?? '#3ef0ff',
+      })
+      .setOrigin(0.5)
+      .setDepth(DEPTH.Enemy)
     this.tweens.add({
       targets: chevron,
       y: GATE_BOTTOM_Y + 12,
@@ -340,6 +348,7 @@ export class RunnerScene extends ModeScene {
     })
     // Carried on the gate so scrollEntities moves and destroys them together.
     gate.setData('chevron', chevron)
+    gate.setData('label', label)
 
     return gate
   }
@@ -376,6 +385,8 @@ export class RunnerScene extends ModeScene {
       // A gate's chevron is a separate object; it travels and dies with it.
       const chevron = obs.getData('chevron') as Phaser.GameObjects.Triangle | undefined
       if (chevron) chevron.x = obs.x
+      const label = obs.getData('label') as Phaser.GameObjects.Text | undefined
+      if (label) label.x = obs.x
 
       // Cleared it: score once, as it passes behind the runner.
       if (!obs.getData('scored') && (obs.x - this.runner.x) * dir < -10) {
@@ -386,6 +397,7 @@ export class RunnerScene extends ModeScene {
 
       if (dir === 1 ? obs.x < -24 : obs.x > VIEW_W + 24) {
         chevron?.destroy()
+        label?.destroy()
         obs.destroy()
       }
       if (!obs.active) this.obstacles.splice(i, 1)

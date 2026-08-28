@@ -389,7 +389,7 @@ export class ShiftDirectorScene extends Phaser.Scene {
   }
 
   private primeMemeTheme(runId: string): void {
-    void loadDailyMemeTheme().then((theme) => {
+    void loadDailyMemeTheme(undefined, undefined, undefined, DEV.memeId).then((theme) => {
       if (this.runId !== runId) return
       const phase = gameStore.get().phase
       if (phase === PHASE.Menu || phase === PHASE.GameOver) return
