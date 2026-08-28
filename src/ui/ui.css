@@ -225,6 +225,35 @@
   color: var(--cool);
 }
 
+.audio-controls {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding: 10px;
+  border: 1px solid var(--edge);
+  background: rgba(8, 6, 15, 0.32);
+}
+
+.audio-control {
+  display: grid;
+  grid-template-columns: 52px minmax(120px, 1fr) 42px;
+  align-items: center;
+  gap: 10px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+}
+
+.audio-control input {
+  width: 100%;
+  accent-color: var(--cool);
+}
+
+.audio-control-value {
+  color: var(--text);
+  text-align: right;
+}
+
 .panel-keys {
   margin: 14px 0 0;
   font-size: 10px;

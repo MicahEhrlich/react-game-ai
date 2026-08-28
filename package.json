@@ -16,8 +16,11 @@
     "validate-levels": "node --experimental-strip-types scripts/validate-levels.ts",
     "validate-brick": "node --experimental-strip-types scripts/validate-brick.ts",
     "validate-meme-theme": "node --experimental-strip-types scripts/validate-meme-theme.ts",
+    "validate-trend-seeds": "node --experimental-strip-types scripts/validate-trend-seeds.ts",
+    "validate-music": "node --experimental-strip-types scripts/validate-music.ts",
+    "validate-audio-settings": "node --experimental-strip-types scripts/validate-audio-settings.ts",
     "gen-levels": "node --experimental-strip-types scripts/gen-levels.ts",
-    "validate": "npm run validate-modes && npm run validate-director && npm run validate-runner && npm run validate-llm-director && npm run validate-levels && npm run validate-brick && npm run validate-meme-theme"
+    "validate": "npm run validate-modes && npm run validate-director && npm run validate-runner && npm run validate-llm-director && npm run validate-levels && npm run validate-brick && npm run validate-meme-theme && npm run validate-trend-seeds && npm run validate-music && npm run validate-audio-settings"
   },
   "dependencies": {
     "phaser": "^4.2.1",

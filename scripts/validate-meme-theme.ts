@@ -71,6 +71,7 @@ const validDraft = {
     },
   },
   spritePack: OFFLINE_MEME_THEMES[0].spritePack,
+  musicPlan: OFFLINE_MEME_THEMES[0].musicPlan,
 }
 
 console.log('validate-meme-theme')
@@ -81,6 +82,8 @@ for (const t of OFFLINE_MEME_THEMES) {
     fail(`offline theme ${t.id} does not validate`)
   } else if (!theme.spritePack) {
     fail(`offline theme ${t.id} has no sprite pack`)
+  } else if (!theme.musicPlan) {
+    fail(`offline theme ${t.id} has no music plan`)
   } else {
     for (const role of ALL_MEME_SPRITE_ROLES) {
       if (!theme.spritePack[role]) fail(`offline theme ${t.id} is missing ${role}`)
@@ -102,6 +105,11 @@ const badCases: readonly [string, unknown][] = [
   ['url', { ...validDraft, taunts: ['visit https://example.com'] }],
   ['missing mode', { ...validDraft, modeFlavor: { platformer: validDraft.modeFlavor.platformer } }],
   ['blocked word', { ...validDraft, taunts: ['KILL YOURSELF'] }],
+  ['missing music', { ...validDraft, musicPlan: undefined }],
+  ['bad bpm', { ...validDraft, musicPlan: { ...validDraft.musicPlan, bpm: 1000 } }],
+  ['bad scale', { ...validDraft, musicPlan: { ...validDraft.musicPlan, scale: 'phrygian' } }],
+  ['bad note', { ...validDraft, musicPlan: { ...validDraft.musicPlan, leadPattern: [0, 9] } }],
+  ['bad drum', { ...validDraft, musicPlan: { ...validDraft.musicPlan, drumPattern: [1, 5] } }],
   ['missing live sprite pack', { ...validDraft, spritePack: undefined }],
   [
     'short sprite row',
@@ -150,7 +158,7 @@ for (const [name, raw] of badCases) {
 
 {
   const theme = await fetchLiveMemeTheme('2026-08-27', async () => response(200, validDraft))
-  if (!theme || theme.source !== MEME_THEME_SOURCE.Live || theme.date !== '2026-08-27' || !theme.spritePack) {
+  if (!theme || theme.source !== MEME_THEME_SOURCE.Live || theme.date !== '2026-08-27' || !theme.spritePack || !theme.musicPlan) {
     fail('valid live response was not accepted')
   }
 }
@@ -166,7 +174,9 @@ const failingFetchers: readonly [string, MemeThemeFetch][] = [
 
 for (const [name, fetcher] of failingFetchers) {
   const theme = await loadDailyMemeTheme('2026-08-27', fetcher, memoryStorage())
-  if (theme.source !== MEME_THEME_SOURCE.Offline) fail(`${name} did not fall back offline`)
+  if (theme.source !== MEME_THEME_SOURCE.Offline || !theme.spritePack || !theme.musicPlan) {
+    fail(`${name} did not fall back offline with sprites and music`)
+  }
 }
 
 {

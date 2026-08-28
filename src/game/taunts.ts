@@ -1,4 +1,4 @@
-import { getAudioContext, getMaster } from './audio.ts'
+import { getAudioContext, getSfxOutput } from './audio.ts'
 
 /**
  * Optional AI-generated voice taunts. This is the ONLY place the game touches
@@ -72,8 +72,8 @@ export function prefetchTaunt(id: TauntId): void {
 
 export function playTaunt(id: TauntId, volume = 0.5): void {
   const ctx = getAudioContext()
-  const master = getMaster()
-  if (!ctx || !master) return
+  const out = getSfxOutput()
+  if (!ctx || !out) return
 
   const slot = slotFor(id)
 
@@ -83,7 +83,7 @@ export function playTaunt(id: TauntId, volume = 0.5): void {
     const gain = ctx.createGain()
     gain.gain.value = volume
     src.connect(gain)
-    gain.connect(master)
+    gain.connect(out)
     src.start()
     return
   }
@@ -91,12 +91,12 @@ export function playTaunt(id: TauntId, volume = 0.5): void {
   // Not loaded (or never will be): start the fetch for next time and speak
   // the synthesised stand-in now.
   prefetchTaunt(id)
-  speakFallback(ctx, master, FALLBACK_SHAPE[id], volume)
+  speakFallback(ctx, out, FALLBACK_SHAPE[id], volume)
 }
 
 function speakFallback(
   ctx: AudioContext,
-  master: GainNode,
+  out: GainNode,
   shape: readonly number[],
   volume: number,
 ): void {
@@ -128,7 +128,7 @@ function speakFallback(
 
     osc.connect(filter)
     filter.connect(gain)
-    gain.connect(master)
+    gain.connect(out)
     osc.start(start)
     osc.stop(end)
     lfo.start(start)

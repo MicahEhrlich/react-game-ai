@@ -1,5 +1,6 @@
 import { commands } from '../state/commands.ts'
 import { scores } from '../scores/index.ts'
+import { AudioControls } from './AudioControls.tsx'
 import { HighScoreTable } from './HighScoreTable.tsx'
 
 export function MenuOverlay() {
@@ -26,6 +27,8 @@ export function MenuOverlay() {
         >
           INSERT COIN
         </button>
+
+        <AudioControls />
 
         <p className="panel-keys">
           MOVE ←→ / WASD · JUMP ↑ / SPACE · FIRE SPACE / SHIFT · SLIDE ↓ · PAUSE ESC

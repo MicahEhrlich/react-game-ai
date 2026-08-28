@@ -1,4 +1,5 @@
 import { commands } from '../state/commands.ts'
+import { AudioControls } from './AudioControls.tsx'
 
 export function PauseOverlay() {
   return (
@@ -15,6 +16,7 @@ export function PauseOverlay() {
         >
           RESUME
         </button>
+        <AudioControls />
         <button
           type="button"
           className="btn"

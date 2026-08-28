@@ -8,9 +8,20 @@
  * and optionally by taunts.ts -- see that file for why nothing breaks when
  * they are absent.
  */
+import { audioSettings } from './audioSettings.ts'
 
 let ctx: AudioContext | null = null
 let master: GainNode | null = null
+let sfxGain: GainNode | null = null
+let musicGain: GainNode | null = null
+
+function applyVolumes(): void {
+  const a = audioSettings.get()
+  if (sfxGain) sfxGain.gain.value = a.sfxVolume
+  if (musicGain) musicGain.gain.value = a.musicVolume
+}
+
+audioSettings.subscribe(applyVolumes)
 
 export function getAudioContext(): AudioContext | null {
   return ctx
@@ -20,12 +31,25 @@ export function getMaster(): GainNode | null {
   return master
 }
 
+export function getSfxOutput(): GainNode | null {
+  return sfxGain
+}
+
+export function getMusicOutput(): GainNode | null {
+  return musicGain
+}
+
 export function unlockAudio(): void {
   if (!ctx) {
     ctx = new AudioContext()
     master = ctx.createGain()
     master.gain.value = 0.8
     master.connect(ctx.destination)
+    sfxGain = ctx.createGain()
+    musicGain = ctx.createGain()
+    sfxGain.connect(master)
+    musicGain.connect(master)
+    applyVolumes()
   }
   if (ctx.state === 'suspended') void ctx.resume()
 }
@@ -40,7 +64,7 @@ function beep(
   type: Wave = 'square',
   endFreq?: number,
 ): void {
-  if (!ctx || !master) return // not unlocked yet -- silently skip rather than throw
+  if (!ctx || !sfxGain) return // not unlocked yet -- silently skip rather than throw
   const osc = ctx.createOscillator()
   const gain = ctx.createGain()
   osc.type = type
@@ -58,14 +82,14 @@ function beep(
   gain.gain.exponentialRampToValueAtTime(0.001, end)
 
   osc.connect(gain)
-  gain.connect(master)
+  gain.connect(sfxGain)
   osc.start(start)
   osc.stop(end)
 }
 
 /** Burst of filtered white noise -- used for the glitch/corruption texture. */
 function noise(durationMs: number, volume = 0.1, startDelayMs = 0): void {
-  if (!ctx || !master) return
+  if (!ctx || !sfxGain) return
   const frames = Math.floor((ctx.sampleRate * durationMs) / 1000)
   const buffer = ctx.createBuffer(1, frames, ctx.sampleRate)
   const data = buffer.getChannelData(0)
@@ -86,7 +110,7 @@ function noise(durationMs: number, volume = 0.1, startDelayMs = 0): void {
 
   src.connect(filter)
   filter.connect(gain)
-  gain.connect(master)
+  gain.connect(sfxGain)
   src.start(start)
 }
 

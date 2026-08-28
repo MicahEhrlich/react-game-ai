@@ -1,6 +1,7 @@
 import type { Connect, Plugin, PreviewServer, ViteDevServer } from 'vite'
 import { loadEnv } from 'vite'
 import { MEME_THEME_SOURCE, localDateKey, normaliseMemeTheme } from '../src/memeTheme/index.ts'
+import { fetchTrendSeeds } from './trendSeeds.ts'
 
 const MODEL = 'claude-opus-5'
 
@@ -11,7 +12,8 @@ Use broad internet-culture flavor rather than copyrighted characters.
 Keep every string short, punchy, and arcade-readable.
 Also return a complete spritePack. Every sprite is exactly 16 strings of 16 characters.
 Use only these pixel characters: . k d D W w m M c C r R o y g G b B f s
-The dot is transparent. Make each role visually distinct and readable at tiny arcade scale.`
+The dot is transparent. Make each role visually distinct and readable at tiny arcade scale.
+Also return a musicPlan for a procedural WebAudio loop. Do not name real songs, artists, or samples.`
 
 const FORMAT = {
   type: 'json_schema',
@@ -19,7 +21,7 @@ const FORMAT = {
   schema: {
     type: 'object',
     additionalProperties: false,
-    required: ['id', 'label', 'palette', 'shiftLines', 'modeFlavor', 'spritePack', 'taunts'],
+    required: ['id', 'label', 'palette', 'shiftLines', 'modeFlavor', 'spritePack', 'musicPlan', 'taunts'],
     properties: {
       id: { type: 'string' },
       label: { type: 'string' },
@@ -76,6 +78,20 @@ const FORMAT = {
           ball: { $ref: '#/$defs/sprite' },
         },
       },
+      musicPlan: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['style', 'bpm', 'scale', 'bassPattern', 'leadPattern', 'drumPattern', 'intensity'],
+        properties: {
+          style: { type: 'string' },
+          bpm: { type: 'integer', minimum: 90, maximum: 180 },
+          scale: { enum: ['minor', 'major', 'pentatonic', 'chromatic'] },
+          bassPattern: { $ref: '#/$defs/notes' },
+          leadPattern: { $ref: '#/$defs/notes' },
+          drumPattern: { $ref: '#/$defs/drums' },
+          intensity: { type: 'number', minimum: 0, maximum: 1 },
+        },
+      },
     },
     $defs: {
       flavor: {
@@ -99,6 +115,18 @@ const FORMAT = {
           minLength: 16,
           maxLength: 16,
         },
+      },
+      notes: {
+        type: 'array',
+        minItems: 1,
+        maxItems: 16,
+        items: { type: 'integer', minimum: -1, maximum: 7 },
+      },
+      drums: {
+        type: 'array',
+        minItems: 1,
+        maxItems: 16,
+        items: { type: 'integer', minimum: 0, maximum: 4 },
       },
     },
   },
@@ -137,6 +165,7 @@ function makeHandler(apiKey: string | undefined): Handler {
       const date = localDateKey()
       const started = Date.now()
       try {
+        const trends = await fetchTrendSeeds()
         const { default: Anthropic } = await import('@anthropic-ai/sdk')
         const client = new Anthropic({ apiKey })
         const message = await client.messages.create(
@@ -150,7 +179,9 @@ function makeHandler(apiKey: string | undefined): Handler {
                 content:
                   `Today is ${date}. Create one once-daily cosmetic meme theme for an arcade game ` +
                   'with modes platformer, shooter, runner, and brick breaker. ' +
-                  'Generate complete spritePack art for enemies, hazards, projectiles, runner obstacles, bricks, cracked bricks, and the ball.',
+                  'Generate complete spritePack art for enemies, hazards, projectiles, runner obstacles, bricks, cracked bricks, and the ball. ' +
+                  `Use one or two of these safe trend seeds as inspiration: ${trends.map((t) => t.label).join(', ')}. ` +
+                  'If using 67, spell it SIX SEVEN and treat it as absurd nonsensical brainrot.',
               },
             ],
             output_config: {

@@ -22,6 +22,7 @@ import { gameStore } from '../../state/store.ts'
 import type { GameCommand, GameMode } from '../../state/types.ts'
 import { PHASE } from '../../state/types.ts'
 import { sfx, unlockAudio } from '../audio.ts'
+import { music } from '../music.ts'
 import { runCorruption } from '../art/corruption.ts'
 import {
   GLITCH_DURATION_CHAOS_MS,
@@ -169,6 +170,7 @@ export class ShiftDirectorScene extends Phaser.Scene {
     metrics.resetRun()
     runState.resetRun(this.time.now, mode)
     gameStore.startRun(mode)
+    music.play(gameStore.get().memeTheme.musicPlan)
 
     this.runId = newRunId()
     this.runStartedAt = Date.now()
@@ -192,6 +194,7 @@ export class ShiftDirectorScene extends Phaser.Scene {
     if (gameStore.get().phase !== PHASE.Playing || !this.activeKey) return
     gameStore.patch({ phase: PHASE.Paused })
     this.scene.pause(this.activeKey)
+    music.pause()
     touch.releaseAll()
   }
 
@@ -199,10 +202,12 @@ export class ShiftDirectorScene extends Phaser.Scene {
     if (gameStore.get().phase !== PHASE.Paused || !this.activeKey) return
     this.scene.resume(this.activeKey)
     gameStore.patch({ phase: PHASE.Playing })
+    music.resume()
   }
 
   private quitToMenu(): void {
     this.stopActive()
+    music.stop()
     touch.releaseAll()
     gameStore.toMenu()
   }
@@ -389,6 +394,7 @@ export class ShiftDirectorScene extends Phaser.Scene {
       const phase = gameStore.get().phase
       if (phase === PHASE.Menu || phase === PHASE.GameOver) return
       gameStore.patch({ memeTheme: theme })
+      music.play(theme.musicPlan)
     })
   }
 
@@ -466,6 +472,7 @@ export class ShiftDirectorScene extends Phaser.Scene {
     this.requestEpitaph(s.lastRunScore || s.score, s.shiftIndex, s.mode, stages)
 
     // Let the death land before the scene disappears.
+    music.stop()
     this.time.delayedCall(600, () => this.stopActive())
   }
 
