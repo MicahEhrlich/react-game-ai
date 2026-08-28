@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { ANIM } from '../art/anims.ts'
 import { ATLAS_KEY } from '../art/atlas.ts'
 import { FLYER_SPEED, WALKER_SPEED } from '../constants.ts'
+import type { SpriteRef } from '../art/memeAtlas.ts'
 
 /**
  * Ported from react-game. Note the invariant that came with them: these must
@@ -18,8 +19,15 @@ export class Walker extends Phaser.Physics.Arcade.Sprite {
   private readonly speed: number
   private dir: 1 | -1 = -1
 
-  constructor(scene: Phaser.Scene, x: number, y: number, rangePx: number, speedScale = 1) {
-    super(scene, x, y, ATLAS_KEY, 'walker-0')
+  constructor(
+    scene: Phaser.Scene,
+    x: number,
+    y: number,
+    rangePx: number,
+    speedScale = 1,
+    sprite: SpriteRef = { key: ATLAS_KEY, frame: 'walker-0' },
+  ) {
+    super(scene, x, y, sprite.key, sprite.frame)
     scene.add.existing(this)
     scene.physics.add.existing(this)
     ;(this.body as Phaser.Physics.Arcade.Body).setSize(14, 14).setOffset(1, 1)
@@ -27,7 +35,7 @@ export class Walker extends Phaser.Physics.Arcade.Sprite {
     this.minX = x - rangePx
     this.maxX = x + rangePx
     this.speed = WALKER_SPEED * speedScale
-    this.anims.play(ANIM.Walker, true)
+    if (sprite.key === ATLAS_KEY) this.anims.play(ANIM.Walker, true)
   }
 
   patrol(): void {
@@ -47,8 +55,15 @@ export class Flyer extends Phaser.Physics.Arcade.Sprite {
   private readonly speed: number
   private dir: 1 | -1 = -1
 
-  constructor(scene: Phaser.Scene, x: number, y: number, rangePx: number, speedScale = 1) {
-    super(scene, x, y, ATLAS_KEY, 'flyer-0')
+  constructor(
+    scene: Phaser.Scene,
+    x: number,
+    y: number,
+    rangePx: number,
+    speedScale = 1,
+    sprite: SpriteRef = { key: ATLAS_KEY, frame: 'flyer-0' },
+  ) {
+    super(scene, x, y, sprite.key, sprite.frame)
     scene.add.existing(this)
     scene.physics.add.existing(this)
     ;(this.body as Phaser.Physics.Arcade.Body)
@@ -59,7 +74,7 @@ export class Flyer extends Phaser.Physics.Arcade.Sprite {
     this.minX = x - rangePx
     this.maxX = x + rangePx
     this.speed = FLYER_SPEED * speedScale
-    this.anims.play(ANIM.Flyer, true)
+    if (sprite.key === ATLAS_KEY) this.anims.play(ANIM.Flyer, true)
   }
 
   patrol(): void {

@@ -32,6 +32,7 @@ import type { InputState } from '../input.ts'
 import { chance, makeRng, randInt } from '../rng.ts'
 import type { Rng } from '../rng.ts'
 import { runState } from '../../state/runState.ts'
+import { MEME_SPRITE_ROLE } from '../../memeTheme/index.ts'
 import { ModeScene } from './ModeScene.ts'
 import { SCENE } from './keys.ts'
 
@@ -283,12 +284,15 @@ export class RunnerScene extends ModeScene {
         'chip',
       ) as Phaser.Physics.Arcade.Sprite
       chip.setDepth(DEPTH.Pickup)
+      chip.setTint(this.memeAccent(0, 0x3ef0ff))
       ;(chip.body as Phaser.Physics.Arcade.Body).setAllowGravity(false).setSize(8, 8).setOffset(4, 4)
     }
   }
 
   private spawnBlock(x: number): Phaser.GameObjects.Sprite {
-    const obs = this.physics.add.sprite(x, FEET_Y, ATLAS_KEY, 'obstacle').setDepth(DEPTH.Enemy)
+    const sprite = this.memeSprite(MEME_SPRITE_ROLE.RunnerObstacle, 'obstacle')
+    const obs = this.physics.add.sprite(x, FEET_Y, sprite.key, sprite.frame).setDepth(DEPTH.Enemy)
+    obs.setTint(this.memeAccent(1, 0xff3ea5))
     ;(obs.body as Phaser.Physics.Arcade.Body).setAllowGravity(false).setSize(14, 14).setOffset(1, 1)
     return obs
   }
@@ -299,7 +303,8 @@ export class RunnerScene extends ModeScene {
     const gate = this.add
       .rectangle(x, GATE_BOTTOM_Y / 2, 10, GATE_BOTTOM_Y, 0xff3ea5, 0.85)
       .setDepth(DEPTH.Enemy)
-    gate.setStrokeStyle(1, 0xffe14d, 0.9)
+    gate.setFillStyle(this.memeAccent(1, 0xff3ea5), 0.85)
+    gate.setStrokeStyle(1, this.memeAccent(2, 0xffe14d), 0.9)
     this.physics.add.existing(gate)
     ;(gate.body as Phaser.Physics.Arcade.Body).setAllowGravity(false).setImmovable(true)
 
@@ -307,7 +312,7 @@ export class RunnerScene extends ModeScene {
     // "go under this", not just "hazard" -- the beam alone reads as something
     // to jump, which is the one thing that cannot work.
     const chevron = this.add
-      .triangle(x, GATE_BOTTOM_Y + 7, 0, 0, 10, 0, 5, 7, 0xffe14d, 0.95)
+      .triangle(x, GATE_BOTTOM_Y + 7, 0, 0, 10, 0, 5, 7, this.memeAccent(2, 0xffe14d), 0.95)
       .setDepth(DEPTH.Enemy)
     this.tweens.add({
       targets: chevron,
@@ -326,10 +331,10 @@ export class RunnerScene extends ModeScene {
   /** One-shot "SLIDE" prompt above the avatar, the first time a gate appears. */
   private showSlideHint(): void {
     const hint = this.add
-      .text(this.runner.x, GROUND_Y - 58, 'SLIDE  ↓', {
+      .text(this.runner.x, GROUND_Y - 58, this.memeTheme.modeFlavor[this.modeId].obstacle, {
         fontFamily: 'ui-monospace, Menlo, Consolas, monospace',
         fontSize: '11px',
-        color: '#ffe14d',
+        color: this.memeTheme.palette[2] ?? '#ffe14d',
       })
       .setOrigin(0.5)
       .setDepth(DEPTH.Fog)

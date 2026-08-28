@@ -2,7 +2,6 @@ import Phaser from 'phaser'
 import { runState } from '../../state/runState.ts'
 import type { GameMode } from '../../state/types.ts'
 import { MODE } from '../../state/types.ts'
-import { ATLAS_KEY } from '../art/atlas.ts'
 import { sfx } from '../audio.ts'
 import {
   BALL_R,
@@ -23,6 +22,7 @@ import {
 import type { InputState } from '../input.ts'
 import { makeRng } from '../rng.ts'
 import type { Rng } from '../rng.ts'
+import { MEME_SPRITE_ROLE } from '../../memeTheme/index.ts'
 import {
   ballSpeedAt,
   clampMinVy,
@@ -73,10 +73,18 @@ export class BrickScene extends ModeScene {
     // #120a1e) and tinted toward the brick art's magenta accent.
     this.cameras.main.setBackgroundColor('#140a1c')
     this.buildBackdrop()
+    this.add
+      .text(VIEW_W / 2, 8, this.memeTheme.modeFlavor[this.modeId].brick, {
+        fontFamily: 'ui-monospace, Menlo, Consolas, monospace',
+        fontSize: '9px',
+        color: this.memeTheme.palette[0] ?? '#3ef0ff',
+      })
+      .setOrigin(0.5)
+      .setDepth(DEPTH.Background)
 
     this.paddle = this.add
-      .rectangle(VIEW_W / 2, PADDLE_Y, PADDLE_W, PADDLE_H, 0x3ef0ff, 1)
-      .setStrokeStyle(1, 0xffffff, 0.75)
+      .rectangle(VIEW_W / 2, PADDLE_Y, PADDLE_W, PADDLE_H, this.memeAccent(0, 0x3ef0ff), 1)
+      .setStrokeStyle(1, this.memeAccent(2, 0xffffff), 0.75)
       .setDepth(DEPTH.Player)
     this.physics.add.existing(this.paddle)
     ;(this.paddle.body as Phaser.Physics.Arcade.Body)
@@ -123,11 +131,13 @@ export class BrickScene extends ModeScene {
 
   private buildWall(): void {
     this.bricks.clear(true, true)
+    const sprite = this.memeSprite(MEME_SPRITE_ROLE.Brick, 'brick')
     for (const spec of wallLayout(this.mods.spawnRateScale, this.mods.mirrorWorld, this.rng)) {
       const brick = this.bricks
-        .create(spec.x, spec.y, ATLAS_KEY, 'brick')
+        .create(spec.x, spec.y, sprite.key, sprite.frame)
         .setDepth(DEPTH.Terrain)
         .setScale(2, 1) as Brick
+      brick.setTint(this.memeAccent(spec.row, 0xff3ea5))
       brick.setData('hp', spec.hits)
       brick.refreshBody()
       ;(brick.body as Phaser.Physics.Arcade.StaticBody).setSize(BRICK_W, BRICK_H).updateFromGameObject()
@@ -136,9 +146,11 @@ export class BrickScene extends ModeScene {
 
   private spawnBall(): void {
     this.ball?.destroy()
+    const sprite = this.memeSprite(MEME_SPRITE_ROLE.Ball, 'ball')
     this.ball = this.physics.add
-      .sprite(this.paddle.x, PADDLE_Y - 18, ATLAS_KEY, 'ball')
+      .sprite(this.paddle.x, PADDLE_Y - 18, sprite.key, sprite.frame)
       .setDepth(DEPTH.Projectile)
+    this.ball.setTint(this.memeAccent(2, 0xffe14d))
     ;(this.ball.body as Phaser.Physics.Arcade.Body)
       .setAllowGravity(false)
       .setCircle(BALL_R, 8 - BALL_R, 8 - BALL_R)
@@ -174,7 +186,8 @@ export class BrickScene extends ModeScene {
     const hp = (brick.getData('hp') as number) - 1
     if (hp > 0) {
       brick.setData('hp', hp)
-      brick.setFrame('brick-cracked')
+      const sprite = this.memeSprite(MEME_SPRITE_ROLE.BrickCracked, 'brick-cracked')
+      brick.setTexture(sprite.key, sprite.frame)
       sfx.enemyShoot()
     } else {
       brick.destroy()

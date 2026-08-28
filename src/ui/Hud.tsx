@@ -20,6 +20,7 @@ export function Hud() {
     shiftWarning,
     activeChaos,
     directorSource,
+    memeTheme,
   } = useGameState()
 
   const healthPct = Math.max(0, Math.round((health / maxHealth) * 100))
@@ -75,6 +76,9 @@ export function Hud() {
           is indistinguishable from a bug -- the transition banner announces
           it once, this is what answers the question 30 seconds later. */}
       {activeChaos && <div className="hud-chaos">⚠ {CHAOS_LABEL[activeChaos]}</div>}
+      <div className="hud-meme" style={{ borderColor: memeTheme.palette[0] }}>
+        MEME: {memeTheme.label}
+      </div>
     </div>
   )
 }

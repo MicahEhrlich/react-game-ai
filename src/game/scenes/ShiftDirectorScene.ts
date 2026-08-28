@@ -15,6 +15,7 @@ import type {
 } from '../../director/types.ts'
 import { loadPacing } from '../../director/pacing.ts'
 import { metrics } from '../../state/metrics.ts'
+import { loadDailyMemeTheme } from '../../memeTheme/daily.ts'
 import { commands } from '../../state/commands.ts'
 import { pickStartMode, runState } from '../../state/runState.ts'
 import { gameStore } from '../../state/store.ts'
@@ -178,6 +179,7 @@ export class ShiftDirectorScene extends Phaser.Scene {
     // Drops every scrap of the previous run and aborts anything still in
     // flight from it. Same fire-and-forget spirit as the two calls above.
     this.live?.beginRun(this.runId)
+    this.primeMemeTheme(this.runId)
 
     // launch(), never start(): ScenePlugin.start queues a stop on the CALLING
     // scene, so starting a mode from here would shut the director down and
@@ -379,6 +381,15 @@ export class ShiftDirectorScene extends Phaser.Scene {
       },
       stages,
     )
+  }
+
+  private primeMemeTheme(runId: string): void {
+    void loadDailyMemeTheme().then((theme) => {
+      if (this.runId !== runId) return
+      const phase = gameStore.get().phase
+      if (phase === PHASE.Menu || phase === PHASE.GameOver) return
+      gameStore.patch({ memeTheme: theme })
+    })
   }
 
   private fallbackPlan(): StagePlan {

@@ -12,6 +12,10 @@ import { InputReader, NEUTRAL_INPUT } from '../input.ts'
 import type { InputState } from '../input.ts'
 import { PHASE } from '../../state/types.ts'
 import { addFog } from '../art/fog.ts'
+import { memeAccentNumber } from '../../memeTheme/index.ts'
+import type { MemeSpriteRole, MemeTheme } from '../../memeTheme/index.ts'
+import { spriteForRole } from '../art/memeAtlas.ts'
+import type { SpriteRef } from '../art/memeAtlas.ts'
 
 /**
  * Base for PlatformerScene / SpaceShooterScene / RunnerScene.
@@ -199,6 +203,18 @@ export abstract class ModeScene extends Phaser.Scene {
   /** Scaled speed for any projectile, friendly or hostile. */
   protected projectileSpeed(base: number): number {
     return base * this.mods.projectileSpeedScale
+  }
+
+  protected get memeTheme(): MemeTheme {
+    return gameStore.get().memeTheme
+  }
+
+  protected memeAccent(index: number, fallback = 0x3ef0ff): number {
+    return memeAccentNumber(this.memeTheme, index, fallback)
+  }
+
+  protected memeSprite(role: MemeSpriteRole, fallbackFrame: string): SpriteRef {
+    return spriteForRole(this, this.memeTheme, role, fallbackFrame)
   }
 
   /**

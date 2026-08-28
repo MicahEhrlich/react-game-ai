@@ -1,5 +1,6 @@
 import type { ChaosFlag } from '../director/modifiers.ts'
 import type { PlanSource } from '../director/types.ts'
+import type { MemeTheme } from '../memeTheme/index.ts'
 
 /**
  * The microgame modes. `erasableSyntaxOnly` bans TS enums, so this is the
@@ -118,6 +119,8 @@ export interface GameSnapshot {
    * heuristic one while tuning, and a small hook for the player besides.
    */
   readonly directorSource: PlanSource
+  /** The once-daily cosmetic theme. It never drives gameplay math. */
+  readonly memeTheme: MemeTheme
   /**
    * One line about the run just ended, written by the live director. Null
    * whenever there is no live director, it had nothing to say, or the answer

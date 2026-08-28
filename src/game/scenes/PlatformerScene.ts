@@ -26,6 +26,7 @@ import { generatePlatformer, randomSeed, SOLID, SPAWN } from '../levels/generate
 import type { PlatformerLevel } from '../levels/generatePlatformer.ts'
 import { pickEasyPlatformerSeed } from '../levels/easyPlatformerLevels.ts'
 import { LEVEL_DIFFICULTY } from '../levels/difficulty.ts'
+import { MEME_SPRITE_ROLE } from '../../memeTheme/index.ts'
 import { ModeScene } from './ModeScene.ts'
 import { SCENE } from './keys.ts'
 
@@ -157,26 +158,46 @@ export class PlatformerScene extends ModeScene {
         case SPAWN.Spike:
         case SPAWN.Fire: {
           const frame = s.kind === SPAWN.Spike ? 'spike' : 'fire-0'
+          const sprite = this.memeSprite(MEME_SPRITE_ROLE.PlatformerHazard, frame)
           const h = hazards.create(s.x, s.y, ATLAS_KEY, frame) as Phaser.Physics.Arcade.Sprite
+          h.setTexture(sprite.key, sprite.frame)
           h.setDepth(DEPTH.Terrain)
-          if (s.kind === SPAWN.Fire) h.anims.play(ANIM.Fire, true)
+          h.setTint(this.memeAccent(1, 0xff3ea5))
+          if (s.kind === SPAWN.Fire && sprite.key === ATLAS_KEY) h.anims.play(ANIM.Fire, true)
           break
         }
         case SPAWN.Chip: {
           const c = chips.create(s.x, s.y, ATLAS_KEY, 'chip') as Phaser.Physics.Arcade.Sprite
           c.setDepth(DEPTH.Pickup)
+          c.setTint(this.memeAccent(0, 0x3ef0ff))
           break
         }
         case SPAWN.Walker: {
-          const w = new Walker(this, s.x, s.y, s.range, this.mods.projectileSpeedScale)
+          const w = new Walker(
+            this,
+            s.x,
+            s.y,
+            s.range,
+            this.mods.projectileSpeedScale,
+            this.memeSprite(MEME_SPRITE_ROLE.PlatformerEnemy, 'walker-0'),
+          )
           w.setDepth(DEPTH.Enemy)
+          w.setTint(this.memeAccent(0, 0x3ef0ff))
           this.physics.add.collider(w, this.solids)
           this.enemies.push(w)
           break
         }
         case SPAWN.Flyer: {
-          const f = new Flyer(this, s.x, s.y, s.range, this.mods.projectileSpeedScale)
+          const f = new Flyer(
+            this,
+            s.x,
+            s.y,
+            s.range,
+            this.mods.projectileSpeedScale,
+            this.memeSprite(MEME_SPRITE_ROLE.PlatformerEnemy, 'flyer-0'),
+          )
           f.setDepth(DEPTH.Enemy)
+          f.setTint(this.memeAccent(2, 0xff3ea5))
           this.enemies.push(f)
           break
         }

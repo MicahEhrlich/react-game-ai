@@ -123,6 +123,20 @@
   animation: hud-flash 1.1s steps(2, end) infinite;
 }
 
+.hud-meme {
+  margin-top: 5px;
+  max-width: 172px;
+  overflow: hidden;
+  padding: 3px 5px;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 1px solid var(--cool);
+  background: rgba(62, 240, 255, 0.08);
+}
+
 /* ---------------- Panels ---------------- */
 
 .overlay {

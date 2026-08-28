@@ -20,6 +20,7 @@ import {
   VIEW_W,
 } from '../constants.ts'
 import type { InputState } from '../input.ts'
+import { MEME_SPRITE_ROLE } from '../../memeTheme/index.ts'
 import { chance, makeRng, randInt } from '../rng.ts'
 import type { Rng } from '../rng.ts'
 import { ModeScene } from './ModeScene.ts'
@@ -148,13 +149,15 @@ export class SpaceShooterScene extends ModeScene {
   private fire(time: number): void {
     this.lastShotMs = time
     const dir = this.worldDir
+    const sprite = this.memeSprite(MEME_SPRITE_ROLE.ShooterProjectile, 'shot-player')
     const bolt = this.shots.create(
       this.ship.x + dir * 10,
       this.ship.y,
-      ATLAS_KEY,
-      'shot-player',
+      sprite.key,
+      sprite.frame,
     ) as Phaser.Physics.Arcade.Sprite
     bolt.setDepth(DEPTH.Projectile)
+    bolt.setTint(this.memeAccent(0, 0x3ef0ff))
     bolt.setVelocityX(dir * this.projectileSpeed(SHOT_SPEED))
     ;(bolt.body as Phaser.Physics.Arcade.Body).setAllowGravity(false).setSize(10, 4).setOffset(3, 6)
     sfx.shoot()
@@ -163,16 +166,18 @@ export class SpaceShooterScene extends ModeScene {
 
   private spawnEnemy(): void {
     const dir = this.worldDir
+    const sprite = this.memeSprite(MEME_SPRITE_ROLE.ShooterEnemy, 'gunship-0')
     const enemy = this.physics.add
       .sprite(
         dir === 1 ? VIEW_W + 12 : -12,
         randInt(this.rng, 20, VIEW_H - 20),
-        ATLAS_KEY,
-        'gunship-0',
+        sprite.key,
+        sprite.frame,
       )
       .setDepth(DEPTH.Enemy)
       .setFlipX(dir === -1)
-    enemy.anims.play(ANIM.Gunship, true)
+    enemy.setTint(this.memeAccent(1, 0xff3ea5))
+    if (sprite.key === ATLAS_KEY) enemy.anims.play(ANIM.Gunship, true)
     ;(enemy.body as Phaser.Physics.Arcade.Body)
       .setAllowGravity(false)
       .setSize(14, 10)
@@ -193,14 +198,16 @@ export class SpaceShooterScene extends ModeScene {
     if (live.length === 0) return
     const shooter = live[Math.floor(this.rng() * live.length)]
     const dir = this.worldDir
+    const sprite = this.memeSprite(MEME_SPRITE_ROLE.ShooterProjectile, 'shot-enemy')
 
     const bolt = this.enemyShots.create(
       shooter.x - dir * 10,
       shooter.y,
-      ATLAS_KEY,
-      'shot-enemy',
+      sprite.key,
+      sprite.frame,
     ) as Phaser.Physics.Arcade.Sprite
     bolt.setDepth(DEPTH.Projectile)
+    bolt.setTint(this.memeAccent(2, 0xffe14d))
     bolt.setVelocityX(-dir * this.projectileSpeed(ENEMY_SHOT_SPEED))
     ;(bolt.body as Phaser.Physics.Arcade.Body).setAllowGravity(false).setSize(6, 6).setOffset(5, 5)
     sfx.enemyShoot()

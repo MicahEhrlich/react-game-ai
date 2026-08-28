@@ -12,8 +12,9 @@ import { useGameState } from '../state/store.ts'
  * (art/corruption.ts) draws the other half.
  */
 export function GlitchOverlay() {
-  const { nextMode, score, health, maxHealth, lastDirectorNotes, activeChaos } = useGameState()
+  const { nextMode, score, health, maxHealth, lastDirectorNotes, activeChaos, memeTheme } = useGameState()
   const label = nextMode ? MODE_LABEL[nextMode] : 'RECONFIGURING'
+  const notes = [...memeTheme.shiftLines.slice(0, 2), ...lastDirectorNotes].slice(0, 4)
 
   return (
     <div className="glitch" role="status" aria-live="polite">
@@ -39,10 +40,8 @@ export function GlitchOverlay() {
             the key and the length is capped here too. Neither should ever
             matter; both are cheap. */}
         <ul className="glitch-notes">
-          {lastDirectorNotes.length > 0 ? (
-            lastDirectorNotes
-              .slice(0, 4)
-              .map((note, i) => <li key={`${i}-${note}`}>{note}</li>)
+          {notes.length > 0 ? (
+            notes.map((note, i) => <li key={`${i}-${note}`}>{note}</li>)
           ) : (
             <li>DIRECTOR ONLINE</li>
           )}

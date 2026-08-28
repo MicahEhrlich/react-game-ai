@@ -15,8 +15,9 @@
     "validate-llm-director": "node --experimental-strip-types scripts/validate-llm-director.ts",
     "validate-levels": "node --experimental-strip-types scripts/validate-levels.ts",
     "validate-brick": "node --experimental-strip-types scripts/validate-brick.ts",
+    "validate-meme-theme": "node --experimental-strip-types scripts/validate-meme-theme.ts",
     "gen-levels": "node --experimental-strip-types scripts/gen-levels.ts",
-    "validate": "npm run validate-modes && npm run validate-director && npm run validate-runner && npm run validate-llm-director && npm run validate-levels && npm run validate-brick"
+    "validate": "npm run validate-modes && npm run validate-director && npm run validate-runner && npm run validate-llm-director && npm run validate-levels && npm run validate-brick && npm run validate-meme-theme"
   },
   "dependencies": {
     "phaser": "^4.2.1",
