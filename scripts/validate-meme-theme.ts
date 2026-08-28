@@ -108,6 +108,18 @@ for (const t of OFFLINE_MEME_THEMES) {
   if (!sixSeven || sixSeven.label !== 'SIX SEVEN' || !sixSeven.spritePack || !sixSeven.musicPlan) {
     fail('offlineMemeThemeById did not return a valid SIX SEVEN theme')
   }
+  const algo = offlineMemeThemeById('algorithm-soup', '2026-08-27')
+  if (!algo?.spritePack) fail('offlineMemeThemeById did not return algorithm sprite pack')
+  if (sixSeven?.spritePack === algo?.spritePack) fail('SIX SEVEN still reuses the algorithm sprite pack object')
+  if (sixSeven?.spritePack?.platformerEnemy === algo?.spritePack?.platformerEnemy) {
+    fail('SIX SEVEN platformer enemy still reuses algorithm art')
+  }
+  if (sixSeven?.spritePack?.shooterEnemy === algo?.spritePack?.shooterEnemy) {
+    fail('SIX SEVEN shooter enemy still reuses algorithm art')
+  }
+  if (sixSeven?.spritePack?.runnerObstacle === algo?.spritePack?.runnerObstacle) {
+    fail('SIX SEVEN runner obstacle still reuses algorithm art')
+  }
   if (offlineMemeThemeById('not-a-theme', '2026-08-27') !== null) {
     fail('offlineMemeThemeById accepted an invalid id')
   }
