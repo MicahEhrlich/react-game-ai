@@ -23,6 +23,7 @@ import type { InputState } from '../input.ts'
 import { makeRng } from '../rng.ts'
 import type { Rng } from '../rng.ts'
 import { MEME_SPRITE_ROLE } from '../../memeTheme/index.ts'
+import { brickTouchDirX } from '../touchSteering.ts'
 import {
   ballSpeedAt,
   clampMinVy,
@@ -107,9 +108,7 @@ export class BrickScene extends ModeScene {
   protected updateMode(input: InputState, time: number, _delta: number): void {
     const body = this.paddle.body as Phaser.Physics.Arcade.Body
     if (input.directTouch && input.aimX !== null) {
-      const dx = input.aimX - this.paddle.x
-      const deadZone = 4
-      body.setVelocityX(Math.abs(dx) > deadZone ? Math.sign(dx) * this.playerSpeed(PADDLE_SPEED) : 0)
+      body.setVelocityX(brickTouchDirX(input.aimX, this.paddle.x) * this.playerSpeed(PADDLE_SPEED))
     } else {
       body.setVelocityX(input.dirX * this.playerSpeed(PADDLE_SPEED))
     }

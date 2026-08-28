@@ -137,6 +137,50 @@
   background: rgba(62, 240, 255, 0.08);
 }
 
+@media (max-width: 1024px), (pointer: coarse) {
+  .app {
+    padding: 2px;
+  }
+
+  .hud {
+    top: 4px;
+    left: 4px;
+    right: 4px;
+    flex-flow: row wrap;
+    align-items: center;
+    gap: 3px 8px;
+    padding: 4px 6px;
+    font-size: 9px;
+    letter-spacing: 0;
+    background: rgba(8, 6, 15, 0.46);
+  }
+
+  .hud-row {
+    gap: 4px;
+  }
+
+  .hud-label {
+    width: auto;
+  }
+
+  .hud-bar {
+    width: 52px;
+    height: 5px;
+  }
+
+  .hud-chaos,
+  .hud-meme {
+    margin-top: 0;
+    padding: 2px 4px;
+    font-size: 8px;
+    letter-spacing: 0;
+  }
+
+  .hud-meme {
+    max-width: 130px;
+  }
+}
+
 /* ---------------- Panels ---------------- */
 
 .overlay {

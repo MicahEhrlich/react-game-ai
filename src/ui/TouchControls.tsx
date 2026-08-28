@@ -52,7 +52,9 @@ export function TouchControls() {
   if (phase !== PHASE.Playing) return null
 
   const pointFor = (e: React.PointerEvent<HTMLElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect()
+    const rect =
+      document.querySelector<HTMLCanvasElement>('.game-host canvas')?.getBoundingClientRect() ??
+      e.currentTarget.getBoundingClientRect()
     return viewportToGamePoint(e.clientX, e.clientY, rect)
   }
 

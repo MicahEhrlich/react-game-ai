@@ -21,6 +21,7 @@ import {
 } from '../constants.ts'
 import type { InputState } from '../input.ts'
 import { MEME_SPRITE_ROLE } from '../../memeTheme/index.ts'
+import { shooterTouchDir } from '../touchSteering.ts'
 import { chance, makeRng, randInt } from '../rng.ts'
 import type { Rng } from '../rng.ts'
 import { ModeScene } from './ModeScene.ts'
@@ -101,13 +102,8 @@ export class SpaceShooterScene extends ModeScene {
   protected updateMode(input: InputState, time: number, _delta: number): void {
     const speed = this.playerSpeed(SHIP_SPEED)
     if (input.directTouch && input.aimX !== null && input.aimY !== null) {
-      const dx = input.aimX - this.ship.x
-      const dy = input.aimY - this.ship.y
-      const deadZone = 5
-      this.ship.setVelocity(
-        Math.abs(dx) > deadZone ? Math.sign(dx) * speed : 0,
-        Math.abs(dy) > deadZone ? Math.sign(dy) * speed : 0,
-      )
+      const dir = shooterTouchDir(input.aimX, input.aimY, this.ship.x, this.ship.y)
+      this.ship.setVelocity(dir.dirX * speed, dir.dirY * speed)
     } else {
       this.ship.setVelocity(input.dirX * speed, input.dirY * speed)
     }

@@ -2,6 +2,11 @@ import { DEFAULT_MODIFIERS } from '../src/director/modifiers.ts'
 import { mapInputForMode } from '../src/game/inputMapping.ts'
 import type { RawInputState } from '../src/game/inputMapping.ts'
 import { VIEW_H, VIEW_W } from '../src/game/constants.ts'
+import {
+  brickTouchDirX,
+  platformerTouchDirX,
+  shooterTouchDir,
+} from '../src/game/touchSteering.ts'
 import { MODE } from '../src/state/types.ts'
 import { viewportToGamePoint } from '../src/ui/touchGeometry.ts'
 
@@ -138,6 +143,29 @@ for (const mode of Object.values(MODE)) {
     fail('touch geometry did not map bottom-right to game bounds')
   }
   if (clamped.x !== VIEW_W || clamped.y !== 0) fail('touch geometry did not clamp out-of-bounds input')
+
+  const centeredCanvas = { left: 40, top: 100, width: 396, height: 237.6 }
+  const center = viewportToGamePoint(238, 218.8, centeredCanvas)
+  if (Math.abs(center.x - VIEW_W / 2) > 0.001 || Math.abs(center.y - VIEW_H / 2) > 0.001) {
+    fail('touch geometry did not respect a centered canvas rect')
+  }
+}
+
+{
+  if (platformerTouchDirX(180, 400, 560) !== 1) fail('platformer touch right of player did not steer right')
+  if (platformerTouchDirX(140, 400, 560) !== -1) fail('platformer touch left of player did not steer left')
+  if (platformerTouchDirX(158, 400, 560) !== 0) fail('platformer touch dead zone did not stop movement')
+
+  const rightDown = shooterTouchDir(180, 120, 160, 96)
+  if (rightDown.dirX !== 1 || rightDown.dirY !== 1) fail('shooter touch right/down did not steer right/down')
+  const leftUp = shooterTouchDir(120, 60, 160, 96)
+  if (leftUp.dirX !== -1 || leftUp.dirY !== -1) fail('shooter touch left/up did not steer left/up')
+  const still = shooterTouchDir(166, 101, 160, 96)
+  if (still.dirX !== 0 || still.dirY !== 0) fail('shooter touch dead zone did not stop movement')
+
+  if (brickTouchDirX(180, 160) !== 1) fail('brick touch right of paddle did not steer right')
+  if (brickTouchDirX(120, 160) !== -1) fail('brick touch left of paddle did not steer left')
+  if (brickTouchDirX(166, 160) !== 0) fail('brick touch dead zone did not stop movement')
 }
 
 console.log('validate-input-mapping')

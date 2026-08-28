@@ -27,6 +27,7 @@ import type { PlatformerLevel } from '../levels/generatePlatformer.ts'
 import { pickEasyPlatformerSeed } from '../levels/easyPlatformerLevels.ts'
 import { LEVEL_DIFFICULTY } from '../levels/difficulty.ts'
 import { MEME_SPRITE_ROLE } from '../../memeTheme/index.ts'
+import { platformerTouchDirX } from '../touchSteering.ts'
 import { ModeScene } from './ModeScene.ts'
 import { SCENE } from './keys.ts'
 
@@ -222,10 +223,10 @@ export class PlatformerScene extends ModeScene {
 
   private mobileSteeringInput(input: InputState): InputState {
     if (!input.directTouch || input.aimX === null) return input
-    const targetX = this.cameras.main.scrollX + input.aimX
-    const deadZone = 8
-    const dirX = targetX < this.player.x - deadZone ? -1 : targetX > this.player.x + deadZone ? 1 : 0
-    return { ...input, dirX }
+    return {
+      ...input,
+      dirX: platformerTouchDirX(input.aimX, this.cameras.main.scrollX, this.player.x),
+    }
   }
 
   private collectChip(chip: Phaser.Physics.Arcade.Sprite): void {
