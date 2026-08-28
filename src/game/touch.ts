@@ -8,17 +8,22 @@ export interface TouchState {
   dirX: -1 | 0 | 1
   dirY: -1 | 0 | 1
   action: boolean
+  jumpHeld: boolean
   /** Set true for exactly one read by the consumer, then cleared. */
   jumpEdge: boolean
   slide: boolean
+  /** Set true for exactly one read by the consumer, then cleared. */
+  slideEdge: boolean
 }
 
 const state: TouchState = {
   dirX: 0,
   dirY: 0,
   action: false,
+  jumpHeld: false,
   jumpEdge: false,
   slide: false,
+  slideEdge: false,
 }
 
 /** True once any touch/pointer input has been seen -- gates the on-screen UI. */
@@ -42,11 +47,13 @@ export const touch = {
     touchSeen = true
   },
   setSlide(down: boolean): void {
+    if (down && !state.slide) state.slideEdge = true
     state.slide = down
     touchSeen = true
   },
   /** A discrete jump/tap; consumed by the next InputReader.read(). */
   pressJump(): void {
+    state.jumpHeld = true
     state.jumpEdge = true
     touchSeen = true
   },
@@ -55,13 +62,20 @@ export const touch = {
     state.jumpEdge = false
     return v
   },
+  consumeSlideEdge(): boolean {
+    const v = state.slideEdge
+    state.slideEdge = false
+    return v
+  },
 
   /** Called when a scene shuts down so a held button can't leak across a shift. */
   releaseAll(): void {
     state.dirX = 0
     state.dirY = 0
     state.action = false
+    state.jumpHeld = false
     state.jumpEdge = false
     state.slide = false
+    state.slideEdge = false
   },
 }

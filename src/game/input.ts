@@ -1,5 +1,8 @@
 import Phaser from 'phaser'
 import type { StageModifiers } from '../director/types.ts'
+import type { GameMode } from '../state/types.ts'
+import { mapInputForMode, NEUTRAL_INPUT } from './inputMapping.ts'
+import type { InputState, RawInputState } from './inputMapping.ts'
 import { touch } from './touch.ts'
 
 /**
@@ -13,31 +16,8 @@ import { touch } from './touch.ts'
  * Keeping it unified is what lets ModeScene own input entirely, so a new mode
  * never re-derives "what counts as jump".
  */
-export interface InputState {
-  readonly dirX: -1 | 0 | 1
-  readonly dirY: -1 | 0 | 1
-  readonly actionHeld: boolean
-  readonly actionJustPressed: boolean
-  readonly jumpHeld: boolean
-  readonly jumpJustPressed: boolean
-  readonly slideHeld: boolean
-}
-
-export const NEUTRAL_INPUT: InputState = {
-  dirX: 0,
-  dirY: 0,
-  actionHeld: false,
-  actionJustPressed: false,
-  jumpHeld: false,
-  jumpJustPressed: false,
-  slideHeld: false,
-}
-
-function axis(neg: boolean, pos: boolean): -1 | 0 | 1 {
-  if (neg && !pos) return -1
-  if (pos && !neg) return 1
-  return 0
-}
+export { mapInputForMode, NEUTRAL_INPUT }
+export type { InputState, RawInputState }
 
 /** Merges keyboard + touch and applies the invertControls modifier. */
 export class InputReader {
@@ -54,11 +34,13 @@ export class InputReader {
    * ModeScene snapshot; this one now does too.
    */
   private readonly mods: StageModifiers
+  private readonly modeId: GameMode
 
-  constructor(scene: Phaser.Scene, mods: StageModifiers) {
+  constructor(scene: Phaser.Scene, mods: StageModifiers, modeId: GameMode) {
     const kb = scene.input.keyboard
     if (!kb) throw new Error('Keyboard plugin unavailable')
     this.mods = mods
+    this.modeId = modeId
     this.cursors = kb.createCursorKeys()
     this.keyA = kb.addKey(Phaser.Input.Keyboard.KeyCodes.A)
     this.keyD = kb.addKey(Phaser.Input.Keyboard.KeyCodes.D)
@@ -74,38 +56,37 @@ export class InputReader {
     const up = this.cursors.up.isDown || this.keyW.isDown || t.dirY === -1
     const down = this.cursors.down.isDown || this.keyS.isDown || t.dirY === 1
 
-    const jumpHeld = up || this.cursors.space.isDown || t.action
+    const jumpHeld = up || this.cursors.space.isDown || t.action || t.jumpHeld
     const jumpJustPressed =
       Phaser.Input.Keyboard.JustDown(this.cursors.up) ||
       Phaser.Input.Keyboard.JustDown(this.keyW) ||
       Phaser.Input.Keyboard.JustDown(this.cursors.space) ||
       touch.consumeJumpEdge()
+    const slideJustPressed =
+      Phaser.Input.Keyboard.JustDown(this.cursors.down) ||
+      Phaser.Input.Keyboard.JustDown(this.keyS) ||
+      touch.consumeSlideEdge()
 
     const actionHeld = this.cursors.space.isDown || this.cursors.shift.isDown || t.action
     const actionJustPressed =
       Phaser.Input.Keyboard.JustDown(this.cursors.space) ||
       Phaser.Input.Keyboard.JustDown(this.cursors.shift)
 
-    let dirX = axis(left, right)
-    let dirY = axis(up, down)
-
-    // Applied here and nowhere else, so no mode can forget to honour it.
-    if (this.mods.invertControls) {
-      dirX = -dirX as -1 | 0 | 1
-      dirY = -dirY as -1 | 0 | 1
-    }
-
-    return {
-      dirX,
-      dirY,
-      actionHeld,
-      actionJustPressed,
-      jumpHeld,
-      jumpJustPressed,
-      // Deliberately NOT inverted. Slide is an action, not a direction --
-      // inverting it would bind "slide" to the up key, which reads as broken
-      // rather than as a challenge. The asymmetry with dirY is intentional.
-      slideHeld: down || t.slide,
-    }
+    return mapInputForMode(
+      {
+        left,
+        right,
+        up,
+        down,
+        jumpHeld,
+        jumpJustPressed,
+        slideHeld: down || t.slide,
+        slideJustPressed,
+        actionHeld,
+        actionJustPressed,
+      },
+      this.modeId,
+      this.mods,
+    )
   }
 }

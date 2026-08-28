@@ -27,11 +27,14 @@ import {
   landingSlackSec,
   minGapPx,
   REST_BOTTOM,
+  RUNNER_FLOOR_SNAP_PX,
   resolveGround,
   scrollSpeedAt,
 } from '../src/game/runnerPacing.ts'
 import {
   GRAVITY_Y,
+  COYOTE_MS,
+  JUMP_BUFFER_MS,
   RUNNER_JUMP_APEX_PX,
   RUNNER_SPAWN_MS,
   RUNNER_SPEED_CAP,
@@ -190,6 +193,66 @@ function simulateJumpApexPx(gravityY: number, dt = 1 / 60, frames = 240): number
   if (worst <= LOW_BLOCK_CLEARANCE_PX) {
     fail(`worst-case jump ${worst.toFixed(1)}px does not clear a ${LOW_BLOCK_CLEARANCE_PX}px block`)
   }
+}
+
+// --- 2b: runner jump input grace ------------------------------------------
+{
+  const gravity = GRAVITY_Y
+  const dtMs = 1000 / 60
+
+  function apexAfterBufferedJump(bufferStartMs: number, startBottom: number, startVy: number): number {
+    let bodyBottom = startBottom
+    let spriteY = FEET_Y + (startBottom - REST_BOTTOM)
+    let velocityY = startVy
+    let bufferMs = bufferStartMs
+    let coyoteMs = 0
+    let apex = 0
+
+    for (let f = 0; f < 240; f++) {
+      const before = bodyBottom
+      velocityY += gravity * (dtMs / 1000)
+      bodyBottom += velocityY * (dtMs / 1000)
+
+      const ground = resolveGround(bodyBottom, velocityY)
+      if (ground.onGround) {
+        bodyBottom -= ground.lift
+        spriteY -= ground.lift
+        velocityY = 0
+        coyoteMs = COYOTE_MS
+      } else {
+        coyoteMs = Math.max(0, coyoteMs - dtMs)
+      }
+
+      bufferMs = Math.max(0, bufferMs - dtMs)
+      if (bufferMs > 0 && coyoteMs > 0) {
+        velocityY = jumpVelocity(gravity)
+        bufferMs = 0
+        coyoteMs = 0
+      }
+
+      spriteY += bodyBottom - before
+      apex = Math.max(apex, FEET_Y - spriteY)
+    }
+    return apex
+  }
+
+  const snapped = resolveGround(REST_BOTTOM - RUNNER_FLOOR_SNAP_PX, 1)
+  if (!snapped.onGround) fail('floor snap tolerance does not mark near-floor runner grounded')
+  const rising = resolveGround(REST_BOTTOM + 1, -1)
+  if (rising.onGround) fail('rising runner was incorrectly grounded')
+
+  const buffered = apexAfterBufferedJump(JUMP_BUFFER_MS, REST_BOTTOM - RUNNER_FLOOR_SNAP_PX, 0)
+  if (buffered < RUNNER_JUMP_APEX_PX * 0.9) fail(`buffered jump only reached ${buffered.toFixed(1)}px`)
+
+  // Coyote: simulate leaving the floor 50ms ago, still within the grace window.
+  let coyoteMs = COYOTE_MS - 50
+  if (coyoteMs <= 0) fail('coyote test setup exceeded coyote window')
+  if (coyoteMs > 0) {
+    const launched = jumpVelocity(gravity)
+    if (!(launched < 0)) fail('coyote jump did not produce upward velocity')
+    coyoteMs = 0
+  }
+  if (coyoteMs !== 0) fail('coyote jump did not consume coyote time')
 }
 
 // --- 3: the two obstacle answers actually work -----------------------------

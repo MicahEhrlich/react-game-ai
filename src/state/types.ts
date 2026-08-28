@@ -78,6 +78,10 @@ export const PHASE = {
 } as const
 export type GamePhase = (typeof PHASE)[keyof typeof PHASE]
 
+export function acceptsGameplayDamage(phase: GamePhase): boolean {
+  return phase === PHASE.Playing
+}
+
 /**
  * Discrete, low-frequency state only. NOTHING per-frame goes in here -- every
  * patch() notifies React through useSyncExternalStore.

@@ -8,6 +8,8 @@ import { sfx } from '../audio.ts'
 import {
   DEPTH,
   DMG_OBSTACLE,
+  COYOTE_MS,
+  JUMP_BUFFER_MS,
   RUNNER_SCROLL_SPEED,
   RUNNER_SLIDE_MS,
   RUNNER_SPAWN_MS,
@@ -69,6 +71,8 @@ export class RunnerScene extends ModeScene {
   private slideUntilMs = 0
   private nextSpawnMs = 0
   private onGround = false
+  private coyoteMs = 0
+  private jumpBufferMs = 0
   /** Set when a threat first appears, cleared when the player acts on it. */
   private threatSeenMs = 0
   /** One "SLIDE" prompt per run, the first time a gate appears. */
@@ -85,6 +89,8 @@ export class RunnerScene extends ModeScene {
     this.slideUntilMs = 0
     this.nextSpawnMs = 0
     this.onGround = false
+    this.coyoteMs = 0
+    this.jumpBufferMs = 0
     this.threatSeenMs = 0
     this.gateHintShown = false
 
@@ -118,8 +124,8 @@ export class RunnerScene extends ModeScene {
     this.rampSpeed()
     this.ground.tilePositionX += this.worldDir * this.scrollSpeed * (delta / 1000)
 
-    this.applyGround()
-    this.handleJump(input)
+    this.applyGround(delta)
+    this.handleJump(input, delta)
     this.handleSlide(input, time)
     this.updateFrame()
 
@@ -183,30 +189,40 @@ export class RunnerScene extends ModeScene {
     return this.worldDir === 1 ? VIEW_W + 20 : -20
   }
 
-  private applyGround(): void {
+  private applyGround(delta: number): void {
     const body = this.runner.body as Phaser.Physics.Arcade.Body
     const { lift, onGround } = resolveGround(body.bottom, body.velocity.y)
 
     if (onGround) {
-      if (lift > 0) {
+      if (lift !== 0) {
         // Correct BOTH: the body so this frame's collision checks are right,
         // and the sprite because postUpdate only adds a delta on top of it.
+        // Negative lift is the small floor snap for near-ground drift.
         body.y -= lift
         this.runner.y -= lift
       }
       body.setVelocityY(0)
       if (!this.onGround) sfx.land()
+      this.coyoteMs = COYOTE_MS
+    } else {
+      this.coyoteMs = Math.max(0, this.coyoteMs - delta)
     }
     this.onGround = onGround
   }
 
-  private handleJump(input: InputState): void {
-    if (!input.jumpJustPressed || !this.onGround) return
+  private handleJump(input: InputState, delta: number): void {
+    this.jumpBufferMs = input.jumpJustPressed
+      ? JUMP_BUFFER_MS
+      : Math.max(0, this.jumpBufferMs - delta)
+
+    if (this.jumpBufferMs <= 0 || this.coyoteMs <= 0) return
     if (this.time.now < this.slideUntilMs) return
     ;(this.runner.body as Phaser.Physics.Arcade.Body).setVelocityY(
       jumpVelocity(this.physics.world.gravity.y),
     )
     this.onGround = false
+    this.coyoteMs = 0
+    this.jumpBufferMs = 0
     sfx.jump()
     metrics.jumped()
     this.noteReaction()

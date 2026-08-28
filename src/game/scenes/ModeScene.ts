@@ -10,7 +10,7 @@ import { sfx } from '../audio.ts'
 import { TAUNT, playTaunt } from '../taunts.ts'
 import { InputReader, NEUTRAL_INPUT } from '../input.ts'
 import type { InputState } from '../input.ts'
-import { PHASE } from '../../state/types.ts'
+import { PHASE, acceptsGameplayDamage } from '../../state/types.ts'
 import { addFog } from '../art/fog.ts'
 import { memeAccentNumber } from '../../memeTheme/index.ts'
 import type { MemeSpriteRole, MemeTheme } from '../../memeTheme/index.ts'
@@ -105,7 +105,7 @@ export abstract class ModeScene extends Phaser.Scene {
     // not inherited from the game config (the shooter sets it to zero).
     this.physics.world.gravity.y = GRAVITY_Y * this.mods.gravityScale
 
-    this.controls = new InputReader(this, this.mods)
+    this.controls = new InputReader(this, this.mods, this.modeId)
 
     this.setupMode()
 
@@ -173,6 +173,7 @@ export abstract class ModeScene extends Phaser.Scene {
    * or ?god=1), so callers can skip destroying the thing that hit us.
    */
   protected takeDamage(amount: number): boolean {
+    if (!acceptsGameplayDamage(gameStore.get().phase)) return false
     if (DEV.god) return false
     if (this.isInvulnerable) return false
 

@@ -37,6 +37,7 @@ export const GATE_BOTTOM_Y = 148
  * player slides -- validate-runner asserts that.
  */
 export const REST_BOTTOM = FEET_Y - 8 + BODY_STAND.oy + BODY_STAND.h
+export const RUNNER_FLOOR_SNAP_PX = 2
 
 /**
  * The runner's pacing maths, kept pure and out of the scene so it can be
@@ -71,7 +72,9 @@ export function resolveGround(
   velocityY: number,
 ): { lift: number; onGround: boolean } {
   const overshoot = bodyBottom - REST_BOTTOM
-  if (overshoot >= 0 && velocityY >= 0) return { lift: overshoot, onGround: true }
+  if (overshoot >= -RUNNER_FLOOR_SNAP_PX && velocityY >= 0) {
+    return { lift: overshoot, onGround: true }
+  }
   return { lift: 0, onGround: false }
 }
 
