@@ -10,6 +10,7 @@ import { PHASE } from '../state/types.ts'
 /**
  * Mounts a Phaser.Game into a host div and tears it down on unmount.
  *
+ * 
  * React 19 StrictMode double-invokes effects in dev (mount -> unmount ->
  * mount). Phaser's boot sequence is async, and destroying a Game mid-boot
  * throws, so the first (StrictMode-discarded) instance defers its own
