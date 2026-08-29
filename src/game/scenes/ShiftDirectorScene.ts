@@ -16,6 +16,8 @@ import type {
 import { loadPacing } from '../../director/pacing.ts'
 import { metrics } from '../../state/metrics.ts'
 import { loadDailyMemeTheme } from '../../memeTheme/daily.ts'
+import type { MemeThemeTelemetry } from '../../memeTheme/daily.ts'
+import { themeForMode } from '../../memeTheme/index.ts'
 import { commands } from '../../state/commands.ts'
 import { pickStartMode, runState } from '../../state/runState.ts'
 import { gameStore } from '../../state/store.ts'
@@ -170,7 +172,7 @@ export class ShiftDirectorScene extends Phaser.Scene {
     metrics.resetRun()
     runState.resetRun(this.time.now, mode)
     gameStore.startRun(mode)
-    music.play(gameStore.get().memeTheme.musicPlan)
+    music.play(themeForMode(gameStore.get().memeTheme, mode, 0).musicPlan)
 
     this.runId = newRunId()
     this.runStartedAt = Date.now()
@@ -354,6 +356,7 @@ export class ShiftDirectorScene extends Phaser.Scene {
       // nothing per-frame reaches the store (invariant 2).
       directorSource: this.live?.lastSource ?? PLAN_SOURCE.Heuristic,
     })
+    music.play(themeForMode(gameStore.get().memeTheme, plan.mode, gameStore.get().shiftIndex).musicPlan)
 
     // LAST, so it reads the post-patch shiftIndex. See primeDirector().
     this.primeDirector(closingMetrics)
@@ -389,13 +392,60 @@ export class ShiftDirectorScene extends Phaser.Scene {
   }
 
   private primeMemeTheme(runId: string): void {
-    void loadDailyMemeTheme(undefined, undefined, undefined, DEV.memeId, DEV.adultMemeMode).then((theme) => {
+    const snapshot = metrics.snapshot(gameStore.get().mode, this.stageElapsedMs, 1)
+    const themeTelemetry = this.memeThemeTelemetry(snapshot)
+    void loadDailyMemeTheme(
+      undefined,
+      undefined,
+      undefined,
+      DEV.memeId,
+      DEV.adultMemeMode,
+      themeTelemetry,
+      DEV.memeCycle,
+    ).then((theme) => {
       if (this.runId !== runId) return
       const phase = gameStore.get().phase
       if (phase === PHASE.Menu || phase === PHASE.GameOver) return
       gameStore.patch({ memeTheme: theme })
-      music.play(theme.musicPlan)
+      const s = gameStore.get()
+      music.play(themeForMode(theme, s.mode, s.shiftIndex).musicPlan)
     })
+  }
+
+  private memeThemeTelemetry(m: RunMetrics): MemeThemeTelemetry {
+    const rates = metrics.ratePerMode()
+    const played = Object.entries(rates).filter((entry): entry is [GameMode, number] => entry[1] !== null)
+    const weakestMode = played.length > 0 ? played.reduce((a, b) => (b[1] < a[1] ? b : a))[0] : null
+    const strongestMode = played.length > 0 ? played.reduce((a, b) => (b[1] > a[1] ? b : a))[0] : null
+    const recentStages = telemetry.currentStages().slice(-4)
+    const accuracyPct = m.shotsFired > 0 ? Math.round((m.shotsHit / m.shotsFired) * 100) : null
+    const damageRate = m.windowMs > 0 ? m.damageTaken / (m.windowMs / 60_000) : 0
+    const currentModeStress =
+      m.healthFraction < 0.35 || damageRate > 45 ? 'high' : m.healthFraction < 0.7 || damageRate > 20 ? 'medium' : 'low'
+    const cleanStageStreak = [...recentStages].reverse().findIndex((s) => s.damageTaken > 0)
+    const recentChaosFlags = recentStages
+      .flatMap((s) => [
+        s.modifiers.invertControls ? 'invertControls' : '',
+        s.modifiers.mirrorWorld ? 'mirrorWorld' : '',
+        s.modifiers.fogOfWar ? 'fogOfWar' : '',
+      ])
+      .filter((x) => x !== '')
+
+    return {
+      currentMode: m.mode,
+      weakestMode,
+      strongestMode,
+      damageTaken: Math.max(0, Math.round(m.damageTaken)),
+      accuracyPct,
+      jumps: Math.max(0, Math.round(m.jumps)),
+      pickups: Math.max(0, Math.round(m.pickups)),
+      healthPct: Math.max(0, Math.min(100, Math.round(m.healthFraction * 100))),
+      currentModeStress,
+      cleanStageStreak: cleanStageStreak === -1 ? recentStages.length : cleanStageStreak,
+      recentDeaths: recentStages.filter((s) => s.healthAtEnd <= 0).length,
+      recentShiftCount: recentStages.length,
+      recentChaosFlags,
+    }
   }
 
   private fallbackPlan(): StagePlan {

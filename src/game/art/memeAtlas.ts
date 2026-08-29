@@ -13,7 +13,7 @@ export interface SpriteRef {
 }
 
 export function memeAtlasKey(theme: MemeTheme): string {
-  return `meme-atlas:${theme.date}:${theme.id}`
+  return `meme-atlas:${theme.date}:${theme.id}:${theme.variantId ?? 'global'}`
 }
 
 export function buildMemeAtlas(scene: Phaser.Scene, theme: MemeTheme): string | null {

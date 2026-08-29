@@ -21,6 +21,9 @@ export interface MemeModeFlavor {
 
 export interface MemeTheme {
   readonly id: string
+  readonly variantId?: string
+  readonly bundleThemes?: Readonly<Record<GameMode, MemeTheme>>
+  readonly themeRotations?: Readonly<Record<GameMode, readonly MemeTheme[]>>
   readonly label: string
   readonly source: MemeThemeSource
   readonly date: string
@@ -31,6 +34,18 @@ export interface MemeTheme {
   readonly musicPlan: MemeMusicPlan
   readonly musicPlans?: readonly MemeMusicPlan[]
   readonly taunts: readonly string[]
+  readonly modeThemes?: Partial<Record<GameMode, MemeModeTheme>>
+}
+
+export interface MemeModeTheme {
+  readonly label?: string
+  readonly palette?: readonly string[]
+  readonly shiftLines?: readonly string[]
+  readonly modeFlavor?: MemeModeFlavor
+  readonly spritePack?: Partial<Record<MemeSpriteRole, PixelSprite>>
+  readonly musicPlan?: MemeMusicPlan
+  readonly musicPlans?: readonly MemeMusicPlan[]
+  readonly taunts?: readonly string[]
 }
 
 export type MemeThemeDraft = Partial<Omit<MemeTheme, 'source'>> & {
@@ -1054,19 +1069,225 @@ function musicPlans(v: unknown): readonly MemeMusicPlan[] | null | undefined {
   return out as readonly MemeMusicPlan[]
 }
 
+function partialSpritePack(v: unknown): Partial<Record<MemeSpriteRole, PixelSprite>> | null | undefined {
+  if (v === undefined || v === null) return undefined
+  if (typeof v !== 'object' || Array.isArray(v)) return null
+  const r = v as Record<string, unknown>
+  const out: Partial<Record<MemeSpriteRole, PixelSprite>> = {}
+  for (const role of ALL_MEME_SPRITE_ROLES) {
+    if (r[role] === undefined) continue
+    const pixelRows = sprite(r[role])
+    if (!pixelRows) return null
+    out[role] = pixelRows
+  }
+  return Object.keys(out).length > 0 ? out : undefined
+}
+
+export function normaliseModeThemes(raw: unknown): Partial<Record<GameMode, MemeModeTheme>> | null | undefined {
+  if (raw === undefined || raw === null) return undefined
+  if (typeof raw !== 'object' || Array.isArray(raw)) return null
+  const r = raw as Record<string, unknown>
+  const out: Partial<Record<GameMode, MemeModeTheme>> = {}
+
+  for (const mode of ALL_MODES) {
+    const rawMode = r[mode]
+    if (rawMode === undefined) continue
+    if (typeof rawMode !== 'object' || rawMode === null || Array.isArray(rawMode)) return null
+    const m = rawMode as Record<string, unknown>
+    const label = m.label === undefined ? undefined : line(m.label, MAX_LABEL)
+    const palette = m.palette === undefined
+      ? undefined
+      : Array.isArray(m.palette)
+        ? m.palette.filter((c): c is string => typeof c === 'string' && HEX.test(c)).slice(0, 4)
+        : null
+    const shiftLines = m.shiftLines === undefined ? undefined : list(m.shiftLines, 4, MAX_LINE)
+    const taunts = m.taunts === undefined ? undefined : list(m.taunts, 5, MAX_TAUNT)
+    const modeSpecificFlavor = m.modeFlavor === undefined ? undefined : flavor(m.modeFlavor)
+    const sprites = partialSpritePack(m.spritePack)
+    const music = m.musicPlan === undefined ? undefined : musicPlan(m.musicPlan)
+    const planList = musicPlans(m.musicPlans)
+
+    if (
+      label === null ||
+      palette === null ||
+      (palette !== undefined && palette.length < 2) ||
+      shiftLines === null ||
+      taunts === null ||
+      modeSpecificFlavor === null ||
+      sprites === null ||
+      music === null ||
+      planList === null
+    ) {
+      return null
+    }
+
+    out[mode] = {
+      ...(label ? { label } : {}),
+      ...(palette ? { palette } : {}),
+      ...(shiftLines ? { shiftLines } : {}),
+      ...(modeSpecificFlavor ? { modeFlavor: modeSpecificFlavor } : {}),
+      ...(sprites ? { spritePack: sprites } : {}),
+      ...(music ? { musicPlan: music } : {}),
+      ...(planList ? { musicPlans: planList } : {}),
+      ...(taunts ? { taunts } : {}),
+    }
+  }
+
+  return Object.keys(out).length > 0 ? out : undefined
+}
+
 function pickMusicPlan(id: string, date: string, plans: readonly MemeMusicPlan[]): MemeMusicPlan {
   const n = [...`${date}:${id}`].reduce((acc, ch) => acc + ch.charCodeAt(0), 0)
   return plans[n % plans.length]
 }
 
+function rotate<T>(items: readonly T[], amount: number): readonly T[] {
+  if (items.length === 0) return items
+  const n = amount % items.length
+  return [...items.slice(n), ...items.slice(0, n)]
+}
+
+const MODE_THEME_TAG: Readonly<Record<GameMode, string>> = {
+  [MODE.Platformer]: 'TERRAIN',
+  [MODE.Shooter]: 'ORBIT',
+  [MODE.Runner]: 'OVERDRIVE',
+  [MODE.Brick]: 'WALL',
+}
+
+const MODE_THEME_LINE: Readonly<Record<GameMode, string>> = {
+  [MODE.Platformer]: 'THE THEME LEARNED TO JUMP',
+  [MODE.Shooter]: 'THE THEME ENTERED ORBIT',
+  [MODE.Runner]: 'THE THEME HIT OVERDRIVE',
+  [MODE.Brick]: 'THE THEME BUILT A WALL',
+}
+
 function withSelectedMusic(base: MemeTheme, date: string): MemeTheme {
-  if (!base.musicPlans?.length) return { ...base, date, source: MEME_THEME_SOURCE.Offline }
+  let bundleThemes: Readonly<Record<GameMode, MemeTheme>> | undefined
+  if (base.bundleThemes) {
+    const out = {} as Record<GameMode, MemeTheme>
+    for (const mode of ALL_MODES) out[mode] = withSelectedMusic(base.bundleThemes[mode], date)
+    bundleThemes = out
+  }
+  let themeRotations: Readonly<Record<GameMode, readonly MemeTheme[]>> | undefined
+  if (base.themeRotations) {
+    const out = {} as Record<GameMode, readonly MemeTheme[]>
+    for (const mode of ALL_MODES) {
+      out[mode] = base.themeRotations[mode].map((theme) => withSelectedMusic(theme, date))
+    }
+    themeRotations = out
+  }
+  if (!base.musicPlans?.length) {
+    return {
+      ...base,
+      date,
+      source: MEME_THEME_SOURCE.Offline,
+      ...(bundleThemes ? { bundleThemes } : {}),
+      ...(themeRotations ? { themeRotations } : {}),
+    }
+  }
   return {
     ...base,
     date,
     source: MEME_THEME_SOURCE.Offline,
     musicPlan: pickMusicPlan(base.id, date, base.musicPlans),
+    ...(bundleThemes ? { bundleThemes } : {}),
+    ...(themeRotations ? { themeRotations } : {}),
   }
+}
+
+function withoutBundle(raw: Record<string, unknown>): Record<string, unknown> {
+  const {
+    bundleThemes: _bundleThemes,
+    modeThemeBundle: _modeThemeBundle,
+    themeRotations: _themeRotations,
+    ...rest
+  } = raw
+  return rest
+}
+
+function normaliseThemeBundle(
+  raw: unknown,
+  date: string,
+  source: MemeThemeSource,
+): Readonly<Record<GameMode, MemeTheme>> | null | undefined {
+  if (raw === undefined || raw === null) return undefined
+  if (typeof raw !== 'object' || Array.isArray(raw)) return null
+  const r = raw as Record<string, unknown>
+  const out: Partial<Record<GameMode, MemeTheme>> = {}
+  const seen = new Set<string>()
+  for (const mode of ALL_MODES) {
+    const value = r[mode]
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) return null
+    const theme = normaliseMemeTheme(withoutBundle(value as Record<string, unknown>), date, source)
+    if (!theme) return null
+    if (seen.has(theme.id)) return null
+    seen.add(theme.id)
+    out[mode] = { ...theme, variantId: mode }
+  }
+  return out as Readonly<Record<GameMode, MemeTheme>>
+}
+
+function normaliseThemeRotations(
+  raw: unknown,
+  date: string,
+  source: MemeThemeSource,
+): Readonly<Record<GameMode, readonly MemeTheme[]>> | null | undefined {
+  if (raw === undefined || raw === null) return undefined
+  if (typeof raw !== 'object' || Array.isArray(raw)) return null
+  const r = raw as Record<string, unknown>
+  const out: Partial<Record<GameMode, readonly MemeTheme[]>> = {}
+  for (const mode of ALL_MODES) {
+    const values = r[mode]
+    if (!Array.isArray(values) || values.length < 3 || values.length > 4) return null
+    const themes: MemeTheme[] = []
+    const seen = new Set<string>()
+    for (const value of values) {
+      if (typeof value !== 'object' || value === null || Array.isArray(value)) return null
+      const theme = normaliseMemeTheme(withoutBundle(value as Record<string, unknown>), date, source)
+      if (!theme) return null
+      if (seen.has(theme.id)) return null
+      seen.add(theme.id)
+      themes.push({ ...theme, variantId: mode })
+    }
+    out[mode] = themes
+  }
+  return out as Readonly<Record<GameMode, readonly MemeTheme[]>>
+}
+
+function bundleFromCatalog(
+  catalog: readonly MemeTheme[],
+  date: string,
+  source: MemeThemeSource,
+): MemeTheme | null {
+  if (catalog.length < ALL_MODES.length) return null
+  const start = [...date].reduce((acc, ch) => acc + ch.charCodeAt(0), 0) % catalog.length
+  const picked = ALL_MODES.map((mode, i) => {
+    const base = catalog[(start + i) % catalog.length]
+    return [mode, { ...withSelectedMusic(base, date), source, variantId: mode }] as const
+  })
+  const bundleThemes = Object.fromEntries(picked) as Readonly<Record<GameMode, MemeTheme>>
+  const base = bundleThemes[MODE.Platformer]
+  return { ...base, bundleThemes }
+}
+
+function rotationsFromCatalog(
+  catalog: readonly MemeTheme[],
+  date: string,
+  source: MemeThemeSource,
+): MemeTheme | null {
+  if (catalog.length < 3) return null
+  const seed = [...date].reduce((acc, ch) => acc + ch.charCodeAt(0), 0)
+  const themeRotations = {} as Record<GameMode, readonly MemeTheme[]>
+  for (const [modeIndex, mode] of ALL_MODES.entries()) {
+    const start = (seed + modeIndex * 2) % catalog.length
+    const count = Math.min(4, catalog.length)
+    themeRotations[mode] = Array.from({ length: count }, (_, i) => {
+      const base = catalog[(start + i) % catalog.length]
+      return { ...withSelectedMusic(base, date), source, variantId: mode }
+    })
+  }
+  const first = themeRotations[MODE.Platformer][0]
+  return { ...first, themeRotations }
 }
 
 export function localDateKey(d = new Date()): string {
@@ -1091,6 +1312,9 @@ export function normaliseMemeTheme(raw: unknown, date: string, source: MemeTheme
   const sprites = spritePack(r.spritePack, source === MEME_THEME_SOURCE.Live)
   const music = musicPlan(r.musicPlan)
   const planList = musicPlans(r.musicPlans)
+  const modeThemes = normaliseModeThemes(r.modeThemes)
+  const bundleThemes = normaliseThemeBundle(r.modeThemeBundle ?? r.bundleThemes, date, source)
+  const themeRotations = normaliseThemeRotations(r.themeRotations, date, source)
 
   if (
     !id ||
@@ -1102,7 +1326,10 @@ export function normaliseMemeTheme(raw: unknown, date: string, source: MemeTheme
     !mode ||
     sprites === null ||
     !music ||
-    planList === null
+    planList === null ||
+    modeThemes === null ||
+    bundleThemes === null ||
+    themeRotations === null
   ) {
     return null
   }
@@ -1121,7 +1348,64 @@ export function normaliseMemeTheme(raw: unknown, date: string, source: MemeTheme
     musicPlan: selectedMusic,
     ...(planList ? { musicPlans: planList } : {}),
     taunts,
+    ...(modeThemes ? { modeThemes } : {}),
+    ...(bundleThemes ? { bundleThemes } : {}),
+    ...(themeRotations ? { themeRotations } : {}),
   }
+}
+
+export function themeForMode(theme: MemeTheme, mode: GameMode, shiftIndex = 0): MemeTheme {
+  const rotation = theme.themeRotations?.[mode]
+  if (rotation?.length) {
+    const picked = rotation[Math.abs(Math.floor(shiftIndex)) % rotation.length]
+    return { ...picked, variantId: `${mode}-${Math.abs(Math.floor(shiftIndex)) % rotation.length}` }
+  }
+  const bundled = theme.bundleThemes?.[mode]
+  if (bundled) return { ...bundled, variantId: mode }
+  const modeTheme = theme.modeThemes?.[mode]
+  const modeIndex = ALL_MODES.indexOf(mode)
+  const fallbackPlans = theme.musicPlans?.length ? rotate(theme.musicPlans, modeIndex) : undefined
+  if (!modeTheme) {
+    return {
+      ...theme,
+      variantId: mode,
+      label: `${theme.label} ${MODE_THEME_TAG[mode]}`.slice(0, MAX_LABEL),
+      palette: rotate(theme.palette, modeIndex),
+      shiftLines: [MODE_THEME_LINE[mode], ...theme.shiftLines].slice(0, 4),
+      musicPlan: fallbackPlans?.length
+        ? pickMusicPlan(`${theme.id}:${mode}`, theme.date, fallbackPlans)
+        : theme.musicPlan,
+      ...(fallbackPlans ? { musicPlans: fallbackPlans } : {}),
+    }
+  }
+  const plans = modeTheme.musicPlans ?? theme.musicPlans
+  const musicPlan = plans?.length
+    ? pickMusicPlan(`${theme.id}:${mode}`, theme.date, plans)
+    : modeTheme.musicPlan ?? theme.musicPlan
+  return {
+    ...theme,
+    variantId: mode,
+    label: modeTheme.label ?? theme.label,
+    palette: modeTheme.palette ?? theme.palette,
+    shiftLines: modeTheme.shiftLines ?? theme.shiftLines,
+    taunts: modeTheme.taunts ?? theme.taunts,
+    modeFlavor: {
+      ...theme.modeFlavor,
+      ...(modeTheme.modeFlavor ? { [mode]: modeTheme.modeFlavor } : {}),
+    },
+    spritePack: modeTheme.spritePack
+      ? ({ ...(theme.spritePack ?? {}), ...modeTheme.spritePack } as MemeSpritePack)
+      : theme.spritePack,
+    musicPlan,
+    ...(plans ? { musicPlans: plans } : {}),
+  }
+}
+
+export function themeBundleForDate(date = localDateKey(), adultMode = false): MemeTheme {
+  const catalog = adultMode ? ADULT_MEME_THEMES : OFFLINE_MEME_THEMES
+  return rotationsFromCatalog(catalog, date, MEME_THEME_SOURCE.Offline) ??
+    bundleFromCatalog(catalog, date, MEME_THEME_SOURCE.Offline) ??
+    (adultMode ? adultMemeThemeForDate(date) : offlineMemeThemeForDate(date))
 }
 
 export const OFFLINE_MEME_THEMES: readonly MemeTheme[] = [

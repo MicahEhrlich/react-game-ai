@@ -5,14 +5,23 @@ import {
   normaliseMemeTheme,
   offlineMemeThemeById,
   offlineMemeThemeForDate,
+  themeBundleForDate,
   ALL_MEME_SPRITE_ROLES,
   ADULT_MEME_THEMES,
   ADULT_MEME_THEME_IDS,
   adultMemeThemeById,
   adultMemeThemeForDate,
+  themeForMode,
 } from '../src/memeTheme/index.ts'
 import { fetchLiveMemeTheme, loadDailyMemeTheme } from '../src/memeTheme/daily.ts'
 import type { MemeThemeFetch, MemeThemeStorage } from '../src/memeTheme/daily.ts'
+import type { GameMode } from '../src/state/types.ts'
+import {
+  chooseBestCandidate,
+  normaliseCandidateConcepts,
+  normaliseMemeReview,
+  scoreCandidateConcept,
+} from '../server/memeThemeEndpoint.ts'
 
 let failures = 0
 
@@ -78,6 +87,115 @@ const validDraft = {
   },
   spritePack: OFFLINE_MEME_THEMES[0].spritePack,
   musicPlan: OFFLINE_MEME_THEMES[0].musicPlan,
+}
+
+const validModeThemeDraft = {
+  ...validDraft,
+  modeThemes: {
+    runner: {
+      label: 'RUNNER FEED',
+      palette: ['#4dff9a', '#ffe14d'],
+      shiftLines: ['RUNNER GOT PERSONALIZED'],
+      taunts: ['RUNNER VARIANT ONLINE'],
+      modeFlavor: {
+        enemy: 'RUN BOT',
+        obstacle: 'RUN CLIP',
+        hazard: 'RUN TAX',
+        projectile: 'RUN PING',
+        brick: 'RUN WALL',
+      },
+      spritePack: {
+        runnerObstacle: OFFLINE_MEME_THEMES[1].spritePack!.runnerObstacle,
+      },
+      musicPlan: OFFLINE_MEME_THEMES[1].musicPlan,
+    },
+  },
+}
+
+const validBundleDraft = {
+  ...validDraft,
+  modeThemeBundle: {
+    platformer: { ...validDraft, id: 'bundle-platformer', label: 'BUNDLE PLATFORM' },
+    shooter: { ...validDraft, id: 'bundle-shooter', label: 'BUNDLE SHOOTER' },
+    runner: { ...validDraft, id: 'bundle-runner', label: 'BUNDLE RUNNER' },
+    brick: { ...validDraft, id: 'bundle-brick', label: 'BUNDLE BRICK' },
+  },
+}
+
+const validRotationDraft = {
+  ...validDraft,
+  themeRotations: {
+    platformer: [
+      { ...validDraft, id: 'platformer-one', label: 'PLATFORM ONE' },
+      { ...validDraft, id: 'platformer-two', label: 'PLATFORM TWO' },
+      { ...validDraft, id: 'platformer-three', label: 'PLATFORM THREE' },
+    ],
+    shooter: [
+      { ...validDraft, id: 'shooter-one', label: 'SHOOTER ONE' },
+      { ...validDraft, id: 'shooter-two', label: 'SHOOTER TWO' },
+      { ...validDraft, id: 'shooter-three', label: 'SHOOTER THREE' },
+    ],
+    runner: [
+      { ...validDraft, id: 'runner-one', label: 'RUNNER ONE' },
+      { ...validDraft, id: 'runner-two', label: 'RUNNER TWO' },
+      { ...validDraft, id: 'runner-three', label: 'RUNNER THREE' },
+    ],
+    brick: [
+      { ...validDraft, id: 'brick-one', label: 'BRICK ONE' },
+      { ...validDraft, id: 'brick-two', label: 'BRICK TWO' },
+      { ...validDraft, id: 'brick-three', label: 'BRICK THREE' },
+    ],
+  },
+}
+
+const validCandidates = {
+  candidates: [
+    {
+      id: 'muddy-bit',
+      label: 'MUDDY BIT',
+      hook: 'a vague arcade feed trend',
+      rationale: 'safe but plain readable arcade gag',
+      palette: ['#222222', '#333333'],
+      modeFit: {
+        platformer: 'small enemy theme',
+        shooter: 'small ship theme',
+        runner: 'small block theme',
+        brick: 'small wall theme',
+      },
+      spriteDirection: 'generic tiny shapes',
+      musicDirection: 'slow loop',
+    },
+    {
+      id: 'six-seven-signal',
+      label: 'SIX SEVEN SIGNAL',
+      hook: 'SIX SEVEN hand wave arcade brainrot',
+      rationale: 'safe absurd trend with strong readable motion',
+      palette: ['#3ef0ff', '#ff3ea5', '#ffe14d'],
+      modeFit: {
+        platformer: 'hand wave enemy silhouettes',
+        shooter: 'up down ship silhouettes',
+        runner: 'gesture obstacle blocks',
+        brick: 'six seven brick wall markings',
+      },
+      spriteDirection: 'sprite silhouettes for enemy obstacle projectile and brick',
+      musicDirection: '167 bpm synth bass drum arcade loop',
+    },
+    {
+      id: 'flat-chat',
+      label: 'FLAT CHAT',
+      hook: 'comment feed scroll gag',
+      rationale: 'safe readable but less visual',
+      palette: ['#999999', '#aaaaaa'],
+      modeFit: {
+        platformer: 'chat enemy theme',
+        shooter: 'chat ship theme',
+        runner: 'chat obstacle theme',
+        brick: 'chat wall theme',
+      },
+      spriteDirection: 'label themed shapes',
+      musicDirection: 'arcade loop',
+    },
+  ],
 }
 
 console.log('validate-meme-theme')
@@ -293,6 +411,185 @@ for (const [name, raw] of badCases) {
   }
 }
 
+{
+  const theme = normaliseMemeTheme(validModeThemeDraft, '2026-08-27', MEME_THEME_SOURCE.Live)
+  if (!theme?.modeThemes?.runner) fail('valid modeThemes draft was rejected')
+  const runner = theme ? themeForMode(theme, 'runner') : null
+  const shooter = theme ? themeForMode(theme, 'shooter') : null
+  if (runner?.label !== 'RUNNER FEED') fail('themeForMode did not apply runner label override')
+  if (runner?.modeFlavor.runner.obstacle !== 'RUN CLIP') fail('themeForMode did not apply runner flavor override')
+  if (runner?.spritePack?.runnerObstacle.join('\n') !== OFFLINE_MEME_THEMES[1].spritePack!.runnerObstacle.join('\n')) {
+    fail('themeForMode did not apply runner sprite override')
+  }
+  if (shooter?.label === 'RUNNER FEED') fail('themeForMode leaked runner label into shooter')
+  if (normaliseMemeTheme({ ...validDraft, modeThemes: { runner: { label: '<b>bad</b>' } } }, '2026-08-27', MEME_THEME_SOURCE.Live)) {
+    fail('malformed modeThemes override was accepted')
+  }
+}
+
+{
+  const safeBundle = themeBundleForDate('2026-08-27')
+  const adultBundle = themeBundleForDate('2026-08-27', true)
+  const modes: readonly GameMode[] = ['platformer', 'shooter', 'runner', 'brick']
+  const safeIds = new Set(modes.map((m) => themeForMode(safeBundle, m, 0).id))
+  const adultIds = new Set(modes.map((m) => themeForMode(adultBundle, m, 0).id))
+  const platformer0 = themeForMode(safeBundle, 'platformer', 0)
+  const platformer1 = themeForMode(safeBundle, 'platformer', 1)
+  const platformerAgain = themeForMode(safeBundle, 'platformer', 1)
+  if ((safeBundle.themeRotations?.platformer.length ?? 0) < 3) fail('offline safe rotations did not include at least three platformer themes')
+  if ((adultBundle.themeRotations?.runner.length ?? 0) < 3) fail('offline adult rotations did not include at least three runner themes')
+  if (safeIds.size < 3) fail('offline safe rotations lined up too many modes on the same theme')
+  if (adultIds.size < 3) fail('offline adult rotations lined up too many modes on the same theme')
+  if (platformer0.id === platformer1.id) fail('offline same-mode theme did not rotate across shifts')
+  if (platformer1.id !== platformerAgain.id) fail('offline same-mode theme rotation was not deterministic')
+  if ([...safeIds].some((id) => !OFFLINE_MEME_THEME_IDS.includes(id))) {
+    fail('offline safe bundle selected a non-safe theme')
+  }
+  if ([...adultIds].some((id) => !ADULT_MEME_THEME_IDS.includes(id))) {
+    fail('offline adult bundle selected a non-adult theme')
+  }
+}
+
+{
+  const theme = normaliseMemeTheme(validRotationDraft, '2026-08-27', MEME_THEME_SOURCE.Live)
+  if (!theme?.themeRotations) fail('valid live theme rotations were rejected')
+  if (themeForMode(theme!, 'platformer', 0).id !== 'PLATFORMER-ONE') fail('rotation shift 0 did not select first platformer theme')
+  if (themeForMode(theme!, 'platformer', 1).id !== 'PLATFORMER-TWO') fail('rotation shift 1 did not select second platformer theme')
+  if (themeForMode(theme!, 'platformer', 4).id !== 'PLATFORMER-TWO') fail('rotation did not wrap deterministically')
+  if (normaliseMemeTheme({
+    ...validRotationDraft,
+    themeRotations: { ...validRotationDraft.themeRotations, brick: validRotationDraft.themeRotations.brick.slice(0, 2) },
+  }, '2026-08-27', MEME_THEME_SOURCE.Live)) {
+    fail('short live theme rotation was accepted')
+  }
+}
+
+{
+  const theme = normaliseMemeTheme(validBundleDraft, '2026-08-27', MEME_THEME_SOURCE.Live)
+  if (!theme?.bundleThemes) fail('valid live theme bundle was rejected')
+  if (themeForMode(theme!, 'platformer').id !== 'BUNDLE-PLATFORMER') fail('bundle platformer theme was not selected')
+  if (themeForMode(theme!, 'brick').label !== 'BUNDLE BRICK') fail('bundle brick theme was not selected')
+  if (normaliseMemeTheme({
+    ...validBundleDraft,
+    modeThemeBundle: { ...validBundleDraft.modeThemeBundle, brick: undefined },
+  }, '2026-08-27', MEME_THEME_SOURCE.Live)) {
+    fail('incomplete live theme bundle was accepted')
+  }
+  if (normaliseMemeTheme({
+    ...validBundleDraft,
+    modeThemeBundle: {
+      ...validBundleDraft.modeThemeBundle,
+      brick: { ...validDraft, id: 'bundle-runner', label: 'DUPLICATE' },
+    },
+  }, '2026-08-27', MEME_THEME_SOURCE.Live)) {
+    fail('duplicate live theme bundle ids were accepted')
+  }
+}
+
+{
+  const theme = normaliseMemeTheme(validDraft, '2026-08-27', MEME_THEME_SOURCE.Live)
+  const platformer = theme ? themeForMode(theme, 'platformer') : null
+  const shooter = theme ? themeForMode(theme, 'shooter') : null
+  const runner = theme ? themeForMode(theme, 'runner') : null
+  const brick = theme ? themeForMode(theme, 'brick') : null
+  const labels = new Set([platformer?.label, shooter?.label, runner?.label, brick?.label])
+  if (labels.size !== 4) fail('global-only theme did not synthesize distinct per-mode labels')
+  if (platformer?.variantId !== 'platformer' || brick?.variantId !== 'brick') {
+    fail('global-only theme did not synthesize per-mode variant ids')
+  }
+  if (platformer?.palette[0] === shooter?.palette[0] && platformer?.palette[0] === runner?.palette[0]) {
+    fail('global-only theme did not rotate per-mode palette accents')
+  }
+  if (!runner?.shiftLines[0].includes('OVERDRIVE')) {
+    fail('global-only runner variant did not add a mode-specific shift line')
+  }
+}
+
+{
+  const candidates = normaliseCandidateConcepts(validCandidates)
+  if (!candidates || candidates.length !== 3) fail('valid candidate concepts were rejected')
+  const best = chooseBestCandidate(validCandidates)
+  if (best?.id !== 'six-seven-signal') fail('candidate scoring did not prefer the strongest game-fit concept')
+  if (candidates && scoreCandidateConcept(candidates[1]) <= scoreCandidateConcept(candidates[0])) {
+    fail('specific readable meme candidate did not outscore generic candidate')
+  }
+  if (normaliseCandidateConcepts({ candidates: [validCandidates.candidates[0]] })) {
+    fail('candidate parser accepted the wrong number of concepts')
+  }
+  if (
+    normaliseCandidateConcepts({
+      candidates: [
+        validCandidates.candidates[0],
+        { ...validCandidates.candidates[1], hook: '<b>bad</b>' },
+        validCandidates.candidates[2],
+      ],
+    })
+  ) {
+    fail('candidate parser accepted markup')
+  }
+}
+
+{
+  const safeReview = normaliseMemeReview({
+    rating: 'edgy-but-safe',
+    reason: 'chaotic but safe',
+    checks: {
+      noSlurs: true,
+      noProtectedClassAttack: true,
+      noExplicitSexualContent: true,
+      noGore: true,
+      noUrlsOrMarkup: true,
+      noCopyrightedMusicReference: true,
+      noPersonalHarassment: true,
+    },
+  })
+  if (safeReview?.rating !== 'edgy-but-safe') fail('edgy-but-safe review was rejected')
+  const rejected = normaliseMemeReview({
+    rating: 'safe',
+    reason: 'missed a check',
+    checks: {
+      noSlurs: true,
+      noProtectedClassAttack: true,
+      noExplicitSexualContent: false,
+      noGore: true,
+      noUrlsOrMarkup: true,
+      noCopyrightedMusicReference: true,
+      noPersonalHarassment: true,
+    },
+  })
+  if (rejected?.rating !== 'reject') fail('failed review checklist did not reject')
+}
+
+{
+  let sentBody = ''
+  const theme = await fetchLiveMemeTheme(
+    '2026-08-27',
+    async (_input, init) => {
+      sentBody = init.body ?? ''
+      return response(200, validDraft)
+    },
+    {
+      currentMode: 'runner',
+      weakestMode: 'brick',
+      strongestMode: 'shooter',
+      damageTaken: 12,
+      accuracyPct: 50,
+      jumps: 9,
+      pickups: 2,
+      healthPct: 80,
+      currentModeStress: 'medium',
+      cleanStageStreak: 2,
+      recentDeaths: 0,
+      recentShiftCount: 3,
+      recentChaosFlags: ['mirrorWorld'],
+    },
+  )
+  if (!theme || theme.source !== MEME_THEME_SOURCE.Live) fail('telemetry live fetch was not accepted')
+  if (!sentBody.includes('"telemetry"') || !sentBody.includes('"currentMode":"runner"')) {
+    fail('telemetry live fetch did not POST the compact summary')
+  }
+}
+
 const failingFetchers: readonly [string, MemeThemeFetch][] = [
   ['204', async () => response(204, null)],
   ['html 200', async () => response(200, '<html></html>', 'text/html')],
@@ -307,6 +604,7 @@ for (const [name, fetcher] of failingFetchers) {
   if (theme.source !== MEME_THEME_SOURCE.Offline || !theme.spritePack || !theme.musicPlan) {
     fail(`${name} did not fall back offline with sprites and music`)
   }
+  if (!theme.themeRotations) fail(`${name} did not fall back to per-shift theme rotations`)
 }
 
 {
@@ -335,6 +633,7 @@ for (const [name, fetcher] of failingFetchers) {
   if (theme.id !== 'six-seven' || theme.source !== MEME_THEME_SOURCE.Offline) {
     fail('forced offline meme id did not win over live fetch')
   }
+  if (theme.bundleThemes) fail('forced offline meme id unexpectedly enabled cycling')
   if (calls !== 0) fail('forced offline meme id still called live fetch')
 }
 
@@ -368,6 +667,7 @@ for (const [name, fetcher] of failingFetchers) {
   if (theme.id !== 'debate-afterparty' || theme.source !== MEME_THEME_SOURCE.Offline) {
     fail('adult forced meme id did not select adult catalog')
   }
+  if (theme.bundleThemes) fail('adult forced meme id unexpectedly enabled cycling')
   if (calls !== 0) fail('adult meme mode called live fetch')
 }
 
@@ -384,6 +684,7 @@ for (const [name, fetcher] of failingFetchers) {
     true,
   )
   if (!ADULT_MEME_THEME_IDS.includes(theme.id)) fail('adult mode invalid forced id did not use adult fallback')
+  if (!theme.themeRotations) fail('adult mode invalid forced id did not fall back to cycling rotations')
   if (calls !== 0) fail('adult fallback called live fetch')
 }
 

@@ -12,7 +12,7 @@ import { InputReader, NEUTRAL_INPUT } from '../input.ts'
 import type { InputState } from '../input.ts'
 import { PHASE, acceptsGameplayDamage } from '../../state/types.ts'
 import { addFog } from '../art/fog.ts'
-import { memeAccentNumber } from '../../memeTheme/index.ts'
+import { memeAccentNumber, themeForMode } from '../../memeTheme/index.ts'
 import type { MemeSpriteRole, MemeTheme } from '../../memeTheme/index.ts'
 import { spriteForRole } from '../art/memeAtlas.ts'
 import type { SpriteRef } from '../art/memeAtlas.ts'
@@ -207,7 +207,7 @@ export abstract class ModeScene extends Phaser.Scene {
   }
 
   protected get memeTheme(): MemeTheme {
-    return gameStore.get().memeTheme
+    return themeForMode(gameStore.get().memeTheme, this.modeId, gameStore.get().shiftIndex)
   }
 
   protected memeAccent(index: number, fallback = 0x3ef0ff): number {

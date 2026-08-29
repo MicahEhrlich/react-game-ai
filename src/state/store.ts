@@ -6,16 +6,15 @@ import { MODE, PHASE } from './types.ts'
 import { START_HEALTH } from '../game/constants.ts'
 import {
   adultMemeThemeById,
-  adultMemeThemeForDate,
   offlineMemeThemeById,
-  offlineMemeThemeForDate,
+  themeBundleForDate,
 } from '../memeTheme/index.ts'
 
 function initialMemeTheme() {
   if (DEV.adultMemeMode) {
-    return adultMemeThemeById(DEV.memeId) ?? adultMemeThemeForDate()
+    return adultMemeThemeById(DEV.memeId) ?? themeBundleForDate(undefined, true)
   }
-  return offlineMemeThemeById(DEV.memeId) ?? offlineMemeThemeForDate()
+  return offlineMemeThemeById(DEV.memeId) ?? themeBundleForDate()
 }
 
 const INITIAL: GameSnapshot = {

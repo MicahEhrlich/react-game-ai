@@ -3,6 +3,7 @@ import { DEV } from '../dev.ts'
 import { PLAN_SOURCE } from '../director/types.ts'
 import { MODE_LABEL } from '../state/types.ts'
 import { useGameState } from '../state/store.ts'
+import { themeForMode } from '../memeTheme/index.ts'
 
 /**
  * Reads only the discrete store. The shift countdown is quantised to whole
@@ -25,6 +26,7 @@ export function Hud() {
   } = useGameState()
 
   const healthPct = Math.max(0, Math.round((health / maxHealth) * 100))
+  const activeTheme = themeForMode(memeTheme, mode, shiftIndex)
 
   return (
     <div className="hud">
@@ -78,8 +80,8 @@ export function Hud() {
           it once, this is what answers the question 30 seconds later. */}
       {activeChaos && <div className="hud-chaos">⚠ {CHAOS_LABEL[activeChaos]}</div>}
       {DEV.adultMemeMode && <div className="hud-chaos">ADULT MEME MODE</div>}
-      <div className="hud-meme" style={{ borderColor: memeTheme.palette[0] }}>
-        MEME: {memeTheme.label}
+      <div className="hud-meme" style={{ borderColor: activeTheme.palette[0] }}>
+        MEME: {activeTheme.label}
       </div>
     </div>
   )

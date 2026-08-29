@@ -16,6 +16,7 @@ import { ALL_MODES } from './state/types.ts'
  *   ?ai=0                             force the heuristic director
  *   ?ai=1                             force the live director on
  *   ?meme=six-seven                   force a bundled offline meme theme
+ *   ?memeCycle=1                      rotate distinct meme themes per mode
  *   ?memeMode=adult                   enable curated opt-in adult meme themes
  *   ?difficulty=easy                  apply the Easy modifier preset, and
  *                                     have the platformer pick from the
@@ -53,6 +54,7 @@ function parse() {
       ai: null,
       difficulty: null,
       memeId: null,
+      memeCycle: false,
       adultMemeMode: false,
       adultMemeKey: null,
     }
@@ -69,6 +71,7 @@ function parse() {
       ai: null,
       difficulty: null,
       memeId: null,
+      memeCycle: false,
       adultMemeMode: false,
       adultMemeKey: null,
     }
@@ -106,6 +109,7 @@ function parse() {
   const rawAi = q.get('ai')
   const ai = rawAi === '1' ? true : rawAi === '0' ? false : null
   const memeId = q.get('meme')
+  const memeCycle = q.get('memeCycle') === '1'
   const adultMemeMode = q.get('memeMode') === 'adult'
   const adultMemeKey = q.get('key')
 
@@ -118,6 +122,7 @@ function parse() {
     ai,
     difficulty,
     memeId,
+    memeCycle,
     adultMemeMode,
     adultMemeKey,
   }

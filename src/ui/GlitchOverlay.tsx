@@ -1,6 +1,7 @@
 import { CHAOS_LABEL } from '../director/modifiers.ts'
 import { MODE_LABEL } from '../state/types.ts'
 import { useGameState } from '../state/store.ts'
+import { themeForMode } from '../memeTheme/index.ts'
 
 /**
  * The visible half of the mode shift.
@@ -12,9 +13,10 @@ import { useGameState } from '../state/store.ts'
  * (art/corruption.ts) draws the other half.
  */
 export function GlitchOverlay() {
-  const { nextMode, score, health, maxHealth, lastDirectorNotes, activeChaos, memeTheme } = useGameState()
+  const { nextMode, score, health, maxHealth, lastDirectorNotes, activeChaos, memeTheme, shiftIndex } = useGameState()
   const label = nextMode ? MODE_LABEL[nextMode] : 'RECONFIGURING'
-  const notes = [...memeTheme.shiftLines.slice(0, 2), ...lastDirectorNotes].slice(0, 4)
+  const activeTheme = nextMode ? themeForMode(memeTheme, nextMode, shiftIndex + 1) : memeTheme
+  const notes = [...activeTheme.shiftLines.slice(0, 2), ...lastDirectorNotes].slice(0, 4)
 
   return (
     <div className="glitch" role="status" aria-live="polite">
