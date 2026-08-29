@@ -29,6 +29,7 @@ export interface MemeTheme {
   readonly modeFlavor: Readonly<Record<GameMode, MemeModeFlavor>>
   readonly spritePack?: MemeSpritePack
   readonly musicPlan: MemeMusicPlan
+  readonly musicPlans?: readonly MemeMusicPlan[]
   readonly taunts: readonly string[]
 }
 
@@ -44,6 +45,7 @@ const MAX_FLAVOR = 18
 const MAX_TAUNT = 64
 const SPRITE_SIZE = 16
 const MAX_PATTERN = 16
+const MAX_MUSIC_PLANS = 4
 const HEX = /^#[0-9a-fA-F]{6}$/
 const DATE = /^\d{4}-\d{2}-\d{2}$/
 const URL_OR_MARKUP = /(https?:\/\/|www\.|<[^>]+>|[{}[\]\\])/i
@@ -140,6 +142,60 @@ const MUSIC = {
     leadPattern: [3, -1, 3, -1, 2, -1, 2, -1, 5, -1, 5, -1, 3, 2, -1, 0],
     drumPattern: [1, 3, 2, 3, 1, 3, 2, 3, 1, 3, 2, 4, 1, 3, 2, 3],
     intensity: 0.64,
+  },
+  RallyStomp: {
+    style: 'rally stomp',
+    bpm: 126,
+    scale: MUSIC_SCALE.Major,
+    bassPattern: [0, -1, 0, 4, 5, -1, 4, 2],
+    leadPattern: [7, -1, 5, 4, 2, -1, 4, 5, 7, -1, 7, 5, 4, 2, -1, 0],
+    drumPattern: [1, 3, 2, 3, 1, 4, 2, 3, 1, 3, 2, 3, 1, 4, 2, 3],
+    intensity: 0.72,
+  },
+  IslandNoir: {
+    style: 'island noir',
+    bpm: 104,
+    scale: MUSIC_SCALE.Minor,
+    bassPattern: [0, -1, 3, -1, 2, -1, 5, -1],
+    leadPattern: [7, -1, 6, -1, 3, 2, -1, 0, 5, -1, 3, -1, 2, -1, 0, -1],
+    drumPattern: [1, 3, 3, 2, 0, 3, 4, 3, 1, 3, 3, 2, 0, 3, 3, 4],
+    intensity: 0.46,
+  },
+  BorderWallBounce: {
+    style: 'border wall bounce',
+    bpm: 148,
+    scale: MUSIC_SCALE.Pentatonic,
+    bassPattern: [0, 0, -1, 3, 5, -1, 3, -1],
+    leadPattern: [0, 3, 5, 7, -1, 5, 3, -1, 0, 3, 5, 7, 5, 3, -1, 0],
+    drumPattern: [1, 3, 2, 4, 1, 3, 2, 3, 1, 4, 2, 3, 1, 3, 2, 4],
+    intensity: 0.76,
+  },
+  DebateClub: {
+    style: 'debate club',
+    bpm: 138,
+    scale: MUSIC_SCALE.Chromatic,
+    bassPattern: [0, 1, 0, -1, 3, 2, 1, -1],
+    leadPattern: [4, 5, -1, 4, 2, 3, -1, 2, 6, 7, 6, -1, 4, 3, 2, -1],
+    drumPattern: [1, 3, 2, 3, 1, 4, 2, 4, 1, 3, 2, 3, 1, 3, 2, 4],
+    intensity: 0.66,
+  },
+  WarRoomPulse: {
+    style: 'war room pulse',
+    bpm: 160,
+    scale: MUSIC_SCALE.Minor,
+    bassPattern: [0, -1, 0, -1, 5, -1, 3, -1],
+    leadPattern: [0, -1, 2, -1, 3, 5, -1, 3, 7, -1, 6, 5, 3, -1, 2, 0],
+    drumPattern: [1, 3, 2, 3, 1, 3, 4, 3, 1, 3, 2, 3, 1, 4, 2, 3],
+    intensity: 0.7,
+  },
+  ArcadeLounge: {
+    style: 'arcade lounge',
+    bpm: 112,
+    scale: MUSIC_SCALE.Major,
+    bassPattern: [0, -1, 4, -1, 5, -1, 4, -1],
+    leadPattern: [0, 2, 4, -1, 5, 7, -1, 5, 4, 2, -1, 0, 2, 4, 5, -1],
+    drumPattern: [1, 3, 3, 2, 0, 3, 3, 2, 1, 3, 4, 2, 0, 3, 3, 2],
+    intensity: 0.42,
   },
 } satisfies Record<string, MemeMusicPlan>
 
@@ -990,6 +1046,29 @@ function musicPlan(v: unknown): MemeMusicPlan | null {
   }
 }
 
+function musicPlans(v: unknown): readonly MemeMusicPlan[] | null | undefined {
+  if (v === undefined || v === null) return undefined
+  if (!Array.isArray(v) || v.length === 0 || v.length > MAX_MUSIC_PLANS) return null
+  const out = v.map((p) => musicPlan(p))
+  if (out.some((p) => p === null)) return null
+  return out as readonly MemeMusicPlan[]
+}
+
+function pickMusicPlan(id: string, date: string, plans: readonly MemeMusicPlan[]): MemeMusicPlan {
+  const n = [...`${date}:${id}`].reduce((acc, ch) => acc + ch.charCodeAt(0), 0)
+  return plans[n % plans.length]
+}
+
+function withSelectedMusic(base: MemeTheme, date: string): MemeTheme {
+  if (!base.musicPlans?.length) return { ...base, date, source: MEME_THEME_SOURCE.Offline }
+  return {
+    ...base,
+    date,
+    source: MEME_THEME_SOURCE.Offline,
+    musicPlan: pickMusicPlan(base.id, date, base.musicPlans),
+  }
+}
+
 export function localDateKey(d = new Date()): string {
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, '0')
@@ -1011,10 +1090,24 @@ export function normaliseMemeTheme(raw: unknown, date: string, source: MemeTheme
   const mode = modeFlavor(r.modeFlavor)
   const sprites = spritePack(r.spritePack, source === MEME_THEME_SOURCE.Live)
   const music = musicPlan(r.musicPlan)
+  const planList = musicPlans(r.musicPlans)
 
-  if (!id || !label || palette.length < 2 || palette.length > 4 || !shiftLines || !taunts || !mode || sprites === null || !music) {
+  if (
+    !id ||
+    !label ||
+    palette.length < 2 ||
+    palette.length > 4 ||
+    !shiftLines ||
+    !taunts ||
+    !mode ||
+    sprites === null ||
+    !music ||
+    planList === null
+  ) {
     return null
   }
+
+  const selectedMusic = planList?.length ? pickMusicPlan(id, date, planList) : music
 
   return {
     id,
@@ -1025,7 +1118,8 @@ export function normaliseMemeTheme(raw: unknown, date: string, source: MemeTheme
     shiftLines,
     modeFlavor: mode,
     ...(sprites ? { spritePack: sprites } : {}),
-    musicPlan: music,
+    musicPlan: selectedMusic,
+    ...(planList ? { musicPlans: planList } : {}),
     taunts,
   }
 }
@@ -1041,6 +1135,7 @@ export const OFFLINE_MEME_THEMES: readonly MemeTheme[] = [
     taunts: ['CALENDAR INVITE ACCEPTED', 'ACTION ITEMS ARE SENTIENT'],
     spritePack: OFFICE_SPRITES,
     musicPlan: MUSIC.Office,
+    musicPlans: [MUSIC.Office, MUSIC.ArcadeLounge, MUSIC.DebateClub],
     modeFlavor: {
       [MODE.Platformer]: { ...DEFAULT_FLAVOR, enemy: 'MANAGER BOT', hazard: 'SCOPE CREEP' },
       [MODE.Shooter]: { ...DEFAULT_FLAVOR, enemy: 'EMAIL DRONE', projectile: 'PING' },
@@ -1058,6 +1153,7 @@ export const OFFLINE_MEME_THEMES: readonly MemeTheme[] = [
     taunts: ['RATIO DETECTED', 'THREAD MUTED TOO LATE'],
     spritePack: COMMENT_SPRITES,
     musicPlan: MUSIC.Comment,
+    musicPlans: [MUSIC.Comment, MUSIC.DebateClub, MUSIC.WarRoomPulse],
     modeFlavor: {
       [MODE.Platformer]: { ...DEFAULT_FLAVOR, enemy: 'REPLY GUY', hazard: 'RATIO' },
       [MODE.Shooter]: { ...DEFAULT_FLAVOR, enemy: 'TAKE DRONE', projectile: 'QUOTE POST' },
@@ -1075,6 +1171,7 @@ export const OFFLINE_MEME_THEMES: readonly MemeTheme[] = [
     taunts: ['FOR YOU PAGE FORGOT YOU', 'OPTIMIZED FOR PANIC'],
     spritePack: ALGO_SPRITES,
     musicPlan: MUSIC.Algo,
+    musicPlans: [MUSIC.Algo, MUSIC.ArcadeLounge, MUSIC.BorderWallBounce],
     modeFlavor: {
       [MODE.Platformer]: { ...DEFAULT_FLAVOR, enemy: 'FEED BOT', hazard: 'BAIT PIT' },
       [MODE.Shooter]: { ...DEFAULT_FLAVOR, enemy: 'BOT SWARM', projectile: 'CLICKBAIT' },
@@ -1092,6 +1189,7 @@ export const OFFLINE_MEME_THEMES: readonly MemeTheme[] = [
     taunts: ['SIX UP SEVEN DOWN', 'BALANCE THE FEED'],
     spritePack: SIX_SEVEN_SPRITES,
     musicPlan: MUSIC.SixSeven,
+    musicPlans: [MUSIC.SixSeven, MUSIC.BorderWallBounce, MUSIC.RallyStomp],
     modeFlavor: {
       [MODE.Platformer]: { ...DEFAULT_FLAVOR, enemy: 'UP DOWN', hazard: '👋 ↕ 👋' },
       [MODE.Shooter]: { ...DEFAULT_FLAVOR, enemy: 'HAND EDIT', projectile: 'SIX SEVEN' },
@@ -1109,6 +1207,7 @@ export const OFFLINE_MEME_THEMES: readonly MemeTheme[] = [
     taunts: ['SMOOTH INPUT', 'AURA BUFFER FULL'],
     spritePack: RIZZ_SPRITES,
     musicPlan: MUSIC.Rizz,
+    musicPlans: [MUSIC.Rizz, MUSIC.ArcadeLounge, MUSIC.IslandNoir],
     modeFlavor: {
       [MODE.Platformer]: { ...DEFAULT_FLAVOR, enemy: 'AURA BOT', hazard: 'CRINGE FIELD' },
       [MODE.Shooter]: { ...DEFAULT_FLAVOR, enemy: 'RIZZ DRONE', projectile: 'AURA BEAM' },
@@ -1126,6 +1225,7 @@ export const OFFLINE_MEME_THEMES: readonly MemeTheme[] = [
     taunts: ['IDLE ANIMATION WON', 'SCRIPTED BUT DANGEROUS'],
     spritePack: NPC_SPRITES,
     musicPlan: MUSIC.Npc,
+    musicPlans: [MUSIC.Npc, MUSIC.Comment, MUSIC.ArcadeLounge],
     modeFlavor: {
       [MODE.Platformer]: { ...DEFAULT_FLAVOR, enemy: 'NPC LOOP', hazard: 'SCRIPT BUG' },
       [MODE.Shooter]: { ...DEFAULT_FLAVOR, enemy: 'STREAM BOT', projectile: 'CHAT PING' },
@@ -1881,6 +1981,7 @@ export const ADULT_MEME_THEMES: readonly MemeTheme[] = [
     taunts: ['BUNKER CAM LOST SIGNAL', 'HISTORY CHANNEL COMMENTS ARE LIVE'],
     spritePack: BUNKER_SPRITES,
     musicPlan: MUSIC.Comment,
+    musicPlans: [MUSIC.Comment, MUSIC.WarRoomPulse, MUSIC.DebateClub],
     modeFlavor: {
       [MODE.Platformer]: { ...DEFAULT_FLAVOR, enemy: 'SADDAM CAM', hazard: 'HOT MIC' },
       [MODE.Shooter]: { ...DEFAULT_FLAVOR, enemy: 'WAR ROOM', projectile: 'PRESS CLIP' },
@@ -1898,6 +1999,7 @@ export const ADULT_MEME_THEMES: readonly MemeTheme[] = [
     taunts: ['CHARLIE KIRK CLIP FARM', 'THE MIC STAYED ON'],
     spritePack: DEBATE_SPRITES,
     musicPlan: MUSIC.Rizz,
+    musicPlans: [MUSIC.Rizz, MUSIC.DebateClub, MUSIC.ArcadeLounge],
     modeFlavor: {
       [MODE.Platformer]: { ...DEFAULT_FLAVOR, enemy: 'PODIUM GUY', hazard: 'CLIP FARM' },
       [MODE.Shooter]: { ...DEFAULT_FLAVOR, enemy: 'DEBATE DRONE', projectile: 'SOUND BITE' },
@@ -1915,6 +2017,7 @@ export const ADULT_MEME_THEMES: readonly MemeTheme[] = [
     taunts: ['TABLOID BOARD NEEDS STRING', 'CAMERA ROLL DENIED'],
     spritePack: TABLOID_SPRITES,
     musicPlan: MUSIC.Algo,
+    musicPlans: [MUSIC.Algo, MUSIC.IslandNoir, MUSIC.ArcadeLounge],
     modeFlavor: {
       [MODE.Platformer]: { ...DEFAULT_FLAVOR, enemy: 'FILE CLERK', hazard: 'REDACTED' },
       [MODE.Shooter]: { ...DEFAULT_FLAVOR, enemy: 'CAM DRONE', projectile: 'FILE TAB' },
@@ -1932,6 +2035,7 @@ export const ADULT_MEME_THEMES: readonly MemeTheme[] = [
     taunts: ['GENERAL CHAT HAS FALLEN', 'THE BRIEFING WAS A MEME'],
     spritePack: STRONGMAN_SPRITES,
     musicPlan: MUSIC.SixSeven,
+    musicPlans: [MUSIC.SixSeven, MUSIC.WarRoomPulse, MUSIC.Comment],
     modeFlavor: {
       [MODE.Platformer]: { ...DEFAULT_FLAVOR, enemy: 'PUTIN MAP', hazard: 'RED STRING' },
       [MODE.Shooter]: { ...DEFAULT_FLAVOR, enemy: 'BRIEFING BOT', projectile: 'MEMO BLAST' },
@@ -1949,6 +2053,7 @@ export const ADULT_MEME_THEMES: readonly MemeTheme[] = [
     taunts: ['KREMLIN BOT MISSED', 'PRESS ROOM BUFFERING'],
     spritePack: STRONGMAN_SPRITES,
     musicPlan: MUSIC.Comment,
+    musicPlans: [MUSIC.Comment, MUSIC.WarRoomPulse, MUSIC.DebateClub],
     modeFlavor: {
       [MODE.Platformer]: { ...DEFAULT_FLAVOR, enemy: 'PODIUM BOT', hazard: 'MAP LOOP' },
       [MODE.Shooter]: { ...DEFAULT_FLAVOR, enemy: 'KREMLIN BOT', projectile: 'NEWS BLIP' },
@@ -1966,6 +2071,7 @@ export const ADULT_MEME_THEMES: readonly MemeTheme[] = [
     taunts: ['MAGA SIGN WHIFFED', 'PODIUM BUFFERING'],
     spritePack: MAGA_SPRITES,
     musicPlan: MUSIC.SixSeven,
+    musicPlans: [MUSIC.SixSeven, MUSIC.RallyStomp, MUSIC.BorderWallBounce],
     modeFlavor: {
       [MODE.Platformer]: { ...DEFAULT_FLAVOR, enemy: 'MAGA', hazard: 'RALLY SIGN' },
       [MODE.Shooter]: { ...DEFAULT_FLAVOR, enemy: 'DONKEY', projectile: 'MAGA' },
@@ -1978,7 +2084,7 @@ export const ADULT_MEME_THEMES: readonly MemeTheme[] = [
 export function offlineMemeThemeForDate(date = localDateKey()): MemeTheme {
   const n = [...date].reduce((acc, ch) => acc + ch.charCodeAt(0), 0)
   const base = OFFLINE_MEME_THEMES[n % OFFLINE_MEME_THEMES.length]
-  return { ...base, date, source: MEME_THEME_SOURCE.Offline }
+  return withSelectedMusic(base, date)
 }
 
 export const OFFLINE_MEME_THEME_IDS: readonly string[] = OFFLINE_MEME_THEMES.map((t) => t.id)
@@ -1987,19 +2093,19 @@ export const ADULT_MEME_THEME_IDS: readonly string[] = ADULT_MEME_THEMES.map((t)
 export function offlineMemeThemeById(id: string | null | undefined, date = localDateKey()): MemeTheme | null {
   if (!id) return null
   const base = OFFLINE_MEME_THEMES.find((t) => t.id === id)
-  return base ? { ...base, date, source: MEME_THEME_SOURCE.Offline } : null
+  return base ? withSelectedMusic(base, date) : null
 }
 
 export function adultMemeThemeForDate(date = localDateKey()): MemeTheme {
   const n = [...date].reduce((acc, ch) => acc + ch.charCodeAt(0), 0)
   const base = ADULT_MEME_THEMES[n % ADULT_MEME_THEMES.length]
-  return { ...base, date, source: MEME_THEME_SOURCE.Offline }
+  return withSelectedMusic(base, date)
 }
 
 export function adultMemeThemeById(id: string | null | undefined, date = localDateKey()): MemeTheme | null {
   if (!id) return null
   const base = ADULT_MEME_THEMES.find((t) => t.id === id)
-  return base ? { ...base, date, source: MEME_THEME_SOURCE.Offline } : null
+  return base ? withSelectedMusic(base, date) : null
 }
 
 export function memeAccent(theme: MemeTheme, index: number, fallback = '#3ef0ff'): string {

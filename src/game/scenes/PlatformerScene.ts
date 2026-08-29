@@ -22,7 +22,13 @@ import {
 import { Flyer, Walker } from '../entities/Enemy.ts'
 import { Avatar } from '../entities/Avatar.ts'
 import type { InputState } from '../input.ts'
-import { generatePlatformer, randomSeed, SOLID, SPAWN } from '../levels/generatePlatformer.ts'
+import {
+  generatePlatformer,
+  mirrorPlatformerLevel,
+  randomSeed,
+  SOLID,
+  SPAWN,
+} from '../levels/generatePlatformer.ts'
 import type { PlatformerLevel } from '../levels/generatePlatformer.ts'
 import { pickEasyPlatformerSeed } from '../levels/easyPlatformerLevels.ts'
 import { LEVEL_DIFFICULTY } from '../levels/difficulty.ts'
@@ -72,6 +78,10 @@ export class PlatformerScene extends ModeScene {
       this.physics.world.gravity.y,
       this.mods.playerSpeedScale,
     )
+    if (this.mods.mirrorWorld) {
+      this.physics.world.gravity.y = -Math.abs(this.physics.world.gravity.y)
+      this.level = mirrorPlatformerLevel(this.level)
+    }
     this.buildTerrain()
     this.buildStarfield()
 
@@ -80,8 +90,10 @@ export class PlatformerScene extends ModeScene {
       this.level.startX,
       this.level.startY,
       this.mods.playerSpeedScale,
+      this.mods.mirrorWorld ? -1 : 1,
     )
     this.player.setDepth(DEPTH.Player)
+    this.player.setFlipY(this.mods.mirrorWorld)
     this.avatar = this.player
     if (this.memeTheme.id === 'maga-rally') {
       this.playerCostume = this.add.graphics().setDepth(DEPTH.Player + 1)
@@ -111,12 +123,15 @@ export class PlatformerScene extends ModeScene {
 
     // Remember the last spot the player stood on solid ground, so a pit
     // respawn puts them somewhere survivable rather than back at the start.
-    if (body.blocked.down && this.player.y < this.level.heightPx) {
+    const grounded = this.mods.mirrorWorld ? body.blocked.up : body.blocked.down
+    if (grounded && this.player.y < this.level.heightPx) {
       this.lastSafeX = this.player.x
-      this.lastSafeY = this.player.y - TILE_SIZE
+      this.lastSafeY = this.player.y + (this.mods.mirrorWorld ? TILE_SIZE : -TILE_SIZE)
     }
 
-    if (this.player.y > this.level.heightPx + 48) this.onPitFall()
+    if (this.mods.mirrorWorld ? this.player.y < -48 : this.player.y > this.level.heightPx + 48) {
+      this.onPitFall()
+    }
 
     // Reaching the far end regenerates the level ahead. At 105px/s top speed
     // the 140-tile level takes ~21s to cross, close to a stage's own 18-30s
@@ -142,6 +157,7 @@ export class PlatformerScene extends ModeScene {
           frameFor[kind],
         ) as Phaser.Physics.Arcade.Sprite
         tile.setDepth(DEPTH.Terrain)
+        tile.setFlipY(this.mods.mirrorWorld)
       }
     }
   }
@@ -233,6 +249,7 @@ export class PlatformerScene extends ModeScene {
           const h = hazards.create(s.x, s.y, ATLAS_KEY, frame) as Phaser.Physics.Arcade.Sprite
           h.setTexture(sprite.key, sprite.frame)
           h.setDepth(DEPTH.Terrain)
+          h.setFlipY(this.mods.mirrorWorld)
           h.setTint(this.memeAccent(1, 0xff3ea5))
           this.addMemeDecal(s.x, s.y - 13, this.memeTheme.modeFlavor[this.modeId].hazard, 1)
           if (s.kind === SPAWN.Fire && sprite.key === ATLAS_KEY) h.anims.play(ANIM.Fire, true)
@@ -254,6 +271,7 @@ export class PlatformerScene extends ModeScene {
             this.memeSprite(MEME_SPRITE_ROLE.PlatformerEnemy, 'walker-0'),
           )
           w.setDepth(DEPTH.Enemy)
+          w.setFlipY(this.mods.mirrorWorld)
           w.setTint(this.memeAccent(0, 0x3ef0ff))
           this.addMemeDecal(s.x, s.y - 16, this.memeTheme.modeFlavor[this.modeId].enemy, 0)
           this.physics.add.collider(w, this.solids)
@@ -270,6 +288,7 @@ export class PlatformerScene extends ModeScene {
             this.memeSprite(MEME_SPRITE_ROLE.PlatformerEnemy, 'flyer-0'),
           )
           f.setDepth(DEPTH.Enemy)
+          f.setFlipY(this.mods.mirrorWorld)
           f.setTint(this.memeAccent(2, 0xff3ea5))
           this.addMemeDecal(s.x, s.y - 15, this.memeTheme.modeFlavor[this.modeId].enemy, 2)
           this.enemies.push(f)

@@ -19,7 +19,7 @@
  *      margin to spare rather than just barely qualifying.
  */
 import { GRAVITY_Y } from '../src/game/constants.ts'
-import { generatePlatformer } from '../src/game/levels/generatePlatformer.ts'
+import { generatePlatformer, mirrorPlatformerLevel } from '../src/game/levels/generatePlatformer.ts'
 import { checkPlatformerLevel } from '../src/game/levels/levelCheck.ts'
 import { EASY_PLATFORMER_LEVELS } from '../src/game/levels/easyPlatformerLevels.ts'
 import { DIFFICULTY_MODIFIERS } from '../src/game/levels/difficulty.ts'
@@ -104,11 +104,24 @@ if (EASY_PLATFORMER_LEVELS.length === 0) {
         for (const seed of SEEDS) {
           const level = generatePlatformer(seed, ss, gravityY, ps)
           const report = checkPlatformerLevel(level, gravityY, ps)
+          const mirrored = mirrorPlatformerLevel(level)
           if (!report.solvable) {
             fail(
               `gravity ${gs} / speed ${ps} / spawn ${ss} / seed ${seed}: ` +
                 report.issues.join('; '),
             )
+          }
+          if (mirrored.startY !== level.heightPx - level.startY) {
+            fail(`mirrored seed ${seed}: startY did not flip around level height`)
+          }
+          const roundTrip = mirrorPlatformerLevel(mirrored)
+          if (roundTrip.startY !== level.startY || JSON.stringify(roundTrip.grid) !== JSON.stringify(level.grid)) {
+            fail(`mirrored seed ${seed}: mirror transform is not reversible`)
+          }
+          for (const spawn of mirrored.spawns) {
+            if (spawn.y < 0 || spawn.y > mirrored.heightPx) {
+              fail(`mirrored seed ${seed}: spawn ${spawn.kind} y=${spawn.y} out of bounds`)
+            }
           }
         }
       }

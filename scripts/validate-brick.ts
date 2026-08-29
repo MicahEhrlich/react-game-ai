@@ -21,9 +21,16 @@ import {
   brickRows,
   brickX,
   brickY,
+  ballLost,
+  ballSpawnY,
+  brickPaddleY,
+  brickPlayDir,
   clampMinVy,
   deflect,
+  deflectForOrientation,
   maxBallVx,
+  orientedBrickY,
+  paddleHitY,
   PADDLE_HIT_Y,
   PADDLE_TOP_Y,
   ballSpeedAt,
@@ -43,10 +50,13 @@ import {
   BALL_SPEED,
   BALL_SPEED_CAP,
   BRICK_COLS,
+  BRICK_H,
   BRICK_MAX_ROWS,
   BRICK_W,
   BRICK_WALL_X0,
   PADDLE_H,
+  PADDLE_Y,
+  VIEW_H,
   VIEW_W,
 } from '../src/game/constants.ts'
 import { makeRng } from '../src/game/rng.ts'
@@ -249,6 +259,35 @@ for (const gs of GRAVITY_SCALES) {
       if (out.vx < prevVx - 1e-9) fail(`${at}: not monotonic in offset -- the control would not be legible`)
       prevVx = out.vx
     }
+  }
+}
+
+// --- 5c: mirrorWorld flips BREAKDOWN vertically ----------------------------
+{
+  if (brickPaddleY(false) !== PADDLE_Y) fail('normal brick paddle is not at the bottom tuning point')
+  if (brickPaddleY(true) !== VIEW_H - PADDLE_Y) fail('mirrored brick paddle is not reflected to the top')
+  if (brickPlayDir(false) !== -1 || brickPlayDir(true) !== 1) {
+    fail('brickPlayDir does not point normal up and mirrored down')
+  }
+
+  const normal = deflectForOrientation(0, BALL_SPEED, false)
+  const mirrored = deflectForOrientation(0, BALL_SPEED, true)
+  if (normal.vy >= 0) fail('normal paddle hit does not send the ball upward')
+  if (mirrored.vy <= 0) fail('mirrored paddle hit does not send the ball downward')
+  if (!(paddleHitY(false) < brickPaddleY(false))) fail('normal paddle hit point is not above the paddle')
+  if (!(paddleHitY(true) > brickPaddleY(true))) fail('mirrored paddle hit point is not below the paddle')
+  if (!(ballSpawnY(false) < brickPaddleY(false))) fail('normal ball spawn is not above the paddle')
+  if (!(ballSpawnY(true) > brickPaddleY(true))) fail('mirrored ball spawn is not below the paddle')
+  if (!ballLost(VIEW_H + BALL_R + 1, false)) fail('normal ball loss does not trigger below screen')
+  if (ballLost(-BALL_R - 1, false)) fail('normal ball loss triggers above screen')
+  if (!ballLost(-BALL_R - 1, true)) fail('mirrored ball loss does not trigger above screen')
+  if (ballLost(VIEW_H + BALL_R + 1, true)) fail('mirrored ball loss triggers below screen')
+
+  const mirroredTopRowY = orientedBrickY(brickY(0), true)
+  if (!(mirroredTopRowY > VIEW_H / 2)) fail('mirrored brick wall is not near the bottom half')
+  if (!(mirroredTopRowY + BRICK_H / 2 < VIEW_H)) fail('mirrored brick wall extends out of bounds')
+  if (!(brickPaddleY(true) + PADDLE_H + WALL_PADDLE_CLEARANCE_PX < mirroredTopRowY)) {
+    fail('mirrored brick wall does not leave safe clearance from top paddle')
   }
 }
 

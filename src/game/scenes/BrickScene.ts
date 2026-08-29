@@ -14,7 +14,6 @@ import {
   PADDLE_H,
   PADDLE_SPEED,
   PADDLE_W,
-  PADDLE_Y,
   SCORE_BRICK,
   SCORE_WALL_CLEAR,
   VIEW_H,
@@ -27,8 +26,15 @@ import { MEME_SPRITE_ROLE } from '../../memeTheme/index.ts'
 import { brickTouchDirX } from '../touchSteering.ts'
 import {
   ballSpeedAt,
+  ballLost,
+  ballSpawnY,
+  brickPaddleY,
+  brickPlayDir,
   clampMinVy,
-  deflect,
+  deflectForOrientation,
+  brickRows,
+  orientedBrickY,
+  paddleHitY,
   wallLayout,
 } from '../brickPacing.ts'
 import { ModeScene } from './ModeScene.ts'
@@ -50,6 +56,7 @@ export class BrickScene extends ModeScene {
   private paddleCostume?: Phaser.GameObjects.Graphics
   private rng: Rng = makeRng(1)
   private lastUsefulHitMs = 0
+  private paddleY = 0
 
   constructor() {
     super(SCENE.Brick)
@@ -65,6 +72,7 @@ export class BrickScene extends ModeScene {
     this.rng = makeRng(Math.floor(Math.random() * 0xffffffff))
     this.brickLabels = []
     this.paddleCostume = undefined
+    this.paddleY = brickPaddleY(this.mods.mirrorWorld)
     this.lastUsefulHitMs = this.time.now
 
     // A shooter (or a stub) with the platformer's gravity still applied is
@@ -89,7 +97,7 @@ export class BrickScene extends ModeScene {
       .setDepth(DEPTH.Background)
 
     this.paddle = this.add
-      .rectangle(VIEW_W / 2, PADDLE_Y, PADDLE_W, PADDLE_H, this.memeAccent(0, 0x3ef0ff), 1)
+      .rectangle(VIEW_W / 2, this.paddleY, PADDLE_W, PADDLE_H, this.memeAccent(0, 0x3ef0ff), 1)
       .setStrokeStyle(1, this.memeAccent(2, 0xffffff), 0.75)
       .setDepth(DEPTH.Player)
     if (this.memeTheme.id === 'maga-rally') {
@@ -126,7 +134,7 @@ export class BrickScene extends ModeScene {
     this.keepBallReadable(time)
     this.updatePaddleCostume()
 
-    if (this.ball.y > VIEW_H + BALL_R) {
+    if (ballLost(this.ball.y, this.mods.mirrorWorld)) {
       this.loseBall()
     }
   }
@@ -136,6 +144,7 @@ export class BrickScene extends ModeScene {
     this.clearBrickLabels()
     this.paddleCostume?.destroy()
     this.paddleCostume = undefined
+    this.ball?.destroy()
   }
 
   private buildBackdrop(): void {
@@ -165,7 +174,7 @@ export class BrickScene extends ModeScene {
       g.fillCircle(x, 9 + (x % 3) * 4, 2)
     }
 
-    const bottomY = BRICK_WALL_TOP_Y + BRICK_H * 3 + 10
+    const bottomY = this.wallBottomY() + 10
     const stripeW = VIEW_W / 3
     g.fillStyle(0x1c7a4a, 0.3)
     g.fillRect(0, bottomY, stripeW, VIEW_H - bottomY)
@@ -206,13 +215,13 @@ export class BrickScene extends ModeScene {
     const sprite = this.memeSprite(MEME_SPRITE_ROLE.Brick, 'brick')
     for (const spec of wallLayout(this.mods.spawnRateScale, this.mods.mirrorWorld, this.rng)) {
       const brick = this.bricks
-        .create(spec.x, spec.y, sprite.key, sprite.frame)
+        .create(spec.x, orientedBrickY(spec.y, this.mods.mirrorWorld), sprite.key, sprite.frame)
         .setDepth(DEPTH.Terrain)
         .setScale(2, 1) as Brick
       brick.setTint(this.brickTint(spec.x, spec.row))
       if ((spec.col === 0 || spec.col === 6) && this.memeTheme.id !== 'maga-rally') {
         const label = this.add
-          .text(spec.x, spec.y, this.brickStamp(spec.row), {
+          .text(spec.x, orientedBrickY(spec.y, this.mods.mirrorWorld), this.brickStamp(spec.row), {
             fontFamily: 'ui-monospace, Menlo, Consolas, monospace',
             fontSize: '8px',
             color: this.memeTheme.palette[(spec.row + 1) % this.memeTheme.palette.length] ?? '#ffffff',
@@ -237,14 +246,14 @@ export class BrickScene extends ModeScene {
     this.ball?.destroy()
     const sprite = this.memeSprite(MEME_SPRITE_ROLE.Ball, 'ball')
     this.ball = this.physics.add
-      .sprite(this.paddle.x, PADDLE_Y - 18, sprite.key, sprite.frame)
+      .sprite(this.paddle.x, ballSpawnY(this.mods.mirrorWorld), sprite.key, sprite.frame)
       .setDepth(DEPTH.Projectile)
     this.ball.setTint(this.memeAccent(2, 0xffe14d))
     ;(this.ball.body as Phaser.Physics.Arcade.Body)
       .setAllowGravity(false)
       .setCircle(BALL_R, 8 - BALL_R, 8 - BALL_R)
       .setBounce(1, 1)
-    this.launchBall(-1)
+    this.launchBall(brickPlayDir(this.mods.mirrorWorld))
     this.lastUsefulHitMs = this.time.now
   }
 
@@ -295,8 +304,8 @@ export class BrickScene extends ModeScene {
   private onPaddleHit(): void {
     if (!this.ball.active) return
     const offset = (this.ball.x - this.paddle.x) / (PADDLE_W / 2)
-    const out = deflect(offset, this.currentBallSpeed())
-    this.ball.setY(PADDLE_Y - PADDLE_H / 2 - BALL_R - 0.5)
+    const out = deflectForOrientation(offset, this.currentBallSpeed(), this.mods.mirrorWorld)
+    this.ball.setY(paddleHitY(this.mods.mirrorWorld))
     this.ball.setVelocity(out.vx, out.vy)
     sfx.pickup()
     this.lastUsefulHitMs = this.time.now
@@ -330,19 +339,19 @@ export class BrickScene extends ModeScene {
     this.award(SCORE_WALL_CLEAR)
     this.cameras.main.flash(90, 62, 240, 255)
     this.buildWall()
-    this.launchBall(-1)
+    this.launchBall(brickPlayDir(this.mods.mirrorWorld))
   }
 
   private loseBall(): void {
     if (!this.takeDamage(DMG_BALL_LOST)) return
-    this.ball.setPosition(this.paddle.x, PADDLE_Y - 18)
-    this.launchBall(-1)
+    this.ball.setPosition(this.paddle.x, ballSpawnY(this.mods.mirrorWorld))
+    this.launchBall(brickPlayDir(this.mods.mirrorWorld))
   }
 
   private keepBallReadable(time: number): void {
     if (time - this.lastUsefulHitMs < BRICK_STALL_MS) return
     const body = this.ball.body as Phaser.Physics.Arcade.Body
-    const towardWall: 1 | -1 = this.ball.y > VIEW_H / 2 ? -1 : 1
+    const towardWall = brickPlayDir(this.mods.mirrorWorld)
     const out = clampMinVy(body.velocity.x, towardWall * Math.abs(body.velocity.y), this.currentBallSpeed())
     this.ball.setVelocity(out.vx, out.vy)
     this.lastUsefulHitMs = time
@@ -367,9 +376,12 @@ export class BrickScene extends ModeScene {
       vx = -Math.abs(vx)
     }
 
-    if (this.ball.y <= BALL_R && vy < 0) {
+    if (!this.mods.mirrorWorld && this.ball.y <= BALL_R && vy < 0) {
       this.ball.setY(BALL_R)
       vy = Math.abs(vy)
+    } else if (this.mods.mirrorWorld && this.ball.y >= VIEW_H - BALL_R && vy > 0) {
+      this.ball.setY(VIEW_H - BALL_R)
+      vy = -Math.abs(vy)
     }
 
     if (vx !== body.velocity.x || vy !== body.velocity.y) {
@@ -382,5 +394,11 @@ export class BrickScene extends ModeScene {
     const total = runState.stageDurationMs()
     const progress = (this.time.now - runState.stageStartMs) / total
     return ballSpeedAt(progress, this.mods.gravityScale, this.mods.projectileSpeedScale)
+  }
+
+  private wallBottomY(): number {
+    const rows = brickRows(this.mods.spawnRateScale)
+    const normalBottom = BRICK_WALL_TOP_Y + (rows - 1) * BRICK_H + BRICK_H / 2
+    return this.mods.mirrorWorld ? orientedBrickY(BRICK_WALL_TOP_Y, true) + BRICK_H / 2 : normalBottom
   }
 }

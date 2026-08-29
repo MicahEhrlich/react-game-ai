@@ -223,6 +223,8 @@ const badCases: readonly [string, unknown][] = [
   ['bad scale', { ...validDraft, musicPlan: { ...validDraft.musicPlan, scale: 'phrygian' } }],
   ['bad note', { ...validDraft, musicPlan: { ...validDraft.musicPlan, leadPattern: [0, 9] } }],
   ['bad drum', { ...validDraft, musicPlan: { ...validDraft.musicPlan, drumPattern: [1, 5] } }],
+  ['bad music plans', { ...validDraft, musicPlans: [{ ...validDraft.musicPlan }, { ...validDraft.musicPlan, bpm: 1000 }] }],
+  ['too many music plans', { ...validDraft, musicPlans: Array.from({ length: 5 }, () => validDraft.musicPlan) }],
   ['missing live sprite pack', { ...validDraft, spritePack: undefined }],
   [
     'short sprite row',
@@ -267,6 +269,21 @@ for (const [name, raw] of badCases) {
   if (normaliseMemeTheme(raw, '2026-08-27', MEME_THEME_SOURCE.Live)) {
     fail(`${name} was accepted`)
   }
+}
+
+{
+  const styles = new Set<string>()
+  for (const t of [...OFFLINE_MEME_THEMES, ...ADULT_MEME_THEMES]) {
+    if (!t.musicPlans || t.musicPlans.length < 2) fail(`${t.id} does not expose multiple music plans`)
+    for (const plan of t.musicPlans ?? [t.musicPlan]) styles.add(plan.style)
+  }
+  for (const style of ['rally stomp', 'island noir', 'border wall bounce', 'debate club', 'war room pulse', 'arcade lounge']) {
+    if (!styles.has(style)) fail(`new music style "${style}" is not bundled`)
+  }
+
+  const first = offlineMemeThemeById('six-seven', '2026-08-27')
+  const later = offlineMemeThemeById('six-seven', '2026-08-28')
+  if (!first?.musicPlan || !later?.musicPlan) fail('music plan selection returned no plan')
 }
 
 {

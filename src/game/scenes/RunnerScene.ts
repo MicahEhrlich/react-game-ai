@@ -24,6 +24,7 @@ import {
   BODY_STAND,
   FEET_Y,
   GATE_BOTTOM_Y,
+  MAGA_DUCK_COSTUME_H,
   GROUND_Y,
   jumpVelocity,
   minGapPx,
@@ -200,22 +201,21 @@ export class RunnerScene extends ModeScene {
     const y = this.runner.y
     if (this.time.now < this.slideUntilMs) {
       g.lineStyle(1, 0x08060f, 1)
-      g.fillStyle(0x1c2f8c, 0.96)
-      g.fillRect(x - 8, y - 7, 16, 5)
-      g.strokeRect(x - 8, y - 7, 16, 5)
       g.fillStyle(0xffc9a0, 1)
-      g.fillRect(x - 5, y - 15, 10, 6)
-      g.strokeRect(x - 5, y - 15, 10, 6)
+      const top = y - MAGA_DUCK_COSTUME_H + 12
+      g.fillRect(x - 5, top + 2, 10, 7)
+      g.strokeRect(x - 5, top + 2, 10, 7)
       g.fillStyle(0x08060f, 1)
-      g.fillRect(x - 3, y - 12, 2, 1)
-      g.fillRect(x + 2, y - 12, 2, 1)
-      g.fillRect(x + 1, y - 10, 5, 1)
+      g.fillRect(x - 3, top + 5, 2, 1)
+      g.fillRect(x + 2, top + 5, 2, 1)
+      g.fillRect(x + 1, top + 7, 5, 1)
       g.fillStyle(0xff9a2e, 1)
-      g.fillRect(x - 6, y - 18, 11, 3)
-      g.fillRect(x - 7, y - 16, 3, 5)
-      g.fillRect(x + 3, y - 17, 5, 2)
-      g.fillStyle(0xff4d4d, 1)
-      g.fillRect(x - 1, y - 7, 2, 4)
+      g.fillRect(x - 6, top, 11, 2)
+      g.fillRect(x - 7, top + 2, 3, 4)
+      g.fillRect(x + 3, top + 1, 5, 2)
+      g.fillStyle(0x1b1830, 1)
+      g.fillRect(x - 5, y - 2, 3, 2)
+      g.fillRect(x + 2, y - 2, 3, 2)
       return
     }
     g.lineStyle(1, 0x08060f, 1)

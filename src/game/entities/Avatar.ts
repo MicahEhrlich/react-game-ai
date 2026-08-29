@@ -35,10 +35,12 @@ export class Avatar extends Phaser.Physics.Arcade.Sprite {
   /** playerSpeedScale from the active StageModifiers. Declared explicitly
    *  rather than as a parameter property: `erasableSyntaxOnly` bans those. */
   private readonly speedScale: number
+  private readonly verticalDir: 1 | -1
 
-  constructor(scene: Phaser.Scene, x: number, y: number, speedScale: number) {
+  constructor(scene: Phaser.Scene, x: number, y: number, speedScale: number, verticalDir: 1 | -1 = 1) {
     super(scene, x, y, ATLAS_KEY, 'player-idle')
     this.speedScale = speedScale
+    this.verticalDir = verticalDir
     scene.add.existing(this)
     scene.physics.add.existing(this)
 
@@ -50,7 +52,10 @@ export class Avatar extends Phaser.Physics.Arcade.Sprite {
 
   drive(input: InputState, deltaMs: number): void {
     const body = this.body as Phaser.Physics.Arcade.Body
-    const onGround = body.blocked.down || body.touching.down
+    const onGround =
+      this.verticalDir === 1
+        ? body.blocked.down || body.touching.down
+        : body.blocked.up || body.touching.up
 
     // Coyote time: still jumpable for a short window after walking off a ledge.
     this.coyoteMs = onGround ? COYOTE_MS : this.coyoteMs - deltaMs
@@ -67,8 +72,8 @@ export class Avatar extends Phaser.Physics.Arcade.Sprite {
       // Derived from the LIVE world gravity, not a fixed constant: gravityScale
       // must change how the jump feels, never what it can clear. See
       // platformerPacing.ts for the bug this fixes.
-      const gravityY = this.scene.physics.world.gravity.y || GRAVITY_Y
-      body.setVelocityY(jumpVelocity(gravityY))
+      const gravityY = Math.abs(this.scene.physics.world.gravity.y) || GRAVITY_Y
+      body.setVelocityY(jumpVelocity(gravityY) * this.verticalDir)
       this.bufferMs = 0
       this.coyoteMs = 0
       this.jumping = true
@@ -77,8 +82,9 @@ export class Avatar extends Phaser.Physics.Arcade.Sprite {
     }
 
     // Variable jump height: releasing early cuts the ascent short.
-    if (this.jumping && !input.jumpHeld && body.velocity.y < JUMP_CUT_VELOCITY) {
-      body.setVelocityY(JUMP_CUT_VELOCITY)
+    const ascending = body.velocity.y * this.verticalDir < JUMP_CUT_VELOCITY
+    if (this.jumping && !input.jumpHeld && ascending) {
+      body.setVelocityY(JUMP_CUT_VELOCITY * this.verticalDir)
       this.jumping = false
     }
     if (onGround) this.jumping = false
@@ -89,7 +95,7 @@ export class Avatar extends Phaser.Physics.Arcade.Sprite {
   private updateAnimation(onGround: boolean, dirX: number, velocityY: number): void {
     if (!onGround) {
       this.anims.stop()
-      this.setFrame(velocityY < 0 ? 'player-jump' : 'player-fall')
+      this.setFrame(velocityY * this.verticalDir < 0 ? 'player-jump' : 'player-fall')
     } else if (dirX !== 0) {
       this.anims.play(ANIM.Walk, true)
     } else {

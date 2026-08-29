@@ -13,7 +13,7 @@ Keep every string short, punchy, and arcade-readable.
 Also return a complete spritePack. Every sprite is exactly 16 strings of 16 characters.
 Use only these pixel characters: . k d D W w m M c C r R o y g G b B f s
 The dot is transparent. Make each role visually distinct and readable at tiny arcade scale.
-Also return a musicPlan for a procedural WebAudio loop. Do not name real songs, artists, or samples.`
+Also return a musicPlan and optionally musicPlans for procedural WebAudio loops. Do not name real songs, artists, or samples.`
 
 const FORMAT = {
   type: 'json_schema',
@@ -79,18 +79,13 @@ const FORMAT = {
         },
       },
       musicPlan: {
-        type: 'object',
-        additionalProperties: false,
-        required: ['style', 'bpm', 'scale', 'bassPattern', 'leadPattern', 'drumPattern', 'intensity'],
-        properties: {
-          style: { type: 'string' },
-          bpm: { type: 'integer', minimum: 90, maximum: 180 },
-          scale: { enum: ['minor', 'major', 'pentatonic', 'chromatic'] },
-          bassPattern: { $ref: '#/$defs/notes' },
-          leadPattern: { $ref: '#/$defs/notes' },
-          drumPattern: { $ref: '#/$defs/drums' },
-          intensity: { type: 'number', minimum: 0, maximum: 1 },
-        },
+        $ref: '#/$defs/musicPlan',
+      },
+      musicPlans: {
+        type: 'array',
+        minItems: 1,
+        maxItems: 4,
+        items: { $ref: '#/$defs/musicPlan' },
       },
     },
     $defs: {
@@ -127,6 +122,20 @@ const FORMAT = {
         minItems: 1,
         maxItems: 16,
         items: { type: 'integer', minimum: 0, maximum: 4 },
+      },
+      musicPlan: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['style', 'bpm', 'scale', 'bassPattern', 'leadPattern', 'drumPattern', 'intensity'],
+        properties: {
+          style: { type: 'string' },
+          bpm: { type: 'integer', minimum: 90, maximum: 180 },
+          scale: { enum: ['minor', 'major', 'pentatonic', 'chromatic'] },
+          bassPattern: { $ref: '#/$defs/notes' },
+          leadPattern: { $ref: '#/$defs/notes' },
+          drumPattern: { $ref: '#/$defs/drums' },
+          intensity: { type: 'number', minimum: 0, maximum: 1 },
+        },
       },
     },
   },
@@ -180,6 +189,7 @@ function makeHandler(apiKey: string | undefined): Handler {
                   `Today is ${date}. Create one once-daily cosmetic meme theme for an arcade game ` +
                   'with modes platformer, shooter, runner, and brick breaker. ' +
                   'Generate complete spritePack art for enemies, hazards, projectiles, runner obstacles, bricks, cracked bricks, and the ball. ' +
+                  'Return one musicPlan, or up to four musicPlans, using only procedural synth descriptors and numeric patterns. ' +
                   `Use one or two of these safe trend seeds as inspiration: ${trends.map((t) => t.label).join(', ')}. ` +
                   'If using 67, spell it SIX SEVEN and treat it as absurd nonsensical brainrot.',
               },

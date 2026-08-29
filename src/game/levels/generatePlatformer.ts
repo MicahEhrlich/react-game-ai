@@ -176,3 +176,12 @@ function placeOnGround(
 export function randomSeed(): number {
   return Math.floor(Math.random() * 0xffffffff)
 }
+
+export function mirrorPlatformerLevel(level: PlatformerLevel): PlatformerLevel {
+  return {
+    ...level,
+    grid: [...level.grid].reverse(),
+    spawns: level.spawns.map((s) => ({ ...s, y: level.heightPx - s.y })),
+    startY: level.heightPx - level.startY,
+  }
+}

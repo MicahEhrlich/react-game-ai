@@ -15,6 +15,7 @@ import {
   PADDLE_H,
   PADDLE_SPEED,
   PADDLE_Y,
+  VIEW_H,
 } from './constants.ts'
 import { randInt } from './rng.ts'
 import type { Rng } from './rng.ts'
@@ -151,6 +152,39 @@ export function deflect(offset: number, speed: number): { vx: number; vy: number
   const o = Math.min(1, Math.max(-1, offset))
   const rad = (o * BALL_MAX_DEFLECT_DEG * Math.PI) / 180
   return { vx: Math.sin(rad) * speed, vy: -Math.cos(rad) * speed }
+}
+
+export function brickPlayDir(mirrorWorld: boolean): 1 | -1 {
+  return mirrorWorld ? 1 : -1
+}
+
+export function brickPaddleY(mirrorWorld: boolean): number {
+  return mirrorWorld ? VIEW_H - PADDLE_Y : PADDLE_Y
+}
+
+export function orientedBrickY(normalY: number, mirrorWorld: boolean): number {
+  return mirrorWorld ? VIEW_H - normalY : normalY
+}
+
+export function ballSpawnY(mirrorWorld: boolean): number {
+  return brickPaddleY(mirrorWorld) + brickPlayDir(mirrorWorld) * 18
+}
+
+export function paddleHitY(mirrorWorld: boolean): number {
+  return brickPaddleY(mirrorWorld) + brickPlayDir(mirrorWorld) * (PADDLE_H / 2 + BALL_R + 0.5)
+}
+
+export function ballLost(y: number, mirrorWorld: boolean): boolean {
+  return mirrorWorld ? y < -BALL_R : y > VIEW_H + BALL_R
+}
+
+export function deflectForOrientation(
+  offset: number,
+  speed: number,
+  mirrorWorld: boolean,
+): { vx: number; vy: number } {
+  const out = deflect(offset, speed)
+  return { vx: out.vx, vy: Math.abs(out.vy) * brickPlayDir(mirrorWorld) }
 }
 
 // --- wall layout ----------------------------------------------------------

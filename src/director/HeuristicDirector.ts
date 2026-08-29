@@ -1,12 +1,12 @@
 import type { GameMode } from '../state/types.ts'
 import { ALL_MODES, MODE_LABEL } from '../state/types.ts'
 import {
-  CHAOS_FLAGS,
   CHAOS_LABEL,
   CHAOS_UNLOCK_SHIFT,
   clampModifiers,
   DEFAULT_MODIFIERS,
 } from './modifiers.ts'
+import type { ChaosFlag } from './modifiers.ts'
 import { getPacing } from './pacing.ts'
 import type {
   Director,
@@ -36,6 +36,13 @@ const ACCURACY_LOW = 0.35
 /** Damage per minute above this reads as "this player is drowning". */
 const DPM_HIGH = 45
 const HEALTH_MERCY = 0.3
+const CHAOS_STABLE_CHANCE = 0.45
+const WEIGHTED_CHAOS_FLAGS: readonly ChaosFlag[] = [
+  'mirrorWorld',
+  'invertControls',
+  'mirrorWorld',
+  'fogOfWar',
+]
 
 export class HeuristicDirector implements Director {
   /** Injectable so validate-director can make runs reproducible.
@@ -124,19 +131,28 @@ export class HeuristicDirector implements Director {
       notes.push('CRITICAL — MERCY PROTOCOL, x1.2 SCORE')
     }
 
-    // --- spice: untouched for a whole stage ---------------------------
-    // Three gates, all of which have to pass: one flag at a time, never two
-    // stages running, and never before the player has seen the modes. A
-    // flawless stage that fails a gate still pays, just in score.
+    // --- spice: glitches once the player has a baseline ----------------
+    // Chaos used to be a flawless-only reward, which made WORLD MIRRORED easy
+    // to miss: one of three flags behind a perfect-stage gate. Keep the same
+    // structural safety gates, but let stable runs glitch too.
     const earnedChaos = m.damageTaken === 0 && m.healthFraction > HEALTH_MERCY
+    const stableEnoughForChaos = m.healthFraction > HEALTH_MERCY && dpm <= DPM_HIGH
     const chaosAllowed =
       !history.chaosLastStage && history.shiftIndex >= CHAOS_UNLOCK_SHIFT
 
-    if (earnedChaos && chaosAllowed) {
-      const flag = CHAOS_FLAGS[Math.floor(this.random() * CHAOS_FLAGS.length)]
+    const shouldChaos =
+      chaosAllowed &&
+      (earnedChaos || (stableEnoughForChaos && this.random() < CHAOS_STABLE_CHANCE))
+
+    if (shouldChaos) {
+      const flag = WEIGHTED_CHAOS_FLAGS[Math.floor(this.random() * WEIGHTED_CHAOS_FLAGS.length)]
       next[flag] = true
-      next.scoreMultiplier = 1.5
-      notes.push(`FLAWLESS — ${CHAOS_LABEL[flag]}, x1.5 SCORE`)
+      next.scoreMultiplier = earnedChaos ? 1.5 : 1.35
+      notes.push(
+        earnedChaos
+          ? `FLAWLESS — ${CHAOS_LABEL[flag]}, x1.5 SCORE`
+          : `GLITCH WINDOW — ${CHAOS_LABEL[flag]}, x1.35 SCORE`,
+      )
     } else if (earnedChaos) {
       next.scoreMultiplier = 1.25
       notes.push('FLAWLESS — x1.25 SCORE')

@@ -171,6 +171,37 @@ for (const [label, metrics] of Object.entries(PROFILES)) {
   }
 }
 
+// --- 3b: stable runs see chaos often, and mirrorWorld is prominent ---------
+{
+  let chaos = 0
+  let mirror = 0
+
+  for (let seed = 1; seed <= 200; seed++) {
+    const director = new HeuristicDirector(makeRng(seed))
+    const plan = director.decide(
+      baseMetrics({
+        damageTaken: 10,
+        healthFraction: 0.8,
+      }),
+      {
+        shiftIndex: CHAOS_UNLOCK_SHIFT,
+        currentMode: MODE.Platformer,
+        modeHistory: ALL_MODES,
+        chaosLastStage: false,
+      },
+    )
+    if (hasChaosFlag(plan.modifiers)) chaos++
+    if (plan.modifiers.mirrorWorld) mirror++
+  }
+
+  if (chaos < 70) {
+    fail(`stable chaos appeared only ${chaos}/200 times; expected it to feel common`)
+  }
+  if (mirror < 30) {
+    fail(`mirrorWorld appeared only ${mirror}/200 times; expected it to be prominent`)
+  }
+}
+
 // --- 4: clampModifiers is total, even on hostile input --------------------
 {
   const hostile = clampModifiers({

@@ -25,6 +25,7 @@ import {
   jumpArcSec,
   jumpVelocity,
   landingSlackSec,
+  MAGA_DUCK_COSTUME_H,
   minGapPx,
   REST_BOTTOM,
   RUNNER_FLOOR_SNAP_PX,
@@ -286,6 +287,7 @@ function simulateJumpApexPx(gravityY: number, dt = 1 / 60, frames = 240): number
     fail(`sliding body (top ${slideTop}) does not clear the gate (bottom ${GATE_BOTTOM_Y})`)
   }
   if (slideBottom < slideTop) fail('slide body is inverted')
+  if (MAGA_DUCK_COSTUME_H > 16) fail(`MAGA duck costume is ${MAGA_DUCK_COSTUME_H}px tall, expected <= 16px`)
 
   // Jumping must clear the low block, using the apex the game ACTUALLY
   // achieves at the worst gravity -- not the nominal constant.
