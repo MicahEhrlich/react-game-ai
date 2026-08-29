@@ -8,6 +8,7 @@ import {
   BRICK_H,
   BRICK_STALL_MS,
   BRICK_W,
+  BRICK_WALL_TOP_Y,
   DEPTH,
   DMG_BALL_LOST,
   PADDLE_H,
@@ -46,6 +47,7 @@ export class BrickScene extends ModeScene {
   private ball!: Phaser.Physics.Arcade.Sprite
   private bricks!: Phaser.Physics.Arcade.StaticGroup
   private brickLabels: Phaser.GameObjects.Text[] = []
+  private paddleCostume?: Phaser.GameObjects.Graphics
   private rng: Rng = makeRng(1)
   private lastUsefulHitMs = 0
 
@@ -62,6 +64,7 @@ export class BrickScene extends ModeScene {
   protected setupMode(): void {
     this.rng = makeRng(Math.floor(Math.random() * 0xffffffff))
     this.brickLabels = []
+    this.paddleCostume = undefined
     this.lastUsefulHitMs = this.time.now
 
     // A shooter (or a stub) with the platformer's gravity still applied is
@@ -89,6 +92,9 @@ export class BrickScene extends ModeScene {
       .rectangle(VIEW_W / 2, PADDLE_Y, PADDLE_W, PADDLE_H, this.memeAccent(0, 0x3ef0ff), 1)
       .setStrokeStyle(1, this.memeAccent(2, 0xffffff), 0.75)
       .setDepth(DEPTH.Player)
+    if (this.memeTheme.id === 'maga-rally') {
+      this.paddleCostume = this.add.graphics().setDepth(DEPTH.Player + 1)
+    }
     this.physics.add.existing(this.paddle)
     ;(this.paddle.body as Phaser.Physics.Arcade.Body)
       .setAllowGravity(false)
@@ -118,6 +124,7 @@ export class BrickScene extends ModeScene {
     this.rampBallSpeed()
     this.handleBounds()
     this.keepBallReadable(time)
+    this.updatePaddleCostume()
 
     if (this.ball.y > VIEW_H + BALL_R) {
       this.loseBall()
@@ -127,13 +134,69 @@ export class BrickScene extends ModeScene {
   protected teardownMode(): void {
     this.bricks?.clear(true, true)
     this.clearBrickLabels()
+    this.paddleCostume?.destroy()
+    this.paddleCostume = undefined
   }
 
   private buildBackdrop(): void {
+    if (this.memeTheme.id === 'tabloid-island') {
+      this.buildIslandBackdrop()
+      return
+    }
     const g = this.add.graphics().setDepth(DEPTH.Background).setScrollFactor(0)
+    if (this.memeTheme.id === 'maga-rally') {
+      this.drawMagaBorderBackdrop(g)
+    }
     for (let y = 12; y < VIEW_H; y += 14) {
       g.fillStyle(y % 28 === 12 ? 0xff3ea5 : 0x3ef0ff, 0.07)
       g.fillRect(0, y, VIEW_W, 1)
+    }
+  }
+
+  private drawMagaBorderBackdrop(g: Phaser.GameObjects.Graphics): void {
+    g.fillStyle(0x1c2f8c, 0.3)
+    g.fillRect(0, 0, VIEW_W, BRICK_WALL_TOP_Y + BRICK_H * 2)
+    g.fillStyle(0xf2eeff, 0.28)
+    for (let y = 10; y < BRICK_WALL_TOP_Y + BRICK_H * 2; y += 10) {
+      g.fillRect(0, y, VIEW_W, 3)
+    }
+    g.fillStyle(0xf2eeff, 0.55)
+    for (let x = 8; x < 72; x += 12) {
+      g.fillCircle(x, 9 + (x % 3) * 4, 2)
+    }
+
+    const bottomY = BRICK_WALL_TOP_Y + BRICK_H * 3 + 10
+    const stripeW = VIEW_W / 3
+    g.fillStyle(0x1c7a4a, 0.3)
+    g.fillRect(0, bottomY, stripeW, VIEW_H - bottomY)
+    g.fillStyle(0xf2eeff, 0.24)
+    g.fillRect(stripeW, bottomY, stripeW, VIEW_H - bottomY)
+    g.fillStyle(0xff4d4d, 0.3)
+    g.fillRect(stripeW * 2, bottomY, stripeW, VIEW_H - bottomY)
+    g.fillStyle(0xff9a2e, 0.45)
+    g.fillCircle(VIEW_W / 2, bottomY + 26, 8)
+  }
+
+  private buildIslandBackdrop(): void {
+    const g = this.add.graphics().setDepth(DEPTH.Background).setScrollFactor(0)
+    g.fillStyle(0x071a2a, 0.95)
+    g.fillRect(0, 0, VIEW_W, VIEW_H)
+    g.fillStyle(0x1080a0, 0.3)
+    g.fillRect(0, VIEW_H - 46, VIEW_W, 46)
+    for (let x = 38; x < VIEW_W; x += 92) {
+      g.fillStyle(0xffe14d, 0.38)
+      g.fillEllipse(x, VIEW_H - 38, 74, 17)
+      g.fillStyle(0xffc9a0, 0.6)
+      g.fillRect(x - 18, VIEW_H - 70, 4, 34)
+      g.fillStyle(0x1c7a4a, 0.78)
+      g.fillEllipse(x - 25, VIEW_H - 73, 25, 9)
+      g.fillEllipse(x - 13, VIEW_H - 79, 25, 9)
+      g.fillStyle(0xff9a2e, 0.9)
+      g.fillCircle(x - 14, VIEW_H - 72, 2)
+      g.fillStyle(0xf2eeff, 0.5)
+      g.fillRect(x + 9, VIEW_H - 84, 38, 28)
+      g.fillStyle(0xffe14d, 0.45)
+      g.fillTriangle(x + 6, VIEW_H - 84, x + 28, VIEW_H - 101, x + 50, VIEW_H - 84)
     }
   }
 
@@ -146,8 +209,8 @@ export class BrickScene extends ModeScene {
         .create(spec.x, spec.y, sprite.key, sprite.frame)
         .setDepth(DEPTH.Terrain)
         .setScale(2, 1) as Brick
-      brick.setTint(this.memeAccent(spec.row, 0xff3ea5))
-      if (spec.col === 0 || spec.col === 6) {
+      brick.setTint(this.brickTint(spec.x, spec.row))
+      if ((spec.col === 0 || spec.col === 6) && this.memeTheme.id !== 'maga-rally') {
         const label = this.add
           .text(spec.x, spec.y, this.brickStamp(spec.row), {
             fontFamily: 'ui-monospace, Menlo, Consolas, monospace',
@@ -187,9 +250,39 @@ export class BrickScene extends ModeScene {
 
   private brickStamp(row: number): string {
     if (this.memeTheme.id === 'six-seven') return row % 2 === 0 ? '6' : '7'
+    if (this.memeTheme.id === 'maga-rally') return row % 2 === 0 ? 'USA' : 'MEX'
     if (this.memeTheme.id === 'npc-stream') return row % 2 === 0 ? 'NPC' : 'LOOP'
     if (this.memeTheme.id === 'rizz-circuit') return row % 2 === 0 ? 'AURA' : 'RIZZ'
     return this.memeTheme.modeFlavor[this.modeId].brick.slice(0, 4)
+  }
+
+  private brickTint(x: number, row: number): number {
+    if (this.memeTheme.id !== 'maga-rally') return this.memeAccent(row, 0xff3ea5)
+    void x
+    return row % 2 === 0 ? 0x8f88b8 : 0xf2eeff
+  }
+
+  private updatePaddleCostume(): void {
+    const g = this.paddleCostume
+    if (!g) return
+    g.clear()
+    const x = this.paddle.x
+    const y = this.paddle.y
+    g.lineStyle(1, 0x08060f, 1)
+    g.fillStyle(0xffc9a0, 1)
+    g.fillRect(x - 5, y - 14, 10, 8)
+    g.strokeRect(x - 5, y - 14, 10, 8)
+    g.fillStyle(0x08060f, 1)
+    g.fillRect(x - 3, y - 10, 2, 1)
+    g.fillRect(x + 2, y - 10, 2, 1)
+    g.fillRect(x + 1, y - 7, 5, 1)
+    g.fillStyle(0xff9a2e, 1)
+    g.fillRect(x - 6, y - 17, 11, 3)
+    g.fillRect(x - 7, y - 15, 3, 6)
+    g.fillRect(x + 3, y - 16, 5, 2)
+    g.fillRect(x + 7, y - 18, 2, 4)
+    g.fillStyle(0xffe14d, 0.85)
+    g.fillRect(x - 5, y - 17, 8, 1)
   }
 
   private launchBall(verticalSign: 1 | -1): void {

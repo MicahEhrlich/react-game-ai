@@ -1,9 +1,33 @@
+import { useState } from 'react'
+import { DEV } from '../dev.ts'
 import { commands } from '../state/commands.ts'
 import { scores } from '../scores/index.ts'
 import { AudioControls } from './AudioControls.tsx'
 import { HighScoreTable } from './HighScoreTable.tsx'
 
 export function MenuOverlay() {
+  const [adultAck, setAdultAck] = useState(false)
+
+  if (DEV.adultMemeMode && !adultAck) {
+    return (
+      <div className="overlay">
+        <div className="panel panel--warning">
+          <h1 className="panel-title" data-text="ADULT MEME MODE">
+            ADULT MEME MODE
+          </h1>
+          <p className="panel-sub panel-sub--warning">
+            This optional mode contains adult, dark, political, violent, and potentially
+            disturbing meme humor. It does not represent the creator&apos;s political,
+            religious, or personal beliefs.
+          </p>
+          <button type="button" className="btn btn--primary" onClick={() => setAdultAck(true)}>
+            I UNDERSTAND
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="overlay">
       <div className="panel">

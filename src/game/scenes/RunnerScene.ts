@@ -77,6 +77,7 @@ export class RunnerScene extends ModeScene {
   private threatSeenMs = 0
   /** One "SLIDE" prompt per run, the first time a gate appears. */
   private gateHintShown = false
+  private runnerCostume?: Phaser.GameObjects.Graphics
 
   constructor() {
     super(SCENE.Runner)
@@ -93,6 +94,7 @@ export class RunnerScene extends ModeScene {
     this.jumpBufferMs = 0
     this.threatSeenMs = 0
     this.gateHintShown = false
+    this.runnerCostume = undefined
 
     this.cameras.main.setBackgroundColor('#120a1e')
     this.physics.world.setBounds(0, -80, VIEW_W, VIEW_H + 160)
@@ -108,6 +110,9 @@ export class RunnerScene extends ModeScene {
       .sprite(dir === 1 ? 64 : VIEW_W - 64, FEET_Y, ATLAS_KEY, 'player-idle')
       .setDepth(DEPTH.Player)
       .setFlipX(dir === -1)
+    if (this.memeTheme.id === 'maga-rally') {
+      this.runnerCostume = this.add.graphics().setDepth(DEPTH.Player + 1)
+    }
     this.applyBody(BODY_STAND)
     this.avatar = this.runner
 
@@ -128,6 +133,7 @@ export class RunnerScene extends ModeScene {
     this.handleJump(input, delta)
     this.handleSlide(input, time)
     this.updateFrame()
+    this.updateRunnerCostume()
 
     // Two gates, both of which must pass. The timer sets the desired density;
     // gapClear() is the physical floor. When the gap blocks a spawn we
@@ -143,11 +149,17 @@ export class RunnerScene extends ModeScene {
 
   protected teardownMode(): void {
     this.obstacles.length = 0
+    this.runnerCostume?.destroy()
+    this.runnerCostume = undefined
   }
 
   // --- construction ---------------------------------------------------------
 
   private buildBackdrop(): void {
+    if (this.memeTheme.id === 'tabloid-island') {
+      this.buildIslandBackdrop()
+      return
+    }
     const g = this.add.graphics().setScrollFactor(0).setDepth(DEPTH.Background)
     // Receding horizontal rules read as speed lines once things start moving.
     for (let i = 0; i < 14; i++) {
@@ -155,6 +167,81 @@ export class RunnerScene extends ModeScene {
       g.fillStyle(i % 2 === 0 ? 0xff3ea5 : 0x3ef0ff, 0.06 + i * 0.008)
       g.fillRect(0, y, VIEW_W, 1)
     }
+  }
+
+  private buildIslandBackdrop(): void {
+    const g = this.add.graphics().setScrollFactor(0).setDepth(DEPTH.Background)
+    g.fillStyle(0x071a2a, 0.95)
+    g.fillRect(0, 0, VIEW_W, VIEW_H)
+    g.fillStyle(0x1080a0, 0.3)
+    g.fillRect(0, GROUND_Y - 16, VIEW_W, VIEW_H - GROUND_Y + 16)
+    for (let x = 32; x < VIEW_W; x += 82) {
+      g.fillStyle(0xffe14d, 0.42)
+      g.fillEllipse(x, GROUND_Y - 8, 72, 16)
+      g.fillStyle(0xffc9a0, 0.62)
+      g.fillRect(x - 18, GROUND_Y - 47, 4, 36)
+      g.fillStyle(0x1c7a4a, 0.78)
+      g.fillEllipse(x - 25, GROUND_Y - 50, 26, 9)
+      g.fillEllipse(x - 14, GROUND_Y - 56, 26, 9)
+      g.fillStyle(0xff9a2e, 0.86)
+      g.fillCircle(x - 14, GROUND_Y - 50, 2)
+      g.fillStyle(0xf2eeff, 0.48)
+      g.fillRect(x + 10, GROUND_Y - 66, 36, 26)
+      g.fillStyle(0xffe14d, 0.4)
+      g.fillTriangle(x + 7, GROUND_Y - 66, x + 28, GROUND_Y - 82, x + 49, GROUND_Y - 66)
+    }
+  }
+
+  private updateRunnerCostume(): void {
+    const g = this.runnerCostume
+    if (!g) return
+    g.clear()
+    const x = this.runner.x
+    const y = this.runner.y
+    if (this.time.now < this.slideUntilMs) {
+      g.lineStyle(1, 0x08060f, 1)
+      g.fillStyle(0x1c2f8c, 0.96)
+      g.fillRect(x - 8, y - 7, 16, 5)
+      g.strokeRect(x - 8, y - 7, 16, 5)
+      g.fillStyle(0xffc9a0, 1)
+      g.fillRect(x - 5, y - 15, 10, 6)
+      g.strokeRect(x - 5, y - 15, 10, 6)
+      g.fillStyle(0x08060f, 1)
+      g.fillRect(x - 3, y - 12, 2, 1)
+      g.fillRect(x + 2, y - 12, 2, 1)
+      g.fillRect(x + 1, y - 10, 5, 1)
+      g.fillStyle(0xff9a2e, 1)
+      g.fillRect(x - 6, y - 18, 11, 3)
+      g.fillRect(x - 7, y - 16, 3, 5)
+      g.fillRect(x + 3, y - 17, 5, 2)
+      g.fillStyle(0xff4d4d, 1)
+      g.fillRect(x - 1, y - 7, 2, 4)
+      return
+    }
+    g.lineStyle(1, 0x08060f, 1)
+    g.fillStyle(0x1c2f8c, 0.98)
+    g.fillRect(x - 7, y - 6, 14, 9)
+    g.strokeRect(x - 7, y - 6, 14, 9)
+    g.fillStyle(0xf2eeff, 1)
+    g.fillTriangle(x - 5, y - 6, x - 1, y - 6, x - 2, y - 2)
+    g.fillTriangle(x + 5, y - 6, x + 1, y - 6, x + 2, y - 2)
+    g.fillStyle(0xff4d4d, 1)
+    g.fillRect(x - 1, y - 5, 2, 5)
+    g.fillTriangle(x - 2, y, x + 2, y, x, y + 3)
+    g.fillStyle(0xffc9a0, 1)
+    g.fillRect(x - 5, y - 16, 10, 8)
+    g.strokeRect(x - 5, y - 16, 10, 8)
+    g.fillStyle(0x08060f, 1)
+    g.fillRect(x - 3, y - 12, 2, 1)
+    g.fillRect(x + 2, y - 12, 2, 1)
+    g.fillRect(x + 1, y - 9, 5, 1)
+    g.fillStyle(0xff9a2e, 1)
+    g.fillRect(x - 6, y - 19, 11, 3)
+    g.fillRect(x - 7, y - 17, 3, 7)
+    g.fillRect(x + 3, y - 18, 5, 2)
+    g.fillRect(x + 7, y - 20, 2, 4)
+    g.fillStyle(0xffe14d, 0.85)
+    g.fillRect(x - 5, y - 19, 8, 1)
   }
 
   private applyBody(shape: { w: number; h: number; ox: number; oy: number }): void {

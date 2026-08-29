@@ -5,8 +5,8 @@ import type { GameMode } from './state/types.ts'
 import { ALL_MODES } from './state/types.ts'
 
 /**
- * Dev-only URL overrides, parsed once at module load. These exist so a
- * transition bug takes seconds to reproduce instead of a minute:
+ * Local dev/preview URL overrides, parsed once at module load. These exist so
+ * a transition bug takes seconds to reproduce instead of a minute:
  *
  *   ?mode=shooter                     boot straight into one mode
  *   ?shift=5000                       5s stages instead of 18-30s
@@ -16,6 +16,7 @@ import { ALL_MODES } from './state/types.ts'
  *   ?ai=0                             force the heuristic director
  *   ?ai=1                             force the live director on
  *   ?meme=six-seven                   force a bundled offline meme theme
+ *   ?memeMode=adult                   enable curated opt-in adult meme themes
  *   ?difficulty=easy                  apply the Easy modifier preset, and
  *                                     have the platformer pick from the
  *                                     curated easy level pack instead of a
@@ -42,10 +43,7 @@ function parse() {
   // where `import.meta.env` does not exist at all -- that is what lets the
   // validate-* scripts import modules that reach dev.ts.
   //
-  // `import.meta.env.DEV` is statically false in a production build, so the
-  // condition still collapses to `true` there and every override below is
-  // tree-shaken out.
-  if (typeof window === 'undefined' || !import.meta.env.DEV) {
+  if (typeof window === 'undefined') {
     return {
       mode: null,
       shiftMs: null,
@@ -55,6 +53,24 @@ function parse() {
       ai: null,
       difficulty: null,
       memeId: null,
+      adultMemeMode: false,
+      adultMemeKey: null,
+    }
+  }
+
+  const localPreviewHost = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname)
+  if (!import.meta.env.DEV && !localPreviewHost) {
+    return {
+      mode: null,
+      shiftMs: null,
+      mods: {},
+      physics: false,
+      god: false,
+      ai: null,
+      difficulty: null,
+      memeId: null,
+      adultMemeMode: false,
+      adultMemeKey: null,
     }
   }
 
@@ -90,6 +106,8 @@ function parse() {
   const rawAi = q.get('ai')
   const ai = rawAi === '1' ? true : rawAi === '0' ? false : null
   const memeId = q.get('meme')
+  const adultMemeMode = q.get('memeMode') === 'adult'
+  const adultMemeKey = q.get('key')
 
   return {
     mode,
@@ -100,6 +118,8 @@ function parse() {
     ai,
     difficulty,
     memeId,
+    adultMemeMode,
+    adultMemeKey,
   }
 }
 

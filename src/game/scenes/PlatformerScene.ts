@@ -43,6 +43,7 @@ export class PlatformerScene extends ModeScene {
   private enemies: (Walker | Flyer)[] = []
   private lastSafeX = 0
   private lastSafeY = 0
+  private playerCostume?: Phaser.GameObjects.Graphics
 
   constructor() {
     super(SCENE.Platformer)
@@ -52,6 +53,7 @@ export class PlatformerScene extends ModeScene {
     this.enemies = []
     this.lastSafeX = 0
     this.lastSafeY = 0
+    this.playerCostume = undefined
 
     this.cameras.main.setBackgroundColor('#0d0a20')
 
@@ -81,6 +83,9 @@ export class PlatformerScene extends ModeScene {
     )
     this.player.setDepth(DEPTH.Player)
     this.avatar = this.player
+    if (this.memeTheme.id === 'maga-rally') {
+      this.playerCostume = this.add.graphics().setDepth(DEPTH.Player + 1)
+    }
     this.lastSafeX = this.level.startX
     this.lastSafeY = this.level.startY
 
@@ -99,6 +104,7 @@ export class PlatformerScene extends ModeScene {
 
   protected updateMode(input: InputState, _time: number, delta: number): void {
     this.player.drive(this.mobileSteeringInput(input), delta)
+    this.updatePlayerCostume()
     for (const e of this.enemies) e.patrol()
 
     const body = this.player.body as Phaser.Physics.Arcade.Body
@@ -142,12 +148,76 @@ export class PlatformerScene extends ModeScene {
 
   /** Cheap parallax so the corrupted-arcade backdrop isn't flat black. */
   private buildStarfield(): void {
+    if (this.memeTheme.id === 'tabloid-island') {
+      this.buildIslandBackdrop()
+      return
+    }
     const g = this.add.graphics().setScrollFactor(0.25).setDepth(DEPTH.Background)
     for (let i = 0; i < 90; i++) {
       const shade = [0x3ef0ff, 0xff3ea5, 0x3b3560][i % 3]
       g.fillStyle(shade, 0.35)
       g.fillRect(Math.random() * VIEW_W * 2, Math.random() * VIEW_H, 1, 1)
     }
+  }
+
+  private buildIslandBackdrop(): void {
+    const g = this.add.graphics().setScrollFactor(0.18).setDepth(DEPTH.Background)
+    g.fillStyle(0x071a2a, 0.95)
+    g.fillRect(0, 0, this.level.widthPx, VIEW_H)
+    g.fillStyle(0x1080a0, 0.35)
+    g.fillRect(0, VIEW_H - 42, this.level.widthPx, 42)
+    for (let x = 36; x < this.level.widthPx; x += 152) {
+      g.fillStyle(0xffe14d, 0.48)
+      g.fillEllipse(x, VIEW_H - 35, 96, 20)
+      g.fillStyle(0xffc9a0, 0.68)
+      g.fillRect(x - 22, VIEW_H - 68, 4, 34)
+      g.fillStyle(0x1c7a4a, 0.82)
+      g.fillEllipse(x - 30, VIEW_H - 72, 28, 10)
+      g.fillEllipse(x - 18, VIEW_H - 79, 28, 9)
+      g.fillEllipse(x - 8, VIEW_H - 70, 28, 10)
+      g.fillStyle(0xff9a2e, 0.9)
+      g.fillCircle(x - 18, VIEW_H - 73, 2)
+      g.fillCircle(x - 13, VIEW_H - 72, 2)
+      g.fillStyle(0xf2eeff, 0.62)
+      g.fillRect(x + 14, VIEW_H - 84, 50, 30)
+      g.fillStyle(0xffe14d, 0.55)
+      g.fillTriangle(x + 11, VIEW_H - 84, x + 39, VIEW_H - 104, x + 67, VIEW_H - 84)
+      g.fillStyle(0x3b3560, 0.58)
+      g.fillRect(x + 22, VIEW_H - 78, 8, 10)
+      g.fillRect(x + 44, VIEW_H - 78, 8, 10)
+    }
+  }
+
+  private updatePlayerCostume(): void {
+    const g = this.playerCostume
+    if (!g) return
+    g.clear()
+    const x = this.player.x
+    const y = this.player.y
+    g.lineStyle(1, 0x08060f, 1)
+    g.fillStyle(0x1c2f8c, 0.98)
+    g.fillRect(x - 7, y - 6, 14, 9)
+    g.strokeRect(x - 7, y - 6, 14, 9)
+    g.fillStyle(0xf2eeff, 1)
+    g.fillTriangle(x - 5, y - 6, x - 1, y - 6, x - 2, y - 2)
+    g.fillTriangle(x + 5, y - 6, x + 1, y - 6, x + 2, y - 2)
+    g.fillStyle(0xff4d4d, 1)
+    g.fillRect(x - 1, y - 5, 2, 5)
+    g.fillTriangle(x - 2, y, x + 2, y, x, y + 3)
+    g.fillStyle(0xffc9a0, 1)
+    g.fillRect(x - 5, y - 16, 10, 8)
+    g.strokeRect(x - 5, y - 16, 10, 8)
+    g.fillStyle(0x08060f, 1)
+    g.fillRect(x - 3, y - 12, 2, 1)
+    g.fillRect(x + 2, y - 12, 2, 1)
+    g.fillRect(x + 1, y - 9, 5, 1)
+    g.fillStyle(0xff9a2e, 1)
+    g.fillRect(x - 6, y - 19, 11, 3)
+    g.fillRect(x - 7, y - 17, 3, 7)
+    g.fillRect(x + 3, y - 18, 5, 2)
+    g.fillRect(x + 7, y - 20, 2, 4)
+    g.fillStyle(0xffe14d, 0.85)
+    g.fillRect(x - 5, y - 19, 8, 1)
   }
 
   private buildSpawns(): void {
@@ -233,6 +303,8 @@ export class PlatformerScene extends ModeScene {
   }
 
   private addMemeDecal(x: number, y: number, label: string, paletteIndex: number): void {
+    if (this.memeTheme.id === 'maga-rally') label = paletteIndex === 0 ? 'MAGA' : ''
+    if (!label) return
     this.add
       .text(x, y, label, {
         fontFamily: 'ui-monospace, Menlo, Consolas, monospace',

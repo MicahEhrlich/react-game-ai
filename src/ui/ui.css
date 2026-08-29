@@ -218,6 +218,15 @@
   color: var(--dim);
 }
 
+.panel--warning {
+  border-color: var(--warn);
+  box-shadow: 0 0 40px rgba(255, 225, 77, 0.14);
+}
+
+.panel-sub--warning {
+  color: var(--text);
+}
+
 /* The director's parting line. Fades in because it arrives a beat after the
    panel does -- the delay is the effect, so it should not pop. */
 .panel-epitaph {

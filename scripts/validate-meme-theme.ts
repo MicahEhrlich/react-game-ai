@@ -6,6 +6,10 @@ import {
   offlineMemeThemeById,
   offlineMemeThemeForDate,
   ALL_MEME_SPRITE_ROLES,
+  ADULT_MEME_THEMES,
+  ADULT_MEME_THEME_IDS,
+  adultMemeThemeById,
+  adultMemeThemeForDate,
 } from '../src/memeTheme/index.ts'
 import { fetchLiveMemeTheme, loadDailyMemeTheme } from '../src/memeTheme/daily.ts'
 import type { MemeThemeFetch, MemeThemeStorage } from '../src/memeTheme/daily.ts'
@@ -88,6 +92,19 @@ console.log('validate-meme-theme')
   if (seen.size !== OFFLINE_MEME_THEMES.length) fail('offline theme id export drifted')
 }
 
+{
+  const seen = new Set<string>()
+  for (const id of ADULT_MEME_THEME_IDS) {
+    if (!/^[a-z0-9-]+$/.test(id)) fail(`adult theme id ${id} is not URL-safe`)
+    if (seen.has(id)) fail(`duplicate adult theme id ${id}`)
+    seen.add(id)
+  }
+  if (seen.size !== ADULT_MEME_THEMES.length) fail('adult theme id export drifted')
+  for (const id of seen) {
+    if (OFFLINE_MEME_THEME_IDS.includes(id)) fail(`adult theme id ${id} collides with safe catalog`)
+  }
+}
+
 for (const t of OFFLINE_MEME_THEMES) {
   const theme = normaliseMemeTheme(t, '2026-08-27', MEME_THEME_SOURCE.Offline)
   if (!theme) {
@@ -99,6 +116,33 @@ for (const t of OFFLINE_MEME_THEMES) {
   } else {
     for (const role of ALL_MEME_SPRITE_ROLES) {
       if (!theme.spritePack[role]) fail(`offline theme ${t.id} is missing ${role}`)
+    }
+  }
+}
+
+for (const t of ADULT_MEME_THEMES) {
+  const theme = normaliseMemeTheme(t, '2026-08-27', MEME_THEME_SOURCE.Offline)
+  if (!theme) {
+    fail(`adult theme ${t.id} does not validate`)
+  } else if (!theme.spritePack) {
+    fail(`adult theme ${t.id} has no sprite pack`)
+  } else if (!theme.musicPlan) {
+    fail(`adult theme ${t.id} has no music plan`)
+  }
+}
+
+{
+  const safeSpritePacks = new Set(OFFLINE_MEME_THEMES.map((t) => t.spritePack))
+  const requiredAdultIds = ['bunker-posting', 'debate-afterparty', 'tabloid-island', 'strongman-feed', 'maga-rally'] as const
+  for (const id of requiredAdultIds) {
+    const theme = adultMemeThemeById(id, '2026-08-27')
+    if (!theme?.spritePack) {
+      fail(`adult theme ${id} is missing or has no sprite pack`)
+      continue
+    }
+    if (safeSpritePacks.has(theme.spritePack)) fail(`adult theme ${id} reuses a safe sprite pack object`)
+    for (const role of ALL_MEME_SPRITE_ROLES) {
+      if (!theme.spritePack[role]) fail(`adult theme ${id} is missing ${role}`)
     }
   }
 }
@@ -122,6 +166,27 @@ for (const t of OFFLINE_MEME_THEMES) {
   }
   if (offlineMemeThemeById('not-a-theme', '2026-08-27') !== null) {
     fail('offlineMemeThemeById accepted an invalid id')
+  }
+}
+
+{
+  const bunker = adultMemeThemeById('bunker-posting', '2026-08-27')
+  if (!bunker || bunker.label !== 'BUNKER POSTING' || !bunker.spritePack || !bunker.musicPlan) {
+    fail('adultMemeThemeById did not return a valid adult theme')
+  }
+  const tabloid = adultMemeThemeById('tabloid-island', '2026-08-27')
+  if (!tabloid || tabloid.label !== 'TABLOID ISLAND' || !tabloid.spritePack || !tabloid.musicPlan) {
+    fail('adultMemeThemeById did not return the tabloid island theme')
+  }
+  const maga = adultMemeThemeById('maga-rally', '2026-08-27')
+  if (!maga || maga.label !== 'MAGA RALLY' || !maga.spritePack || !maga.musicPlan) {
+    fail('adultMemeThemeById did not return the MAGA rally theme')
+  }
+  if (adultMemeThemeById('six-seven', '2026-08-27') !== null) {
+    fail('adultMemeThemeById accepted a safe catalog id')
+  }
+  if (!normaliseMemeTheme(adultMemeThemeForDate('2026-08-27'), '2026-08-27', MEME_THEME_SOURCE.Offline)) {
+    fail('adultMemeThemeForDate did not produce a valid theme')
   }
 }
 
@@ -269,6 +334,40 @@ for (const [name, fetcher] of failingFetchers) {
   )
   if (theme.source !== MEME_THEME_SOURCE.Live) fail('invalid forced meme id did not fall back to normal daily flow')
   if (calls !== 1) fail('invalid forced meme id did not attempt live fetch')
+}
+
+{
+  let calls = 0
+  const theme = await loadDailyMemeTheme(
+    '2026-08-27',
+    async () => {
+      calls++
+      return response(200, validDraft)
+    },
+    memoryStorage(),
+    'debate-afterparty',
+    true,
+  )
+  if (theme.id !== 'debate-afterparty' || theme.source !== MEME_THEME_SOURCE.Offline) {
+    fail('adult forced meme id did not select adult catalog')
+  }
+  if (calls !== 0) fail('adult meme mode called live fetch')
+}
+
+{
+  let calls = 0
+  const theme = await loadDailyMemeTheme(
+    '2026-08-27',
+    async () => {
+      calls++
+      return response(200, validDraft)
+    },
+    memoryStorage(),
+    'six-seven',
+    true,
+  )
+  if (!ADULT_MEME_THEME_IDS.includes(theme.id)) fail('adult mode invalid forced id did not use adult fallback')
+  if (calls !== 0) fail('adult fallback called live fetch')
 }
 
 if (failures > 0) {

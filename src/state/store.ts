@@ -4,7 +4,19 @@ import { PLAN_SOURCE } from '../director/types.ts'
 import type { GameMode, GameSnapshot } from './types.ts'
 import { MODE, PHASE } from './types.ts'
 import { START_HEALTH } from '../game/constants.ts'
-import { offlineMemeThemeById, offlineMemeThemeForDate } from '../memeTheme/index.ts'
+import {
+  adultMemeThemeById,
+  adultMemeThemeForDate,
+  offlineMemeThemeById,
+  offlineMemeThemeForDate,
+} from '../memeTheme/index.ts'
+
+function initialMemeTheme() {
+  if (DEV.adultMemeMode) {
+    return adultMemeThemeById(DEV.memeId) ?? adultMemeThemeForDate()
+  }
+  return offlineMemeThemeById(DEV.memeId) ?? offlineMemeThemeForDate()
+}
 
 const INITIAL: GameSnapshot = {
   phase: PHASE.Menu,
@@ -23,7 +35,7 @@ const INITIAL: GameSnapshot = {
   lastDirectorNotes: [],
   activeChaos: null,
   directorSource: PLAN_SOURCE.Heuristic,
-  memeTheme: offlineMemeThemeById(DEV.memeId) ?? offlineMemeThemeForDate(),
+  memeTheme: initialMemeTheme(),
   runEpitaph: null,
 }
 

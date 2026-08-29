@@ -1,4 +1,5 @@
 import { CHAOS_LABEL } from '../director/modifiers.ts'
+import { DEV } from '../dev.ts'
 import { PLAN_SOURCE } from '../director/types.ts'
 import { MODE_LABEL } from '../state/types.ts'
 import { useGameState } from '../state/store.ts'
@@ -76,6 +77,7 @@ export function Hud() {
           is indistinguishable from a bug -- the transition banner announces
           it once, this is what answers the question 30 seconds later. */}
       {activeChaos && <div className="hud-chaos">⚠ {CHAOS_LABEL[activeChaos]}</div>}
+      {DEV.adultMemeMode && <div className="hud-chaos">ADULT MEME MODE</div>}
       <div className="hud-meme" style={{ borderColor: memeTheme.palette[0] }}>
         MEME: {memeTheme.label}
       </div>

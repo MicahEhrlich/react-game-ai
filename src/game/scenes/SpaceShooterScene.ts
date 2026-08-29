@@ -50,6 +50,7 @@ export class SpaceShooterScene extends ModeScene {
   private nextSpawnMs = 0
   private nextEnemyFireMs = 0
   private stars!: Phaser.GameObjects.Graphics
+  private shipCostume?: Phaser.GameObjects.Graphics
 
   constructor() {
     super(SCENE.Shooter)
@@ -61,6 +62,7 @@ export class SpaceShooterScene extends ModeScene {
     this.lastShotMs = 0
     this.nextSpawnMs = 0
     this.nextEnemyFireMs = 0
+    this.shipCostume = undefined
 
     // A shooter with the platformer's gravity still applied is the exact bug
     // per-scene physics config exists to prevent.
@@ -75,6 +77,9 @@ export class SpaceShooterScene extends ModeScene {
       .sprite(dir === 1 ? 40 : VIEW_W - 40, VIEW_H / 2, ATLAS_KEY, 'ship-0')
       .setDepth(DEPTH.Player)
       .setFlipX(dir === -1)
+    if (this.memeTheme.id === 'maga-rally') {
+      this.shipCostume = this.add.graphics().setDepth(DEPTH.Player + 1)
+    }
     this.ship.anims.play(ANIM.Ship, true)
     ;(this.ship.body as Phaser.Physics.Arcade.Body)
       .setSize(12, 8)
@@ -132,22 +137,77 @@ export class SpaceShooterScene extends ModeScene {
 
     this.cullOffscreen()
     this.stars.x = (this.stars.x - this.worldDir * 0.4) % VIEW_W
+    this.updateShipCostume()
   }
 
   protected teardownMode(): void {
     this.enemies.length = 0
+    this.shipCostume?.destroy()
+    this.shipCostume = undefined
   }
 
   // --- construction --------------------------------------------------------
 
   private buildStarfield(): void {
     this.stars = this.add.graphics().setScrollFactor(0).setDepth(DEPTH.Background)
+    if (this.memeTheme.id === 'tabloid-island') {
+      this.stars.fillStyle(0x071a2a, 0.95)
+      this.stars.fillRect(0, 0, VIEW_W * 2, VIEW_H)
+      this.stars.fillStyle(0x1080a0, 0.32)
+      this.stars.fillRect(0, VIEW_H - 38, VIEW_W * 2, 38)
+      for (let x = 35; x < VIEW_W * 2; x += 118) {
+        this.stars.fillStyle(0xffe14d, 0.42)
+        this.stars.fillEllipse(x, VIEW_H - 32, 78, 16)
+        this.stars.fillStyle(0xf2eeff, 0.45)
+        this.stars.fillRect(x + 14, VIEW_H - 76, 38, 24)
+        this.stars.fillStyle(0x1c7a4a, 0.7)
+        this.stars.fillEllipse(x - 18, VIEW_H - 66, 28, 10)
+        this.stars.fillStyle(0xff9a2e, 0.85)
+        this.stars.fillCircle(x - 14, VIEW_H - 64, 2)
+      }
+      return
+    }
     for (let i = 0; i < 120; i++) {
       const shade = [0x3ef0ff, 0xff3ea5, 0x8f88b8][i % 3]
       this.stars.fillStyle(shade, 0.2 + Math.random() * 0.4)
       // Drawn across two screen widths so the horizontal wrap has no seam.
       this.stars.fillRect(Math.random() * VIEW_W * 2, Math.random() * VIEW_H, 1, 1)
     }
+    if (this.memeTheme.id === 'maga-rally') {
+      for (let x = 20; x < VIEW_W; x += 94) {
+        this.add
+          .text(x, 18 + (x % 4) * 18, 'MAGA', {
+            fontFamily: 'ui-monospace, Menlo, Consolas, monospace',
+            fontSize: '8px',
+            color: '#ff4d4d',
+          })
+          .setAlpha(0.42)
+          .setDepth(DEPTH.Background)
+      }
+    }
+  }
+
+  private updateShipCostume(): void {
+    const g = this.shipCostume
+    if (!g) return
+    g.clear()
+    const x = this.ship.x
+    const y = this.ship.y
+    g.lineStyle(1, 0x08060f, 1)
+    g.fillStyle(0xffc9a0, 1)
+    g.fillRect(x - 5, y - 11, 10, 8)
+    g.strokeRect(x - 5, y - 11, 10, 8)
+    g.fillStyle(0x08060f, 1)
+    g.fillRect(x - 3, y - 7, 2, 1)
+    g.fillRect(x + 2, y - 7, 2, 1)
+    g.fillRect(x + 1, y - 4, 5, 1)
+    g.fillStyle(0xff9a2e, 1)
+    g.fillRect(x - 6, y - 14, 11, 3)
+    g.fillRect(x - 7, y - 12, 3, 6)
+    g.fillRect(x + 3, y - 13, 5, 2)
+    g.fillRect(x + 7, y - 15, 2, 4)
+    g.fillStyle(0xffe14d, 0.85)
+    g.fillRect(x - 5, y - 14, 8, 1)
   }
 
   // --- combat ---------------------------------------------------------------
@@ -223,6 +283,8 @@ export class SpaceShooterScene extends ModeScene {
   }
 
   private addMemeTrail(x: number, y: number, label: string, paletteIndex: number): void {
+    if (this.memeTheme.id === 'maga-rally') label = paletteIndex === 1 ? '' : 'MAGA'
+    if (!label) return
     const txt = this.add
       .text(x, y, label, {
         fontFamily: 'ui-monospace, Menlo, Consolas, monospace',
