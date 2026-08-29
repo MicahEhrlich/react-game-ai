@@ -95,7 +95,7 @@ export class PlatformerScene extends ModeScene {
     this.player.setDepth(DEPTH.Player)
     this.player.setFlipY(this.mods.mirrorWorld)
     this.avatar = this.player
-    if (this.memeTheme.id === 'maga-rally') {
+    if (this.memeTheme.id === 'maga-rally' || this.memeTheme.id === 'kirk-mode') {
       this.playerCostume = this.add.graphics().setDepth(DEPTH.Player + 1)
     }
     this.lastSafeX = this.level.startX
@@ -210,6 +210,28 @@ export class PlatformerScene extends ModeScene {
     g.clear()
     const x = this.player.x
     const y = this.player.y
+    if (this.memeTheme.id === 'kirk-mode') {
+      g.lineStyle(1, 0x08060f, 1)
+      g.fillStyle(0x1b2440, 0.98)
+      g.fillRect(x - 6, y - 6, 12, 9)
+      g.strokeRect(x - 6, y - 6, 12, 9)
+      g.fillStyle(0xf2eeff, 1)
+      g.fillRect(x - 3, y - 6, 6, 3)
+      g.fillStyle(0x7a4534, 1)
+      g.fillRect(x - 1, y - 5, 2, 6)
+      g.fillStyle(0xffc9a0, 1)
+      g.fillRect(x - 5, y - 16, 10, 8)
+      g.strokeRect(x - 5, y - 16, 10, 8)
+      g.fillStyle(0x3b2318, 1)
+      g.fillRect(x - 5, y - 18, 10, 3)
+      g.fillRect(x - 3, y - 20, 8, 2)
+      g.fillRect(x + 4, y - 17, 2, 4)
+      g.fillStyle(0x08060f, 1)
+      g.fillRect(x - 1, y - 12, 1, 1)
+      g.fillRect(x + 1, y - 12, 1, 1)
+      g.fillRect(x - 1, y - 9, 4, 1)
+      return
+    }
     g.lineStyle(1, 0x08060f, 1)
     g.fillStyle(0x1c2f8c, 0.98)
     g.fillRect(x - 7, y - 6, 14, 9)
@@ -322,7 +344,10 @@ export class PlatformerScene extends ModeScene {
   }
 
   private addMemeDecal(x: number, y: number, label: string, paletteIndex: number): void {
-    if (this.memeTheme.id === 'maga-rally') label = paletteIndex === 0 ? 'MAGA' : ''
+    if (this.memeTheme.id === 'maga-rally') {
+      const decals = ['MAGA', 'CHINA', 'FAKE NEWS', 'QUITE FRANKLY'] as const
+      label = decals[paletteIndex % decals.length]
+    }
     if (!label) return
     this.add
       .text(x, y, label, {

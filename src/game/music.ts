@@ -1,6 +1,6 @@
 import { getAudioContext, getMusicOutput } from './audio.ts'
 import { audioSettings } from './audioSettings.ts'
-import type { MemeMusicPlan, MusicScale } from '../memeTheme/index.ts'
+import type { MemeMusicPlan, MusicScale, MusicWave } from '../memeTheme/index.ts'
 
 const BASE = 55
 const STEP_MS = 0.08
@@ -23,7 +23,13 @@ function freq(plan: MemeMusicPlan, degree: number, octave: number): number {
   return BASE * 2 ** (semis / 12)
 }
 
-function tone(frequency: number, duration: number, volume: number, type: OscillatorType): void {
+function tone(
+  frequency: number,
+  duration: number,
+  volume: number,
+  type: MusicWave,
+  attack = 0.004,
+): void {
   const ctx = getAudioContext()
   const out = getMusicOutput()
   if (!ctx || !out || muted) return
@@ -32,7 +38,8 @@ function tone(frequency: number, duration: number, volume: number, type: Oscilla
   const now = ctx.currentTime
   osc.type = type
   osc.frequency.value = frequency
-  g.gain.setValueAtTime(volume, now)
+  g.gain.setValueAtTime(0.001, now)
+  g.gain.exponentialRampToValueAtTime(Math.max(0.001, volume), now + attack)
   g.gain.exponentialRampToValueAtTime(0.001, now + duration)
   osc.connect(g)
   g.connect(out)
@@ -57,6 +64,61 @@ function noise(volume: number): void {
   src.start()
 }
 
+function chord(plan: MemeMusicPlan, degree: number, beat: number, level: number): void {
+  const wave = plan.padWave ?? 'sine'
+  tone(freq(plan, degree, 2), beat * 1.7, level * 0.25, wave, 0.035)
+  tone(freq(plan, Math.min(7, degree + 2), 2), beat * 1.7, level * 0.17, wave, 0.035)
+  tone(freq(plan, Math.min(7, degree + 4), 2), beat * 1.7, level * 0.13, wave, 0.035)
+}
+
+function playDrum(plan: MemeMusicPlan, hit: number, level: number): void {
+  const kit = plan.drumKit ?? 'arcade'
+  if (hit === 0) return
+  if (kit === 'march') {
+    if (hit === 1) tone(82, 0.075, level * 1.15, 'sine')
+    else if (hit === 2) {
+      tone(150, 0.045, level * 0.7, 'triangle')
+      noise(level * 0.65)
+    } else if (hit === 3) tone(320, 0.025, level * 0.28, 'triangle')
+    else {
+      tone(220, 0.06, level * 0.75, 'triangle')
+      noise(level * 0.5)
+    }
+    return
+  }
+  if (kit === 'dance') {
+    if (hit === 1) tone(58, 0.09, level * 1.6, 'sine')
+    else if (hit === 2) noise(level * 1.0)
+    else if (hit === 3) noise(level * 0.25)
+    else tone(240, 0.045, level * 0.8, 'square')
+    return
+  }
+  if (kit === 'noir') {
+    if (hit === 1) tone(64, 0.08, level * 0.9, 'sine')
+    else if (hit === 2) noise(level * 0.45)
+    else if (hit === 3) noise(level * 0.16)
+    else tone(120, 0.08, level * 0.35, 'sine')
+    return
+  }
+  if (kit === 'glitch') {
+    if (hit === 1) tone(70 + (step % 3) * 18, 0.045, level * 1.4, 'square')
+    else if (hit === 2) noise(level * 1.0)
+    else if (hit === 3) noise(level * 0.38)
+    else {
+      tone(180 + (step % 4) * 45, 0.035, level, 'sawtooth')
+      noise(level * 0.75)
+    }
+    return
+  }
+  if (hit === 1) tone(70, 0.055, level * 1.4, 'sine')
+  else if (hit === 2) noise(level * 0.9)
+  else if (hit === 3) noise(level * 0.35)
+  else {
+    tone(180, 0.04, level, 'triangle')
+    noise(level * 0.7)
+  }
+}
+
 function tick(): void {
   if (!current) return
   const i = step++
@@ -64,27 +126,34 @@ function tick(): void {
   const level = 0.025 + current.intensity * 0.035
   const bass = current.bassPattern[i % current.bassPattern.length]
   const lead = current.leadPattern[i % current.leadPattern.length]
-  const drum = current.drumPattern[i % current.drumPattern.length]
+  const pad = current.padPattern?.[i % current.padPattern.length]
+  const chordRoot = current.chordPattern?.[i % current.chordPattern.length]
+  const drumHit = current.drumPattern[i % current.drumPattern.length]
 
-  if (bass >= 0 && i % 2 === 0) tone(freq(current, bass, 1), beat * 0.45, level * 0.9, 'sawtooth')
-  if (lead >= 0) tone(freq(current, lead, 3), beat * 0.28, level * 0.55, 'square')
-  if (drum === 1) tone(70, 0.055, level * 1.4, 'sine')
-  else if (drum === 2) noise(level * 0.9)
-  else if (drum === 3) noise(level * 0.35)
-  else if (drum === 4) {
-    tone(180, 0.04, level, 'triangle')
-    noise(level * 0.7)
-  }
+  if (bass >= 0 && i % 2 === 0) tone(freq(current, bass, 1), beat * 0.58, level * 0.9, current.bassWave ?? 'sawtooth')
+  if (lead >= 0) tone(freq(current, lead, 3), beat * 0.32, level * 0.55, current.leadWave ?? 'square')
+  if (pad !== undefined && pad >= 0 && i % 4 === 0) tone(freq(current, pad, 2), beat * 2.1, level * 0.24, current.padWave ?? 'sine', 0.04)
+  if (chordRoot !== undefined && chordRoot >= 0 && i % 4 === 0) chord(current, chordRoot, beat, level)
+  playDrum(current, drumHit, level)
+  reschedule()
 }
 
 function reschedule(): void {
-  if (timer !== null) window.clearInterval(timer)
+  if (timer !== null) {
+    if (typeof window.clearTimeout === 'function') window.clearTimeout(timer)
+    else window.clearInterval(timer)
+  }
   if (!current) {
     timer = null
     return
   }
-  const interval = Math.max(60, (60_000 / current.bpm) / 2)
-  timer = window.setInterval(tick, interval)
+  const swing = current.swing ?? 0
+  const swingMul = step % 2 === 0 ? 1 - swing : 1 + swing
+  const interval = Math.max(60, ((60_000 / current.bpm) / 2) * swingMul)
+  timer =
+    typeof window.setTimeout === 'function'
+      ? window.setTimeout(tick, interval)
+      : window.setInterval(tick, interval)
 }
 
 function fadeTo(value: number): void {

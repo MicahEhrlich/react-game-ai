@@ -87,6 +87,7 @@ export const MUSIC_SCALE = {
   Chromatic: 'chromatic',
 } as const
 export type MusicScale = (typeof MUSIC_SCALE)[keyof typeof MUSIC_SCALE]
+export type MusicWave = 'sine' | 'square' | 'sawtooth' | 'triangle'
 
 export interface MemeMusicPlan {
   readonly style: string
@@ -95,13 +96,22 @@ export interface MemeMusicPlan {
   /** Scale degrees, 0..7, or -1 for a rest. */
   readonly bassPattern: readonly number[]
   readonly leadPattern: readonly number[]
+  readonly padPattern?: readonly number[]
+  readonly chordPattern?: readonly number[]
   /** 0 rest, 1 kick, 2 snare, 3 hat, 4 noise hit. */
   readonly drumPattern: readonly number[]
+  readonly bassWave?: MusicWave
+  readonly leadWave?: MusicWave
+  readonly padWave?: MusicWave
+  readonly drumKit?: 'arcade' | 'march' | 'dance' | 'noir' | 'glitch'
+  readonly swing?: number
   readonly intensity: number
 }
 
 const PIXEL_CHARS = new Set(['.', ...Object.keys(PALETTE)])
 const SCALES = new Set<string>(Object.values(MUSIC_SCALE))
+const OSC_WAVES = new Set<MusicWave>(['sine', 'square', 'sawtooth', 'triangle'])
+const DRUM_KITS = new Set(['arcade', 'march', 'dance', 'noir', 'glitch'])
 
 const MUSIC = {
   Office: {
@@ -110,7 +120,13 @@ const MUSIC = {
     scale: MUSIC_SCALE.Minor,
     bassPattern: [0, -1, 0, 3, 0, -1, 5, 3],
     leadPattern: [7, 6, -1, 5, 3, -1, 2, 3, 5, -1, 6, 5, 3, 2, -1, 0],
+    chordPattern: [0, -1, 3, -1, 5, -1, 3, -1],
     drumPattern: [1, 3, 2, 3, 1, 3, 2, 4, 1, 3, 2, 3, 1, 3, 2, 3],
+    bassWave: 'triangle',
+    leadWave: 'square',
+    padWave: 'sine',
+    drumKit: 'glitch',
+    swing: 0.08,
     intensity: 0.62,
   },
   Comment: {
@@ -120,6 +136,9 @@ const MUSIC = {
     bassPattern: [0, 1, -1, 0, 3, -1, 2, 1],
     leadPattern: [5, 6, 5, -1, 3, 2, 3, -1, 6, 7, 6, 5, -1, 3, 2, 1],
     drumPattern: [1, 3, 2, 3, 1, 4, 2, 3, 1, 3, 2, 3, 1, 3, 2, 4],
+    bassWave: 'sawtooth',
+    leadWave: 'sawtooth',
+    drumKit: 'glitch',
     intensity: 0.74,
   },
   Algo: {
@@ -128,7 +147,12 @@ const MUSIC = {
     scale: MUSIC_SCALE.Pentatonic,
     bassPattern: [0, -1, 2, -1, 3, -1, 2, -1],
     leadPattern: [0, 2, 3, 5, -1, 7, 5, 3, 2, -1, 3, 5, 7, 5, 3, 2],
+    padPattern: [0, -1, -1, -1, 3, -1, -1, -1],
     drumPattern: [1, 3, 3, 2, 1, 3, 3, 2, 1, 3, 4, 2, 1, 3, 3, 2],
+    bassWave: 'sine',
+    leadWave: 'triangle',
+    padWave: 'sine',
+    drumKit: 'dance',
     intensity: 0.58,
   },
   SixSeven: {
@@ -138,6 +162,9 @@ const MUSIC = {
     bassPattern: [6, -1, 7, -1, 6, 7, -1, 3],
     leadPattern: [6, 7, -1, 6, 7, 5, -1, 3, 6, 7, -1, 7, 6, 3, -1, 0],
     drumPattern: [1, 3, 2, 3, 1, 4, 2, 3, 1, 3, 2, 3, 1, 3, 2, 4],
+    bassWave: 'square',
+    leadWave: 'square',
+    drumKit: 'arcade',
     intensity: 0.78,
   },
   Rizz: {
@@ -146,7 +173,13 @@ const MUSIC = {
     scale: MUSIC_SCALE.Minor,
     bassPattern: [0, -1, 3, -1, 5, -1, 3, -1],
     leadPattern: [7, -1, 6, 5, -1, 3, 5, 6, 7, -1, 5, 3, -1, 2, 3, 5],
+    chordPattern: [0, -1, -1, -1, 3, -1, 5, -1],
     drumPattern: [1, 3, 3, 2, 1, 3, 3, 2, 1, 3, 4, 2, 1, 3, 3, 2],
+    bassWave: 'sine',
+    leadWave: 'triangle',
+    padWave: 'triangle',
+    drumKit: 'dance',
+    swing: 0.18,
     intensity: 0.52,
   },
   Npc: {
@@ -156,6 +189,9 @@ const MUSIC = {
     bassPattern: [0, 0, -1, 0, 2, 2, -1, 2],
     leadPattern: [3, -1, 3, -1, 2, -1, 2, -1, 5, -1, 5, -1, 3, 2, -1, 0],
     drumPattern: [1, 3, 2, 3, 1, 3, 2, 3, 1, 3, 2, 4, 1, 3, 2, 3],
+    bassWave: 'square',
+    leadWave: 'sine',
+    drumKit: 'arcade',
     intensity: 0.64,
   },
   RallyStomp: {
@@ -165,6 +201,9 @@ const MUSIC = {
     bassPattern: [0, -1, 0, 4, 5, -1, 4, 2],
     leadPattern: [7, -1, 5, 4, 2, -1, 4, 5, 7, -1, 7, 5, 4, 2, -1, 0],
     drumPattern: [1, 3, 2, 3, 1, 4, 2, 3, 1, 3, 2, 3, 1, 4, 2, 3],
+    bassWave: 'sawtooth',
+    leadWave: 'square',
+    drumKit: 'march',
     intensity: 0.72,
   },
   IslandNoir: {
@@ -173,7 +212,13 @@ const MUSIC = {
     scale: MUSIC_SCALE.Minor,
     bassPattern: [0, -1, 3, -1, 2, -1, 5, -1],
     leadPattern: [7, -1, 6, -1, 3, 2, -1, 0, 5, -1, 3, -1, 2, -1, 0, -1],
+    chordPattern: [0, -1, -1, -1, 5, -1, -1, -1],
     drumPattern: [1, 3, 3, 2, 0, 3, 4, 3, 1, 3, 3, 2, 0, 3, 3, 4],
+    bassWave: 'sine',
+    leadWave: 'triangle',
+    padWave: 'sine',
+    drumKit: 'noir',
+    swing: 0.14,
     intensity: 0.46,
   },
   BorderWallBounce: {
@@ -183,6 +228,9 @@ const MUSIC = {
     bassPattern: [0, 0, -1, 3, 5, -1, 3, -1],
     leadPattern: [0, 3, 5, 7, -1, 5, 3, -1, 0, 3, 5, 7, 5, 3, -1, 0],
     drumPattern: [1, 3, 2, 4, 1, 3, 2, 3, 1, 4, 2, 3, 1, 3, 2, 4],
+    bassWave: 'square',
+    leadWave: 'sawtooth',
+    drumKit: 'march',
     intensity: 0.76,
   },
   DebateClub: {
@@ -192,6 +240,10 @@ const MUSIC = {
     bassPattern: [0, 1, 0, -1, 3, 2, 1, -1],
     leadPattern: [4, 5, -1, 4, 2, 3, -1, 2, 6, 7, 6, -1, 4, 3, 2, -1],
     drumPattern: [1, 3, 2, 3, 1, 4, 2, 4, 1, 3, 2, 3, 1, 3, 2, 4],
+    bassWave: 'sawtooth',
+    leadWave: 'sawtooth',
+    drumKit: 'glitch',
+    swing: 0.06,
     intensity: 0.66,
   },
   WarRoomPulse: {
@@ -201,6 +253,9 @@ const MUSIC = {
     bassPattern: [0, -1, 0, -1, 5, -1, 3, -1],
     leadPattern: [0, -1, 2, -1, 3, 5, -1, 3, 7, -1, 6, 5, 3, -1, 2, 0],
     drumPattern: [1, 3, 2, 3, 1, 3, 4, 3, 1, 3, 2, 3, 1, 4, 2, 3],
+    bassWave: 'sawtooth',
+    leadWave: 'triangle',
+    drumKit: 'march',
     intensity: 0.7,
   },
   ArcadeLounge: {
@@ -209,8 +264,59 @@ const MUSIC = {
     scale: MUSIC_SCALE.Major,
     bassPattern: [0, -1, 4, -1, 5, -1, 4, -1],
     leadPattern: [0, 2, 4, -1, 5, 7, -1, 5, 4, 2, -1, 0, 2, 4, 5, -1],
+    padPattern: [0, -1, -1, -1, 4, -1, -1, -1],
     drumPattern: [1, 3, 3, 2, 0, 3, 3, 2, 1, 3, 4, 2, 0, 3, 3, 2],
+    bassWave: 'sine',
+    leadWave: 'triangle',
+    padWave: 'sine',
+    drumKit: 'noir',
+    swing: 0.22,
     intensity: 0.42,
+  },
+  KirkMarch: {
+    style: 'sad arcade hymn',
+    bpm: 96,
+    scale: MUSIC_SCALE.Minor,
+    bassPattern: [0, -1, -1, -1, 3, -1, -1, -1, 6, -1, 2, -1, 4, -1, 0, -1],
+    leadPattern: [0, -1, -1, 2, 3, -1, -1, 2, 5, -1, -1, 3, 2, -1, 0, -1],
+    padPattern: [0, -1, -1, -1, 3, -1, -1, -1, 6, -1, -1, -1, 2, -1, 4, -1],
+    chordPattern: [0, -1, 3, -1, 6, -1, 2, -1, 4, -1, 0, -1, 5, -1, 4, 0],
+    drumPattern: [1, 0, 0, 3, 0, 0, 2, 0, 1, 0, 0, 3, 0, 0, 2, 4],
+    bassWave: 'triangle',
+    leadWave: 'sine',
+    padWave: 'sine',
+    drumKit: 'march',
+    intensity: 0.74,
+  },
+  KirkInterlude: {
+    style: 'sad arcade interlude',
+    bpm: 92,
+    scale: MUSIC_SCALE.Minor,
+    bassPattern: [6, -1, 5, -1, 4, -1, -1, -1, 0, -1, 4, -1, 5, -1, 4, -1],
+    leadPattern: [7, -1, -1, 6, 5, -1, -1, 4, 3, -1, -1, 5, 4, -1, 2, -1],
+    padPattern: [6, -1, -1, -1, 5, -1, -1, -1, 4, -1, -1, -1, 0, -1, -1, -1],
+    chordPattern: [6, -1, 5, -1, 4, -1, -1, -1, 0, -1, 4, -1, 5, -1, 4, -1],
+    drumPattern: [1, 0, 0, 3, 2, 0, 0, 3, 1, 0, 0, 3, 2, 0, 0, 3],
+    bassWave: 'triangle',
+    leadWave: 'sine',
+    padWave: 'sine',
+    drumKit: 'march',
+    intensity: 0.68,
+  },
+  KirkBridge: {
+    style: 'dramatic minor bridge',
+    bpm: 100,
+    scale: MUSIC_SCALE.Minor,
+    bassPattern: [3, -1, 0, -1, 3, -1, 0, -1, 3, -1, 0, -1, 5, -1, 4, -1],
+    leadPattern: [3, -1, -1, 5, 7, -1, -1, 5, 3, -1, -1, 2, 5, -1, 4, 2],
+    padPattern: [3, -1, -1, -1, 0, -1, -1, -1, 3, -1, -1, -1, 5, -1, 4, -1],
+    chordPattern: [3, -1, 0, -1, 3, -1, 0, -1, 3, -1, 0, -1, 5, -1, 4, -1],
+    drumPattern: [1, 0, 2, 3, 0, 3, 0, 3, 1, 0, 2, 3, 0, 3, 4, 3],
+    bassWave: 'triangle',
+    leadWave: 'square',
+    padWave: 'sine',
+    drumKit: 'march',
+    intensity: 0.78,
   },
 } satisfies Record<string, MemeMusicPlan>
 
@@ -1021,6 +1127,21 @@ function pattern(v: unknown, min: number, max: number): readonly number[] | null
   return out
 }
 
+function optionalPattern(v: unknown, min: number, max: number): readonly number[] | null | undefined {
+  if (v === undefined || v === null) return undefined
+  return pattern(v, min, max)
+}
+
+function optionalWave(v: unknown): MusicWave | null | undefined {
+  if (v === undefined || v === null) return undefined
+  return typeof v === 'string' && OSC_WAVES.has(v as MusicWave) ? (v as MusicWave) : null
+}
+
+function optionalDrumKit(v: unknown): MemeMusicPlan['drumKit'] | null | undefined {
+  if (v === undefined || v === null) return undefined
+  return typeof v === 'string' && DRUM_KITS.has(v) ? (v as MemeMusicPlan['drumKit']) : null
+}
+
 function musicPlan(v: unknown): MemeMusicPlan | null {
   if (typeof v !== 'object' || v === null) return null
   const r = v as Record<string, unknown>
@@ -1029,7 +1150,14 @@ function musicPlan(v: unknown): MemeMusicPlan | null {
   const scale = r.scale
   const bassPattern = pattern(r.bassPattern, -1, 7)
   const leadPattern = pattern(r.leadPattern, -1, 7)
+  const padPattern = optionalPattern(r.padPattern, -1, 7)
+  const chordPattern = optionalPattern(r.chordPattern, -1, 7)
   const drumPattern = pattern(r.drumPattern, 0, 4)
+  const bassWave = optionalWave(r.bassWave)
+  const leadWave = optionalWave(r.leadWave)
+  const padWave = optionalWave(r.padWave)
+  const drumKit = optionalDrumKit(r.drumKit)
+  const swing = r.swing
   const intensity = r.intensity
 
   if (
@@ -1042,7 +1170,15 @@ function musicPlan(v: unknown): MemeMusicPlan | null {
     !SCALES.has(scale) ||
     !bassPattern ||
     !leadPattern ||
+    padPattern === null ||
+    chordPattern === null ||
     !drumPattern ||
+    bassWave === null ||
+    leadWave === null ||
+    padWave === null ||
+    drumKit === null ||
+    (swing !== undefined &&
+      (typeof swing !== 'number' || !Number.isFinite(swing) || swing < 0 || swing > 0.35)) ||
     typeof intensity !== 'number' ||
     intensity < 0 ||
     intensity > 1
@@ -1056,7 +1192,14 @@ function musicPlan(v: unknown): MemeMusicPlan | null {
     scale: scale as MusicScale,
     bassPattern,
     leadPattern,
+    ...(padPattern ? { padPattern } : {}),
+    ...(chordPattern ? { chordPattern } : {}),
     drumPattern,
+    ...(bassWave ? { bassWave } : {}),
+    ...(leadWave ? { leadWave } : {}),
+    ...(padWave ? { padWave } : {}),
+    ...(drumKit ? { drumKit } : {}),
+    ...(typeof swing === 'number' ? { swing } : {}),
     intensity,
   }
 }
@@ -2254,6 +2397,247 @@ const MAGA_SPRITES: MemeSpritePack = {
   ],
 }
 
+const TABLOID_UPGRADED_SPRITES: MemeSpritePack = {
+  ...TABLOID_SPRITES,
+  platformerEnemy: [
+    '................',
+    '.....wwww.......',
+    '....wkkkkw......',
+    '...wkwkkwkw.....',
+    '...wkkkkkkw.....',
+    '....wwwww.......',
+    '.....RRR........',
+    '....RwwwR.......',
+    '...RRRRRRR......',
+    '..RwwRwwRw......',
+    '..RRRRRRRR......',
+    '...R....R.......',
+    '..RR....RR......',
+    '.R..R..R..R.....',
+    '.RRRR..RRRR.....',
+    '................',
+  ],
+  platformerHazard: [
+    '................',
+    '..yyyyyyyyyy....',
+    '.ywwwwwwwwwy....',
+    '.ywkkkkkkwwy....',
+    '.ywwwwwwwwwy....',
+    '..yyyyyyyyyy....',
+    '....rrrrrrrr....',
+    '...rwwwwwwwr....',
+    '...rwkkkkwwr....',
+    '...rwwwwwwwr....',
+    '....rrrrrrrr....',
+    '......yyyyyy....',
+    '.....ywwwwwy....',
+    '.....ywkkwwy....',
+    '.....yyyyyy.....',
+    '................',
+  ],
+  shooterEnemy: [
+    '................',
+    '.......ww.......',
+    '......wkkw......',
+    '.....wkkkkw.....',
+    '....wwwwwwww....',
+    '...wkkkkkkkkw...',
+    '..wwwwwwwwwwww..',
+    '.wwkkkkkkkkkkww.',
+    'wwwwwwwwwwwwwwww',
+    '....wwwwwwww....',
+    '...ww..kk..ww...',
+    '..ww....kk..ww..',
+    '.......kkkk.....',
+    '......ww..ww....',
+    '................',
+    '................',
+  ],
+  shooterProjectile: [
+    '................',
+    '................',
+    '....yyyyyyyy....',
+    '...ywwwwwwwy....',
+    '..ywkkrrkkwy....',
+    '...ywwwwwwwy....',
+    '....yyyyyyyy....',
+    '......rr........',
+    '.....rrrr.......',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+  ],
+  runnerObstacle: [
+    '................',
+    '..yyyyyyyyyyy...',
+    '.ywwwwwwwwwwy...',
+    '.ywkkkkkkkwwy...',
+    '.ywwwwwwwwwwy...',
+    '..yyyyyyyyyyy...',
+    '...rrrrrrrrrr...',
+    '..rwwwwwwwwwr...',
+    '..rwkkkkkkwwr...',
+    '..rwwwwwwwwwr...',
+    '...rrrrrrrrrr...',
+    '....yyyyyyyyy...',
+    '...ywwwwwwwwy...',
+    '...ywkkkrrkwy...',
+    '...ywwwwwwwwy...',
+    '....yyyyyyyy....',
+  ],
+}
+
+const KIRK_SPRITES: MemeSpritePack = {
+  platformerEnemy: [
+    '................',
+    '.....BBBBBB.....',
+    '....BrrrrrrB....',
+    '...BrkkkkkrB....',
+    '...BrkkkkkrB....',
+    '....BrrrrB......',
+    '.....wwww.......',
+    '....wbbbbw......',
+    '...wbbbbbbw.....',
+    '..wbbwbwbbbw....',
+    '...bbbbbbbb.....',
+    '....b....b......',
+    '...bb....bb.....',
+    '................',
+    '................',
+    '................',
+  ],
+  platformerHazard: [
+    '................',
+    '..rrrrrrrrrrrr..',
+    '..oooooooooooo..',
+    '..yyyyyyyyyyyy..',
+    '..gggggggggggg..',
+    '..cccccccccccc..',
+    '..bbbbbbbbbbbb..',
+    '..mmmmmmmmmmmm..',
+    '...rrrrrrrrrr...',
+    '....yyyyyyyy....',
+    '.....cccccc.....',
+    '......mmmm......',
+    '................',
+    '................',
+    '................',
+    '................',
+  ],
+  shooterEnemy: [
+    '................',
+    '......mmmm......',
+    '....mmccccmm....',
+    '...mccyyyyccm...',
+    '..mcyyrrrryycm..',
+    '.mcyroooooorycm.',
+    '..mcyyrrrryycm..',
+    '...mccyyyyccm...',
+    '....mmccccmm....',
+    '......mmmm......',
+    '....bb....bb....',
+    '...bb......bb...',
+    '................',
+    '................',
+    '................',
+    '................',
+  ],
+  shooterProjectile: [
+    '................',
+    '................',
+    '.....r..........',
+    '.....ro.........',
+    '.....roy........',
+    '.....royg.......',
+    '.....roygc......',
+    '.....roygcb.....',
+    '.....roygcbm....',
+    '.....roygcb.....',
+    '.....roygc......',
+    '.....royg.......',
+    '.....roy........',
+    '................',
+    '................',
+    '................',
+  ],
+  runnerObstacle: [
+    '................',
+    '..rrrrrrrrrrrr..',
+    '..oooooooooooo..',
+    '..yyyyyyyyyyyy..',
+    '..gggggggggggg..',
+    '..cccccccccccc..',
+    '..bbbbbbbbbbbb..',
+    '..mmmmmmmmmmmm..',
+    '..rrrrrrrrrrrr..',
+    '..oooooooooooo..',
+    '..yyyyyyyyyyyy..',
+    '..gggggggggggg..',
+    '..cccccccccccc..',
+    '..bbbbbbbbbbbb..',
+    '..mmmmmmmmmmmm..',
+    '................',
+  ],
+  brick: [
+    'rrrrrrrrrrrrrrrr',
+    'oooooooooooooooo',
+    'yyyyyyyyyyyyyyyy',
+    'gggggggggggggggg',
+    'cccccccccccccccc',
+    'bbbbbbbbbbbbbbbb',
+    'mmmmmmmmmmmmmmmm',
+    'rrrrrrrrrrrrrrrr',
+    'oooooooooooooooo',
+    'yyyyyyyyyyyyyyyy',
+    'gggggggggggggggg',
+    'cccccccccccccccc',
+    'bbbbbbbbbbbbbbbb',
+    'mmmmmmmmmmmmmmmm',
+    'rrrrrrrrrrrrrrrr',
+    'oooooooooooooooo',
+  ],
+  brickCracked: [
+    'rrrrrrkkrrrrrrrr',
+    'ooooookkoooooooo',
+    'yyyyykrrkyyyyyyy',
+    'gggggkrrkggggggg',
+    'cccckrrrrkcccccc',
+    'bbbbkrrrrkbbbbbb',
+    'mmmkrmmmmkmmmmmm',
+    'rrrkrrrrrrkrrrrr',
+    'ooookkoooooooooo',
+    'yyyyykkyyyyyyyyy',
+    'ggggkrrkgggggggg',
+    'ccckrrrrkccccccc',
+    'bbbkrrrrkbbbbbbb',
+    'mmkmmmmmmkmmmmmm',
+    'rrrrrrrrrrrrrrrr',
+    'oooooooooooooooo',
+  ],
+  ball: [
+    '................',
+    '.....mmmmmm.....',
+    '....mccccccm....',
+    '...mcyyyyccm....',
+    '..mcyrooyycm....',
+    '..mcyyyyyycm....',
+    '...mccccccm.....',
+    '.....mmmm.......',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+  ],
+}
+
 export const ADULT_MEME_THEMES: readonly MemeTheme[] = [
   {
     id: 'bunker-posting',
@@ -2297,34 +2681,16 @@ export const ADULT_MEME_THEMES: readonly MemeTheme[] = [
     source: MEME_THEME_SOURCE.Offline,
     date: 'adult',
     palette: ['#ffe14d', '#ff4d4d', '#f2eeff'],
-    shiftLines: ['EPSTEIN FILES GOT ARCADE PHYSICS', 'REDACTED FOLDER STARTED BLINKING'],
-    taunts: ['TABLOID BOARD NEEDS STRING', 'CAMERA ROLL DENIED'],
-    spritePack: TABLOID_SPRITES,
+    shiftLines: ['EPSTEIN FILES GOT ARCADE PHYSICS', 'PRIVATE JET ENTERED THE FEED'],
+    taunts: ['CASE FILE STACKED AGAIN', 'ISLAND CAMERA DENIED'],
+    spritePack: TABLOID_UPGRADED_SPRITES,
     musicPlan: MUSIC.Algo,
     musicPlans: [MUSIC.Algo, MUSIC.IslandNoir, MUSIC.ArcadeLounge],
     modeFlavor: {
-      [MODE.Platformer]: { ...DEFAULT_FLAVOR, enemy: 'FILE CLERK', hazard: 'REDACTED' },
-      [MODE.Shooter]: { ...DEFAULT_FLAVOR, enemy: 'CAM DRONE', projectile: 'FILE TAB' },
+      [MODE.Platformer]: { ...DEFAULT_FLAVOR, enemy: 'SUIT FILE', hazard: 'CASE FILE' },
+      [MODE.Shooter]: { ...DEFAULT_FLAVOR, enemy: 'PRIVATE JET', projectile: 'FILE TAB' },
       [MODE.Runner]: { ...DEFAULT_FLAVOR, obstacle: 'CASE FILE', hazard: 'RED TAPE' },
       [MODE.Brick]: { ...DEFAULT_FLAVOR, brick: 'FILE WALL', projectile: 'TABLOID' },
-    },
-  },
-  {
-    id: 'war-room-absurd',
-    label: 'WAR ROOM ABSURD',
-    source: MEME_THEME_SOURCE.Offline,
-    date: 'adult',
-    palette: ['#ffe14d', '#4dff9a', '#ff4d4d'],
-    shiftLines: ['THE MAP TABLE STARTED POSTING', 'TACTICAL BRAINROT DEPLOYED'],
-    taunts: ['GENERAL CHAT HAS FALLEN', 'THE BRIEFING WAS A MEME'],
-    spritePack: STRONGMAN_SPRITES,
-    musicPlan: MUSIC.SixSeven,
-    musicPlans: [MUSIC.SixSeven, MUSIC.WarRoomPulse, MUSIC.Comment],
-    modeFlavor: {
-      [MODE.Platformer]: { ...DEFAULT_FLAVOR, enemy: 'PUTIN MAP', hazard: 'RED STRING' },
-      [MODE.Shooter]: { ...DEFAULT_FLAVOR, enemy: 'BRIEFING BOT', projectile: 'MEMO BLAST' },
-      [MODE.Runner]: { ...DEFAULT_FLAVOR, obstacle: 'MAP TABLE', hazard: 'ALARM LOOP' },
-      [MODE.Brick]: { ...DEFAULT_FLAVOR, brick: 'WAR BOARD', projectile: 'PLAN BALL' },
     },
   },
   {
@@ -2351,16 +2717,34 @@ export const ADULT_MEME_THEMES: readonly MemeTheme[] = [
     source: MEME_THEME_SOURCE.Offline,
     date: 'adult',
     palette: ['#ff4d4d', '#4d7cff', '#f2eeff'],
-    shiftLines: ['TRUMP RALLY SIGNS FOUND THE HITBOXES', 'MAGA PROJECTILES ONLINE'],
-    taunts: ['MAGA SIGN WHIFFED', 'PODIUM BUFFERING'],
+    shiftLines: ['CHINA LABELS HIT THE RALLY FLOOR', 'FAKE NEWS PROJECTILES ONLINE'],
+    taunts: ['QUITE FRANKLY, THAT MISSED', 'MAGA SIGN WHIFFED'],
     spritePack: MAGA_SPRITES,
     musicPlan: MUSIC.SixSeven,
     musicPlans: [MUSIC.SixSeven, MUSIC.RallyStomp, MUSIC.BorderWallBounce],
     modeFlavor: {
-      [MODE.Platformer]: { ...DEFAULT_FLAVOR, enemy: 'MAGA', hazard: 'RALLY SIGN' },
-      [MODE.Shooter]: { ...DEFAULT_FLAVOR, enemy: 'DONKEY', projectile: 'MAGA' },
-      [MODE.Runner]: { ...DEFAULT_FLAVOR, obstacle: 'MAGA SIGN', hazard: 'RALLY' },
+      [MODE.Platformer]: { ...DEFAULT_FLAVOR, enemy: 'MAGA', hazard: 'FAKE NEWS' },
+      [MODE.Shooter]: { ...DEFAULT_FLAVOR, enemy: 'DONKEY', projectile: 'CHINA' },
+      [MODE.Runner]: { ...DEFAULT_FLAVOR, obstacle: 'QUITE FRANKLY', hazard: 'FAKE NEWS' },
       [MODE.Brick]: { ...DEFAULT_FLAVOR, brick: 'MAGA WALL', projectile: 'CAP BALL' },
+    },
+  },
+  {
+    id: 'kirk-mode',
+    label: 'KIRK MODE',
+    source: MEME_THEME_SOURCE.Offline,
+    date: 'adult',
+    palette: ['#4d7cff', '#ff3ea5', '#ffe14d', '#4dff9a'],
+    shiftLines: ['KIRK MODE FOUND THE STAGE LIGHTS', 'RAINBOW OBSTACLES ENTERED CHAT'],
+    taunts: ['CLOSE SET FOCUS ONLINE', 'SUIT SPRITE LOCKED IN'],
+    spritePack: KIRK_SPRITES,
+    musicPlan: MUSIC.KirkMarch,
+    musicPlans: [MUSIC.KirkMarch, MUSIC.KirkInterlude, MUSIC.KirkBridge],
+    modeFlavor: {
+      [MODE.Platformer]: { ...DEFAULT_FLAVOR, enemy: 'COLOR MOB', hazard: 'RAINBOW' },
+      [MODE.Shooter]: { ...DEFAULT_FLAVOR, enemy: 'COLOR SWARM', projectile: 'COLOR BOLT' },
+      [MODE.Runner]: { ...DEFAULT_FLAVOR, obstacle: 'RAINBOW BLOCK', hazard: 'COLOR GATE' },
+      [MODE.Brick]: { ...DEFAULT_FLAVOR, brick: 'COLOR WALL', projectile: 'MARCH BALL' },
     },
   },
 ]

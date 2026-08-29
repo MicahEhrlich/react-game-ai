@@ -24,6 +24,7 @@ import {
   BODY_STAND,
   FEET_Y,
   GATE_BOTTOM_Y,
+  KIRK_DUCK_COSTUME_TOP_OFFSET,
   MAGA_DUCK_COSTUME_H,
   GROUND_Y,
   jumpVelocity,
@@ -111,7 +112,7 @@ export class RunnerScene extends ModeScene {
       .sprite(dir === 1 ? 64 : VIEW_W - 64, FEET_Y, ATLAS_KEY, 'player-idle')
       .setDepth(DEPTH.Player)
       .setFlipX(dir === -1)
-    if (this.memeTheme.id === 'maga-rally') {
+    if (this.memeTheme.id === 'maga-rally' || this.memeTheme.id === 'kirk-mode') {
       this.runnerCostume = this.add.graphics().setDepth(DEPTH.Player + 1)
     }
     this.applyBody(BODY_STAND)
@@ -199,6 +200,45 @@ export class RunnerScene extends ModeScene {
     g.clear()
     const x = this.runner.x
     const y = this.runner.y
+    if (this.memeTheme.id === 'kirk-mode') {
+      g.lineStyle(1, 0x08060f, 1)
+      if (this.time.now < this.slideUntilMs) {
+        const top = y - KIRK_DUCK_COSTUME_TOP_OFFSET
+        g.fillStyle(0xffc9a0, 1)
+        g.fillRect(x - 6, top, 12, 6)
+        g.strokeRect(x - 6, top, 12, 6)
+        g.fillStyle(0x3b2318, 1)
+        g.fillRect(x - 6, top, 12, 2)
+        g.fillRect(x + 4, top + 1, 2, 2)
+        g.fillStyle(0x08060f, 1)
+        g.fillRect(x - 1, top + 3, 1, 1)
+        g.fillRect(x + 1, top + 3, 1, 1)
+        g.fillRect(x - 1, top + 5, 4, 1)
+        g.fillStyle(0x1b1830, 1)
+        g.fillRect(x - 5, y - 1, 3, 1)
+        g.fillRect(x + 2, y - 1, 3, 1)
+        return
+      }
+      g.fillStyle(0x1b2440, 0.98)
+      g.fillRect(x - 6, y - 6, 12, 9)
+      g.strokeRect(x - 6, y - 6, 12, 9)
+      g.fillStyle(0xf2eeff, 1)
+      g.fillRect(x - 3, y - 6, 6, 3)
+      g.fillStyle(0x7a4534, 1)
+      g.fillRect(x - 1, y - 5, 2, 6)
+      g.fillStyle(0xffc9a0, 1)
+      g.fillRect(x - 5, y - 16, 10, 8)
+      g.strokeRect(x - 5, y - 16, 10, 8)
+      g.fillStyle(0x3b2318, 1)
+      g.fillRect(x - 5, y - 18, 10, 3)
+      g.fillRect(x - 3, y - 20, 8, 2)
+      g.fillRect(x + 4, y - 17, 2, 4)
+      g.fillStyle(0x08060f, 1)
+      g.fillRect(x - 1, y - 12, 1, 1)
+      g.fillRect(x + 1, y - 12, 1, 1)
+      g.fillRect(x - 1, y - 9, 4, 1)
+      return
+    }
     if (this.time.now < this.slideUntilMs) {
       g.lineStyle(1, 0x08060f, 1)
       g.fillStyle(0xffc9a0, 1)

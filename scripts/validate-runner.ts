@@ -22,6 +22,8 @@ import {
   BODY_STAND,
   FEET_Y,
   GATE_BOTTOM_Y,
+  KIRK_DUCK_COSTUME_H,
+  KIRK_DUCK_COSTUME_TOP_OFFSET,
   jumpArcSec,
   jumpVelocity,
   landingSlackSec,
@@ -288,6 +290,10 @@ function simulateJumpApexPx(gravityY: number, dt = 1 / 60, frames = 240): number
   }
   if (slideBottom < slideTop) fail('slide body is inverted')
   if (MAGA_DUCK_COSTUME_H > 16) fail(`MAGA duck costume is ${MAGA_DUCK_COSTUME_H}px tall, expected <= 16px`)
+  if (KIRK_DUCK_COSTUME_H > 16) fail(`Kirk duck costume is ${KIRK_DUCK_COSTUME_H}px tall, expected <= 16px`)
+  if (FEET_Y - KIRK_DUCK_COSTUME_TOP_OFFSET <= GATE_BOTTOM_Y) {
+    fail('Kirk duck costume does not visually clear the gate')
+  }
 
   // Jumping must clear the low block, using the apex the game ACTUALLY
   // achieves at the worst gravity -- not the nominal constant.

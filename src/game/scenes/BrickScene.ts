@@ -100,7 +100,7 @@ export class BrickScene extends ModeScene {
       .rectangle(VIEW_W / 2, this.paddleY, PADDLE_W, PADDLE_H, this.memeAccent(0, 0x3ef0ff), 1)
       .setStrokeStyle(1, this.memeAccent(2, 0xffffff), 0.75)
       .setDepth(DEPTH.Player)
-    if (this.memeTheme.id === 'maga-rally') {
+    if (this.memeTheme.id === 'maga-rally' || this.memeTheme.id === 'kirk-mode') {
       this.paddleCostume = this.add.graphics().setDepth(DEPTH.Player + 1)
     }
     this.physics.add.existing(this.paddle)
@@ -277,6 +277,20 @@ export class BrickScene extends ModeScene {
     g.clear()
     const x = this.paddle.x
     const y = this.paddle.y
+    if (this.memeTheme.id === 'kirk-mode') {
+      g.lineStyle(1, 0x08060f, 1)
+      g.fillStyle(0xffc9a0, 1)
+      g.fillRect(x - 5, y - 14, 10, 8)
+      g.strokeRect(x - 5, y - 14, 10, 8)
+      g.fillStyle(0x3b2318, 1)
+      g.fillRect(x - 5, y - 16, 10, 2)
+      g.fillRect(x - 3, y - 18, 8, 2)
+      g.fillStyle(0x08060f, 1)
+      g.fillRect(x - 1, y - 10, 1, 1)
+      g.fillRect(x + 1, y - 10, 1, 1)
+      g.fillRect(x - 1, y - 7, 4, 1)
+      return
+    }
     g.lineStyle(1, 0x08060f, 1)
     g.fillStyle(0xffc9a0, 1)
     g.fillRect(x - 5, y - 14, 10, 8)

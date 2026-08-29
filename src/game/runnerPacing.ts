@@ -39,6 +39,8 @@ export const GATE_BOTTOM_Y = 148
 export const REST_BOTTOM = FEET_Y - 8 + BODY_STAND.oy + BODY_STAND.h
 export const RUNNER_FLOOR_SNAP_PX = 2
 export const MAGA_DUCK_COSTUME_H = 16
+export const KIRK_DUCK_COSTUME_H = 8
+export const KIRK_DUCK_COSTUME_TOP_OFFSET = 3
 
 /**
  * The runner's pacing maths, kept pure and out of the scene so it can be

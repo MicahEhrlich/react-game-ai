@@ -251,7 +251,14 @@ for (const t of ADULT_MEME_THEMES) {
 
 {
   const safeSpritePacks = new Set(OFFLINE_MEME_THEMES.map((t) => t.spritePack))
-  const requiredAdultIds = ['bunker-posting', 'debate-afterparty', 'tabloid-island', 'strongman-feed', 'maga-rally'] as const
+  const requiredAdultIds = [
+    'bunker-posting',
+    'debate-afterparty',
+    'tabloid-island',
+    'strongman-feed',
+    'maga-rally',
+    'kirk-mode',
+  ] as const
   for (const id of requiredAdultIds) {
     const theme = adultMemeThemeById(id, '2026-08-27')
     if (!theme?.spritePack) {
@@ -300,6 +307,48 @@ for (const t of ADULT_MEME_THEMES) {
   if (!maga || maga.label !== 'MAGA RALLY' || !maga.spritePack || !maga.musicPlan) {
     fail('adultMemeThemeById did not return the MAGA rally theme')
   }
+  const kirk = adultMemeThemeById('kirk-mode', '2026-08-27')
+  if (!kirk || kirk.label !== 'KIRK MODE' || !kirk.spritePack || !kirk.musicPlan) {
+    fail('adultMemeThemeById did not return the Kirk mode theme')
+  }
+  const magaText = [
+    ...(maga?.shiftLines ?? []),
+    ...(maga?.taunts ?? []),
+    ...Object.values(maga?.modeFlavor ?? {}).flatMap((flavor) => Object.values(flavor)),
+  ].join(' ')
+  for (const label of ['CHINA', 'FAKE NEWS', 'QUITE FRANKLY', 'MAGA']) {
+    if (!magaText.includes(label)) fail(`MAGA rally is missing requested label ${label}`)
+  }
+  if (tabloid?.modeFlavor.shooter.enemy !== 'PRIVATE JET') fail('tabloid island shooter enemy is not a private jet')
+  if (tabloid?.modeFlavor.runner.obstacle !== 'CASE FILE') fail('tabloid island runner obstacle is not a case file')
+  if (kirk?.musicPlan.style !== 'sad arcade hymn') fail('kirk mode did not use the sad hymn preset')
+  if (kirk?.musicPlan.bpm !== 96) fail('kirk mode did not use the slower dramatic tempo')
+  if (kirk?.musicPlan.scale !== 'minor') fail('kirk mode did not use the chord-sheet minor scale')
+  if (kirk?.musicPlan.drumKit !== 'march') fail('kirk mode did not use the march drum kit')
+  if (!kirk?.musicPlan.chordPattern || !kirk.musicPlan.padPattern) fail('kirk mode did not include harmony layers')
+  const kirkStyles = new Set(kirk?.musicPlans?.map((plan) => plan.style) ?? [])
+  for (const style of ['sad arcade hymn', 'sad arcade interlude', 'dramatic minor bridge']) {
+    if (!kirkStyles.has(style)) fail(`kirk mode is missing music variant ${style}`)
+  }
+  const expectedKirkRoots = [0, -1, 3, -1, 6, -1, 2, -1, 4, -1, 0, -1, 5, -1, 4, 0]
+  if (kirk?.musicPlan.chordPattern?.join(',') !== expectedKirkRoots.join(',')) {
+    fail('kirk mode did not use the chord-sheet-inspired root progression')
+  }
+  const kirkRuntimeText = [
+    ...(kirk?.shiftLines ?? []),
+    ...(kirk?.taunts ?? []),
+    kirk?.musicPlan.style ?? '',
+    ...Object.values(kirk?.modeFlavor ?? {}).flatMap((flavor) => Object.values(flavor)),
+  ].join(' ')
+  if (/we are charlie kirk|carry the flame|honor his name|heaven known|battle is raging|cross is our guide/i.test(kirkRuntimeText)) {
+    fail('kirk mode includes copied song text')
+  }
+  if (adultMemeThemeById('war-room-absurd', '2026-08-27') !== null) {
+    fail('removed war-room-absurd adult theme is still selectable')
+  }
+  if (ADULT_MEME_THEME_IDS.includes('war-room-absurd')) {
+    fail('removed war-room-absurd adult theme is still exported')
+  }
   if (adultMemeThemeById('six-seven', '2026-08-27') !== null) {
     fail('adultMemeThemeById accepted a safe catalog id')
   }
@@ -341,6 +390,10 @@ const badCases: readonly [string, unknown][] = [
   ['bad scale', { ...validDraft, musicPlan: { ...validDraft.musicPlan, scale: 'phrygian' } }],
   ['bad note', { ...validDraft, musicPlan: { ...validDraft.musicPlan, leadPattern: [0, 9] } }],
   ['bad drum', { ...validDraft, musicPlan: { ...validDraft.musicPlan, drumPattern: [1, 5] } }],
+  ['bad wave', { ...validDraft, musicPlan: { ...validDraft.musicPlan, leadWave: 'organ' } }],
+  ['bad drum kit', { ...validDraft, musicPlan: { ...validDraft.musicPlan, drumKit: 'stadium' } }],
+  ['bad swing', { ...validDraft, musicPlan: { ...validDraft.musicPlan, swing: 2 } }],
+  ['bad chord pattern', { ...validDraft, musicPlan: { ...validDraft.musicPlan, chordPattern: [0, 8] } }],
   ['bad music plans', { ...validDraft, musicPlans: [{ ...validDraft.musicPlan }, { ...validDraft.musicPlan, bpm: 1000 }] }],
   ['too many music plans', { ...validDraft, musicPlans: Array.from({ length: 5 }, () => validDraft.musicPlan) }],
   ['missing live sprite pack', { ...validDraft, spritePack: undefined }],
@@ -395,7 +448,17 @@ for (const [name, raw] of badCases) {
     if (!t.musicPlans || t.musicPlans.length < 2) fail(`${t.id} does not expose multiple music plans`)
     for (const plan of t.musicPlans ?? [t.musicPlan]) styles.add(plan.style)
   }
-  for (const style of ['rally stomp', 'island noir', 'border wall bounce', 'debate club', 'war room pulse', 'arcade lounge']) {
+  for (const style of [
+    'rally stomp',
+    'island noir',
+    'border wall bounce',
+    'debate club',
+    'war room pulse',
+    'arcade lounge',
+    'sad arcade hymn',
+    'sad arcade interlude',
+    'dramatic minor bridge',
+  ]) {
     if (!styles.has(style)) fail(`new music style "${style}" is not bundled`)
   }
 
