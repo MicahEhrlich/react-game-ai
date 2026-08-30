@@ -321,13 +321,16 @@ for (const t of ADULT_MEME_THEMES) {
   }
   if (tabloid?.modeFlavor.shooter.enemy !== 'PRIVATE JET') fail('tabloid island shooter enemy is not a private jet')
   if (tabloid?.modeFlavor.runner.obstacle !== 'CASE FILE') fail('tabloid island runner obstacle is not a case file')
-  if (kirk?.musicPlan.style !== 'sad arcade hymn') fail('kirk mode did not use the sad hymn preset')
-  if (kirk?.musicPlan.bpm !== 96) fail('kirk mode did not use the slower dramatic tempo')
+  if (kirk?.musicPlan.style !== 'anthem lament') fail('kirk mode did not use the rewritten anthem lament preset')
+  if (kirk?.musicPlan.bpm !== 90) fail('kirk mode did not use the MIDI-derived tempo')
   if (kirk?.musicPlan.scale !== 'minor') fail('kirk mode did not use the chord-sheet minor scale')
-  if (kirk?.musicPlan.drumKit !== 'march') fail('kirk mode did not use the march drum kit')
+  if (kirk?.musicPlan.drumKit !== 'march') fail('kirk mode did not use the restrained march drum kit')
+  if (kirk?.musicPlan.bassWave !== 'triangle' || kirk.musicPlan.leadWave !== 'square') {
+    fail('kirk mode did not use the MP3-inspired bass and lead shape')
+  }
   if (!kirk?.musicPlan.chordPattern || !kirk.musicPlan.padPattern) fail('kirk mode did not include harmony layers')
   const kirkStyles = new Set(kirk?.musicPlans?.map((plan) => plan.style) ?? [])
-  for (const style of ['sad arcade hymn', 'sad arcade interlude', 'dramatic minor bridge']) {
+  for (const style of ['anthem lament', 'anthem rise', 'anthem bridge']) {
     if (!kirkStyles.has(style)) fail(`kirk mode is missing music variant ${style}`)
   }
   const expectedKirkRoots = [0, -1, 3, -1, 6, -1, 2, -1, 4, -1, 0, -1, 5, -1, 4, 0]
@@ -455,9 +458,9 @@ for (const [name, raw] of badCases) {
     'debate club',
     'war room pulse',
     'arcade lounge',
-    'sad arcade hymn',
-    'sad arcade interlude',
-    'dramatic minor bridge',
+    'anthem lament',
+    'anthem rise',
+    'anthem bridge',
   ]) {
     if (!styles.has(style)) fail(`new music style "${style}" is not bundled`)
   }

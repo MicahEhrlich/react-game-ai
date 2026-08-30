@@ -4,6 +4,7 @@ import type { MemeMusicPlan, MusicScale, MusicWave } from '../memeTheme/index.ts
 
 const BASE = 55
 const STEP_MS = 0.08
+const RUNNING_GAIN = 0.42
 
 const INTERVALS: Record<MusicScale, readonly number[]> = {
   minor: [0, 2, 3, 5, 7, 8, 10, 12],
@@ -66,23 +67,23 @@ function noise(volume: number): void {
 
 function chord(plan: MemeMusicPlan, degree: number, beat: number, level: number): void {
   const wave = plan.padWave ?? 'sine'
-  tone(freq(plan, degree, 2), beat * 1.7, level * 0.25, wave, 0.035)
-  tone(freq(plan, Math.min(7, degree + 2), 2), beat * 1.7, level * 0.17, wave, 0.035)
-  tone(freq(plan, Math.min(7, degree + 4), 2), beat * 1.7, level * 0.13, wave, 0.035)
+  tone(freq(plan, degree, 2), beat * 1.85, level * 0.34, wave, 0.035)
+  tone(freq(plan, Math.min(7, degree + 2), 2), beat * 1.85, level * 0.23, wave, 0.035)
+  tone(freq(plan, Math.min(7, degree + 4), 2), beat * 1.85, level * 0.18, wave, 0.035)
 }
 
 function playDrum(plan: MemeMusicPlan, hit: number, level: number): void {
   const kit = plan.drumKit ?? 'arcade'
   if (hit === 0) return
   if (kit === 'march') {
-    if (hit === 1) tone(82, 0.075, level * 1.15, 'sine')
+    if (hit === 1) tone(82, 0.085, level * 1.35, 'sine')
     else if (hit === 2) {
-      tone(150, 0.045, level * 0.7, 'triangle')
-      noise(level * 0.65)
-    } else if (hit === 3) tone(320, 0.025, level * 0.28, 'triangle')
+      tone(150, 0.05, level * 0.9, 'triangle')
+      noise(level * 0.82)
+    } else if (hit === 3) tone(320, 0.03, level * 0.38, 'triangle')
     else {
-      tone(220, 0.06, level * 0.75, 'triangle')
-      noise(level * 0.5)
+      tone(220, 0.07, level * 0.95, 'triangle')
+      noise(level * 0.68)
     }
     return
   }
@@ -130,9 +131,9 @@ function tick(): void {
   const chordRoot = current.chordPattern?.[i % current.chordPattern.length]
   const drumHit = current.drumPattern[i % current.drumPattern.length]
 
-  if (bass >= 0 && i % 2 === 0) tone(freq(current, bass, 1), beat * 0.58, level * 0.9, current.bassWave ?? 'sawtooth')
-  if (lead >= 0) tone(freq(current, lead, 3), beat * 0.32, level * 0.55, current.leadWave ?? 'square')
-  if (pad !== undefined && pad >= 0 && i % 4 === 0) tone(freq(current, pad, 2), beat * 2.1, level * 0.24, current.padWave ?? 'sine', 0.04)
+  if (bass >= 0 && i % 2 === 0) tone(freq(current, bass, 1), beat * 0.68, level * 1.08, current.bassWave ?? 'sawtooth')
+  if (lead >= 0) tone(freq(current, lead, 3), beat * 0.4, level * 0.74, current.leadWave ?? 'square')
+  if (pad !== undefined && pad >= 0 && i % 4 === 0) tone(freq(current, pad, 2), beat * 2.25, level * 0.34, current.padWave ?? 'sine', 0.04)
   if (chordRoot !== undefined && chordRoot >= 0 && i % 4 === 0) chord(current, chordRoot, beat, level)
   playDrum(current, drumHit, level)
   reschedule()
@@ -171,7 +172,7 @@ export const music = {
     step = 0
     muted = false
     reschedule()
-    fadeTo(0.3)
+    fadeTo(RUNNING_GAIN)
   },
   stop(): void {
     current = null
@@ -185,11 +186,11 @@ export const music = {
   resume(): void {
     if (!current) return
     muted = false
-    fadeTo(0.3)
+    fadeTo(RUNNING_GAIN)
   },
 }
 
 audioSettings.subscribe(() => {
   if (!current || muted) return
-  fadeTo(0.3)
+  fadeTo(RUNNING_GAIN)
 })
