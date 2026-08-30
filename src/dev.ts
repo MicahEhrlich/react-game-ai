@@ -60,6 +60,10 @@ function parse() {
     }
   }
 
+  const q = new URLSearchParams(window.location.search)
+  const adultMemeMode = q.get('memeMode') === 'adult'
+  const adultMemeKey = q.get('key')
+
   const localPreviewHost = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname)
   if (!import.meta.env.DEV && !localPreviewHost) {
     return {
@@ -70,14 +74,12 @@ function parse() {
       god: false,
       ai: null,
       difficulty: null,
-      memeId: null,
+      memeId: adultMemeMode ? q.get('meme') : null,
       memeCycle: false,
-      adultMemeMode: false,
-      adultMemeKey: null,
+      adultMemeMode,
+      adultMemeKey,
     }
   }
-
-  const q = new URLSearchParams(window.location.search)
 
   const rawMode = q.get('mode')
   const mode = rawMode && isMode(rawMode) ? rawMode : null
@@ -110,8 +112,6 @@ function parse() {
   const ai = rawAi === '1' ? true : rawAi === '0' ? false : null
   const memeId = q.get('meme')
   const memeCycle = q.get('memeCycle') === '1'
-  const adultMemeMode = q.get('memeMode') === 'adult'
-  const adultMemeKey = q.get('key')
 
   return {
     mode,
