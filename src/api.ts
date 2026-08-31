@@ -1,4 +1,4 @@
-const PROD_API_BASE = 'https://react-game-ai-server.onrender.com/'
+const PROD_API_BASE = 'https://react-game-ai-server.onrender.com'
 
 interface ViteEnv {
   readonly PROD?: boolean
