@@ -8,8 +8,9 @@ import {
 } from './index.ts'
 import type { MemeTheme } from './index.ts'
 import type { GameMode } from '../state/types.ts'
+import { apiUrl } from '../api.ts'
 
-const ENDPOINT = '/api/meme-theme'
+const ENDPOINT = apiUrl('/api/meme-theme')
 const STORAGE_KEY = 'glitch-daily-meme-theme'
 const ATTEMPT_KEY = 'glitch-daily-meme-theme-attempt'
 const TIMEOUT_MS = 6000

@@ -1,4 +1,5 @@
 import type { DirectorRequest, DirectorTransport } from './LlmDirector.ts'
+import { apiUrl } from '../api.ts'
 
 /**
  * Talks to the dev-only /api/director middleware (see server/).
@@ -11,7 +12,7 @@ import type { DirectorRequest, DirectorTransport } from './LlmDirector.ts'
  * build the endpoint does not exist at all, and with no API key configured it
  * answers 204. Both simply mean "the heuristic decides".
  */
-const ENDPOINT = '/api/director'
+const ENDPOINT = apiUrl('/api/director')
 
 export class HttpDirectorTransport implements DirectorTransport {
   async request(payload: DirectorRequest, signal: AbortSignal): Promise<unknown> {

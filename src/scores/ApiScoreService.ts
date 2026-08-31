@@ -1,7 +1,8 @@
 import { LocalScoreService } from './LocalScoreService.ts'
 import type { ScoreEntry, ScoreService } from './ScoreService.ts'
+import { apiUrl } from '../api.ts'
 
-const ENDPOINT = '/api/scores'
+const ENDPOINT = apiUrl('/api/scores')
 
 function validEntry(raw: unknown): raw is ScoreEntry {
   if (typeof raw !== 'object' || raw === null) return false
