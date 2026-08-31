@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { DEV } from '../dev.ts'
 import { commands } from '../state/commands.ts'
 import { scores } from '../scores/index.ts'
@@ -7,6 +7,17 @@ import { HighScoreTable } from './HighScoreTable.tsx'
 
 export function MenuOverlay() {
   const [adultAck, setAdultAck] = useState(false)
+  const [entries, setEntries] = useState<Awaited<ReturnType<typeof scores.top>>>([])
+
+  useEffect(() => {
+    let live = true
+    void scores.top(5).then((next) => {
+      if (live) setEntries(next)
+    })
+    return () => {
+      live = false
+    }
+  }, [])
 
   if (DEV.adultMemeMode && !adultAck) {
     return (
@@ -58,7 +69,7 @@ export function MenuOverlay() {
           MOVE ←→ / WASD · JUMP ↑ / SPACE · FIRE SPACE / SHIFT · SLIDE ↓ · PAUSE ESC
         </p>
 
-        <HighScoreTable entries={scores.top(5)} />
+        <HighScoreTable entries={entries} />
       </div>
     </div>
   )

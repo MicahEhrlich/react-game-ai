@@ -11,7 +11,7 @@ export interface ScoreEntry {
  * TelemetrySink in director/telemetry.ts.
  */
 export interface ScoreService {
-  top(limit: number): ScoreEntry[]
-  submit(entry: ScoreEntry): void
-  qualifies(score: number, limit: number): boolean
+  top(limit: number): Promise<ScoreEntry[]>
+  submit(entry: ScoreEntry): Promise<void>
+  qualifies(score: number, limit: number): Promise<boolean>
 }

@@ -5,7 +5,7 @@ import { fetchTrendSeeds } from './trendSeeds.ts'
 import { ALL_MODES } from '../src/state/types.ts'
 import type { GameMode } from '../src/state/types.ts'
 
-const MODEL = 'claude-opus-5'
+const MODEL = 'claude-sonnet-5'
 const BODY_LIMIT = 4096
 
 const SYSTEM = `You write safe cosmetic meme themes for THE GLITCH ENGINE.
@@ -652,7 +652,7 @@ type Handler = (
   next: Connect.NextFunction,
 ) => void
 
-function makeHandler(apiKey: string | undefined): Handler {
+export function makeMemeThemeHandler(apiKey: string | undefined): Handler {
   let warned = false
 
   return (req, res, next) => {
@@ -802,7 +802,7 @@ function makeHandler(apiKey: string | undefined): Handler {
 
 export function memeThemeApi(mode: string): Plugin {
   const env = loadEnv(mode, process.cwd(), '')
-  const handler = makeHandler(env.ANTHROPIC_API_KEY ?? process.env.ANTHROPIC_API_KEY)
+  const handler = makeMemeThemeHandler(env.ANTHROPIC_API_KEY ?? process.env.ANTHROPIC_API_KEY)
 
   return {
     name: 'glitch-shift:meme-theme-api',

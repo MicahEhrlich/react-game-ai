@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { scores } from '../scores/index.ts'
+import type { ScoreEntry } from '../scores/index.ts'
 import { commands } from '../state/commands.ts'
 import { useGameState } from '../state/store.ts'
 import { MODE_LABEL } from '../state/types.ts'
@@ -9,19 +10,39 @@ export function GameOverOverlay() {
   const { lastRunScore, shiftIndex, mode, runEpitaph } = useGameState()
   const [name, setName] = useState('')
   const [submitted, setSubmitted] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [qualifies, setQualifies] = useState(false)
+  const [entries, setEntries] = useState<ScoreEntry[]>([])
 
-  const qualifies = scores.qualifies(lastRunScore, 10)
+  useEffect(() => {
+    let live = true
+    void Promise.all([scores.qualifies(lastRunScore, 10), scores.top(5)]).then(([nextQualifies, nextEntries]) => {
+      if (!live) return
+      setQualifies(nextQualifies)
+      setEntries(nextEntries)
+    })
+    return () => {
+      live = false
+    }
+  }, [lastRunScore])
 
   const submit = () => {
     const trimmed = name.trim().slice(0, 8).toUpperCase()
-    if (!trimmed) return
-    scores.submit({
-      name: trimmed,
-      score: lastRunScore,
-      shifts: shiftIndex,
-      at: Date.now(),
-    })
-    setSubmitted(true)
+    if (!trimmed || saving) return
+    setSaving(true)
+    void scores
+      .submit({
+        name: trimmed,
+        score: lastRunScore,
+        shifts: shiftIndex,
+        at: Date.now(),
+      })
+      .then(() => scores.top(5))
+      .then(setEntries)
+      .finally(() => {
+        setSubmitted(true)
+        setSaving(false)
+      })
   }
 
   return (
@@ -63,8 +84,8 @@ export function GameOverOverlay() {
                 if (e.key === 'Enter') submit()
               }}
             />
-            <button type="button" className="btn" onClick={submit}>
-              SAVE
+            <button type="button" className="btn" onClick={submit} disabled={saving}>
+              {saving ? 'SAVING' : 'SAVE'}
             </button>
           </div>
         )}
@@ -84,7 +105,7 @@ export function GameOverOverlay() {
           MENU
         </button>
 
-        <HighScoreTable entries={scores.top(5)} />
+        <HighScoreTable entries={entries} />
       </div>
     </div>
   )

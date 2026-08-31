@@ -32,7 +32,7 @@ import {
  * is a bill-drain vector.
  */
 
-const MODEL = 'claude-opus-5'
+const MODEL = 'claude-sonnet-5'
 const MAX_BODY_BYTES = 64 * 1024
 
 type Handler = (
@@ -65,7 +65,7 @@ function isDirectorRequest(v: unknown): v is DirectorRequest {
   return kind === 'plan' || kind === 'epitaph'
 }
 
-function makeHandler(apiKey: string | undefined): Handler {
+export function makeDirectorHandler(apiKey: string | undefined): Handler {
   let warned = false
 
   return (req, res, next) => {
@@ -183,7 +183,7 @@ export function directorApi(mode: string): Plugin {
   // variables and never populates process.env from .env files. Without the
   // empty string here, ANTHROPIC_API_KEY in .env.local is silently invisible.
   const env = loadEnv(mode, process.cwd(), '')
-  const handler = makeHandler(env.ANTHROPIC_API_KEY ?? process.env.ANTHROPIC_API_KEY)
+  const handler = makeDirectorHandler(env.ANTHROPIC_API_KEY ?? process.env.ANTHROPIC_API_KEY)
 
   return {
     name: 'glitch-shift:director-api',
