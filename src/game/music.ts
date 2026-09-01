@@ -1,10 +1,12 @@
 import { getAudioContext, getMusicOutput } from './audio.ts'
 import { audioSettings } from './audioSettings.ts'
-import type { MemeMusicPlan, MusicScale, MusicWave } from '../memeTheme/index.ts'
+import type { MemeMusicPlan, MemeTheme, MusicScale, MusicWave } from '../memeTheme/index.ts'
 
 const BASE = 55
 const STEP_MS = 0.08
 const RUNNING_GAIN = 0.42
+const KIRK_SAMPLE_URL = '/audio/music/kirk-mode.mp3'
+const SAMPLE_GAIN = 0.2
 
 const INTERVALS: Record<MusicScale, readonly number[]> = {
   minor: [0, 2, 3, 5, 7, 8, 10, 12],
@@ -16,7 +18,14 @@ const INTERVALS: Record<MusicScale, readonly number[]> = {
 let timer: number | null = null
 let step = 0
 let current: MemeMusicPlan | null = null
+let sample: HTMLAudioElement | null = null
+let sampleFallback: MemeMusicPlan | null = null
+let sampleActive = false
 let muted = false
+
+function canUseSampleAudio(): boolean {
+  return typeof Audio !== 'undefined' && typeof window !== 'undefined'
+}
 
 function freq(plan: MemeMusicPlan, degree: number, octave: number): number {
   const intervals = INTERVALS[plan.scale]
@@ -166,31 +175,103 @@ function fadeTo(value: number): void {
   g.gain.setTargetAtTime(target, ctx.currentTime, STEP_MS)
 }
 
+function sampleVolume(): number {
+  return audioSettings.get().musicVolume * SAMPLE_GAIN
+}
+
+function stopSample(reset = true): void {
+  if (!sample) return
+  sample.pause()
+  if (reset) sample.currentTime = 0
+  sampleActive = false
+}
+
+function ensureSample(url: string, fallback: MemeMusicPlan): HTMLAudioElement | null {
+  if (!canUseSampleAudio()) return null
+  if (!sample || sample.src !== new URL(url, window.location.href).href) {
+    stopSample()
+    sample = new Audio(url)
+    sample.loop = true
+    sample.preload = 'auto'
+    sample.addEventListener('error', () => {
+      const plan = sampleFallback
+      stopSample()
+      if (plan) music.play(plan)
+    })
+  }
+  sampleFallback = fallback
+  sample.volume = sampleVolume()
+  return sample
+}
+
+function playSample(url: string, fallback: MemeMusicPlan): void {
+  current = null
+  reschedule()
+  fadeTo(0)
+
+  const audio = ensureSample(url, fallback)
+  if (!audio) {
+    music.play(fallback)
+    return
+  }
+
+  muted = false
+  sampleActive = true
+  audio.volume = sampleVolume()
+  const attempt = audio.play()
+  if (attempt) {
+    attempt.catch(() => {
+      stopSample()
+      music.play(fallback)
+    })
+  }
+}
+
 export const music = {
   play(plan: MemeMusicPlan): void {
+    stopSample()
     current = plan
     step = 0
     muted = false
     reschedule()
     fadeTo(RUNNING_GAIN)
   },
+  playForTheme(theme: MemeTheme, adultMode: boolean): void {
+    if (adultMode && theme.id === 'kirk-mode') {
+      playSample(KIRK_SAMPLE_URL, theme.musicPlan)
+      return
+    }
+    this.play(theme.musicPlan)
+  },
   stop(): void {
+    stopSample()
     current = null
     reschedule()
     fadeTo(0)
   },
   pause(): void {
     muted = true
+    if (sampleActive && sample) sample.pause()
     fadeTo(0)
   },
   resume(): void {
-    if (!current) return
     muted = false
+    if (sampleActive && sample) {
+      sample.volume = sampleVolume()
+      void sample.play().catch(() => {
+        const plan = sampleFallback
+        stopSample()
+        if (plan) music.play(plan)
+      })
+      return
+    }
+    if (!current) return
     fadeTo(RUNNING_GAIN)
   },
 }
 
 audioSettings.subscribe(() => {
+  if (sample) sample.volume = muted ? 0 : sampleVolume()
   if (!current || muted) return
   fadeTo(RUNNING_GAIN)
 })

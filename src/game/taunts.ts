@@ -12,8 +12,9 @@ import { getAudioContext, getSfxOutput } from './audio.ts'
  *   - if the file is absent (the default state of this repo), `play` falls
  *     back to a synthesised vocoder-ish phrase, so the beat still lands.
  *
- * To add real taunts, drop files at `public/audio/taunts/<id>.webm`. No code
- * change is required.
+ * To add real taunts, drop files at `public/audio/taunts/<id>.webm` and build
+ * with VITE_TAUNT_AUDIO=1. By default no files are requested, so production
+ * deployments do not log harmless 404s for an absent optional taunt pack.
  */
 export const TAUNT = {
   Shift: 'shift',
@@ -29,6 +30,13 @@ const URL_FOR: Readonly<Record<TauntId, string>> = {
   [TAUNT.Streak]: '/audio/taunts/streak.webm',
   [TAUNT.GameOver]: '/audio/taunts/game-over.webm',
 }
+
+interface ViteEnv {
+  readonly VITE_TAUNT_AUDIO?: string
+}
+
+const env = (import.meta as ImportMeta & { readonly env?: ViteEnv }).env
+const FILE_TAUNTS_ENABLED = env?.VITE_TAUNT_AUDIO === '1'
 
 /** Synthesised stand-in: a short formant-ish warble, one per taunt id. */
 const FALLBACK_SHAPE: Readonly<Record<TauntId, readonly number[]>> = {
@@ -52,6 +60,10 @@ function slotFor(id: TauntId): Slot {
  * file is not re-requested on every play.
  */
 export function prefetchTaunt(id: TauntId): void {
+  if (!FILE_TAUNTS_ENABLED) {
+    slots.set(id, { status: 'absent' })
+    return
+  }
   const ctx = getAudioContext()
   if (!ctx) return // not unlocked yet; prefetch on the next call instead
   if (slotFor(id).status !== 'idle') return

@@ -1,7 +1,7 @@
 import { music } from '../src/game/music.ts'
 import { sfx } from '../src/game/audio.ts'
 import { audioSettings } from '../src/game/audioSettings.ts'
-import { offlineMemeThemeForDate } from '../src/memeTheme/index.ts'
+import { adultMemeThemeById, offlineMemeThemeForDate } from '../src/memeTheme/index.ts'
 
 let failures = 0
 
@@ -26,6 +26,15 @@ try {
   music.resume()
   music.stop()
   music.stop()
+  const kirk = adultMemeThemeById('kirk-mode', '2026-09-01')
+  if (!kirk) fail('kirk mode theme was not available for sampled music validation')
+  else {
+    music.playForTheme(kirk, true)
+    audioSettings.setMusicVolume(0.5)
+    music.pause()
+    music.resume()
+    music.stop()
+  }
   audioSettings.setSfxVolume(0)
   sfx.jump()
   sfx.pickup()

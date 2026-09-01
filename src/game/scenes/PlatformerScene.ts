@@ -180,27 +180,40 @@ export class PlatformerScene extends ModeScene {
     const g = this.add.graphics().setScrollFactor(0.18).setDepth(DEPTH.Background)
     g.fillStyle(0x071a2a, 0.95)
     g.fillRect(0, 0, this.level.widthPx, VIEW_H)
-    g.fillStyle(0x1080a0, 0.35)
-    g.fillRect(0, VIEW_H - 42, this.level.widthPx, 42)
-    for (let x = 36; x < this.level.widthPx; x += 152) {
-      g.fillStyle(0xffe14d, 0.48)
-      g.fillEllipse(x, VIEW_H - 35, 96, 20)
-      g.fillStyle(0xffc9a0, 0.68)
-      g.fillRect(x - 22, VIEW_H - 68, 4, 34)
-      g.fillStyle(0x1c7a4a, 0.82)
-      g.fillEllipse(x - 30, VIEW_H - 72, 28, 10)
-      g.fillEllipse(x - 18, VIEW_H - 79, 28, 9)
-      g.fillEllipse(x - 8, VIEW_H - 70, 28, 10)
+    g.fillStyle(0x105f8f, 0.5)
+    g.fillRect(0, VIEW_H - 62, this.level.widthPx, 62)
+
+    const islandW = Math.min(this.level.widthPx - 72, 760)
+    const islandX = this.level.widthPx / 2
+    const islandY = VIEW_H - 32
+    g.fillStyle(0xffe14d, 0.62)
+    g.fillEllipse(islandX, islandY, islandW, 46)
+    g.fillStyle(0x1c7a4a, 0.76)
+    g.fillEllipse(islandX, islandY - 10, islandW * 0.86, 28)
+
+    const mansionX = islandX - 92
+    const mansionY = VIEW_H - 103
+    g.fillStyle(0xf2eeff, 0.74)
+    g.fillRect(mansionX, mansionY, 184, 54)
+    g.fillStyle(0xffe14d, 0.58)
+    g.fillTriangle(mansionX - 10, mansionY, islandX, mansionY - 34, mansionX + 194, mansionY)
+    g.fillStyle(0x3b3560, 0.62)
+    for (let i = 0; i < 7; i++) g.fillRect(mansionX + 18 + i * 23, mansionY + 15, 10, 17)
+    g.fillStyle(0xffc9a0, 0.76)
+    g.fillRect(islandX - 10, mansionY + 24, 20, 30)
+
+    for (const x of [islandX - islandW * 0.36, islandX + islandW * 0.34]) {
+      g.fillStyle(0xffc9a0, 0.72)
+      g.fillRect(x - 3, VIEW_H - 86, 6, 48)
+      g.fillStyle(0x1c7a4a, 0.88)
+      g.fillEllipse(x - 23, VIEW_H - 91, 40, 13)
+      g.fillEllipse(x, VIEW_H - 103, 46, 14)
+      g.fillEllipse(x + 23, VIEW_H - 91, 40, 13)
+      g.fillEllipse(x + 4, VIEW_H - 80, 38, 12)
       g.fillStyle(0xff9a2e, 0.9)
-      g.fillCircle(x - 18, VIEW_H - 73, 2)
-      g.fillCircle(x - 13, VIEW_H - 72, 2)
-      g.fillStyle(0xf2eeff, 0.62)
-      g.fillRect(x + 14, VIEW_H - 84, 50, 30)
-      g.fillStyle(0xffe14d, 0.55)
-      g.fillTriangle(x + 11, VIEW_H - 84, x + 39, VIEW_H - 104, x + 67, VIEW_H - 84)
-      g.fillStyle(0x3b3560, 0.58)
-      g.fillRect(x + 22, VIEW_H - 78, 8, 10)
-      g.fillRect(x + 44, VIEW_H - 78, 8, 10)
+      g.fillCircle(x - 7, VIEW_H - 91, 2)
+      g.fillCircle(x + 2, VIEW_H - 88, 2)
+      g.fillCircle(x + 9, VIEW_H - 92, 2)
     }
   }
 

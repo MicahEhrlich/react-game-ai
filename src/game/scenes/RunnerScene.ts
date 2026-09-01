@@ -175,22 +175,45 @@ export class RunnerScene extends ModeScene {
     const g = this.add.graphics().setScrollFactor(0).setDepth(DEPTH.Background)
     g.fillStyle(0x071a2a, 0.95)
     g.fillRect(0, 0, VIEW_W, VIEW_H)
-    g.fillStyle(0x1080a0, 0.3)
-    g.fillRect(0, GROUND_Y - 16, VIEW_W, VIEW_H - GROUND_Y + 16)
-    for (let x = 32; x < VIEW_W; x += 82) {
-      g.fillStyle(0xffe14d, 0.42)
-      g.fillEllipse(x, GROUND_Y - 8, 72, 16)
-      g.fillStyle(0xffc9a0, 0.62)
-      g.fillRect(x - 18, GROUND_Y - 47, 4, 36)
-      g.fillStyle(0x1c7a4a, 0.78)
-      g.fillEllipse(x - 25, GROUND_Y - 50, 26, 9)
-      g.fillEllipse(x - 14, GROUND_Y - 56, 26, 9)
-      g.fillStyle(0xff9a2e, 0.86)
-      g.fillCircle(x - 14, GROUND_Y - 50, 2)
-      g.fillStyle(0xf2eeff, 0.48)
-      g.fillRect(x + 10, GROUND_Y - 66, 36, 26)
-      g.fillStyle(0xffe14d, 0.4)
-      g.fillTriangle(x + 7, GROUND_Y - 66, x + 28, GROUND_Y - 82, x + 49, GROUND_Y - 66)
+    g.fillStyle(0x18b8c8, 0.34)
+    g.fillRect(0, GROUND_Y - 34, VIEW_W, VIEW_H - GROUND_Y + 34)
+    g.fillStyle(0x4de8ff, 0.16)
+    for (let y = GROUND_Y - 25; y < VIEW_H; y += 11) g.fillRect(0, y, VIEW_W, 2)
+
+    const islandX = VIEW_W / 2
+    const islandY = GROUND_Y - 7
+    g.fillStyle(0xffe14d, 0.56)
+    g.fillEllipse(islandX, islandY, VIEW_W * 0.84, 34)
+    g.fillStyle(0x1c7a4a, 0.72)
+    g.fillEllipse(islandX - 4, islandY - 10, VIEW_W * 0.68, 22)
+
+    const villaX = islandX - 62
+    const villaY = GROUND_Y - 89
+    g.fillStyle(0xf2eeff, 0.68)
+    g.fillRect(villaX, villaY + 19, 124, 46)
+    g.fillStyle(0xded8d2, 0.8)
+    g.fillTriangle(villaX - 8, villaY + 19, villaX + 32, villaY, villaX + 72, villaY + 19)
+    g.fillTriangle(villaX + 48, villaY + 19, villaX + 91, villaY + 2, villaX + 132, villaY + 19)
+    g.fillStyle(0xf2eeff, 0.56)
+    g.fillRect(villaX + 80, villaY + 30, 47, 35)
+    g.fillStyle(0xded8d2, 0.78)
+    g.fillTriangle(villaX + 73, villaY + 30, villaX + 106, villaY + 14, villaX + 136, villaY + 30)
+    g.fillStyle(0x105f8f, 0.64)
+    for (let x = villaX + 10; x < villaX + 108; x += 23) g.fillRect(x, villaY + 30, 13, 17)
+    g.fillStyle(0x18b8c8, 0.44)
+    g.fillRect(villaX + 18, villaY + 71, 88, 11)
+
+    for (const x of [islandX - 101, islandX + 96]) {
+      g.fillStyle(0xffc9a0, 0.72)
+      g.fillRect(x - 3, GROUND_Y - 64, 6, 43)
+      g.fillStyle(0x1c7a4a, 0.86)
+      g.fillEllipse(x - 22, GROUND_Y - 69, 36, 11)
+      g.fillEllipse(x, GROUND_Y - 80, 42, 13)
+      g.fillEllipse(x + 22, GROUND_Y - 69, 36, 11)
+      g.fillEllipse(x + 4, GROUND_Y - 59, 34, 10)
+      g.fillStyle(0xff9a2e, 0.88)
+      g.fillCircle(x - 6, GROUND_Y - 69, 2)
+      g.fillCircle(x + 3, GROUND_Y - 67, 2)
     }
   }
 

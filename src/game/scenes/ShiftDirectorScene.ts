@@ -172,7 +172,7 @@ export class ShiftDirectorScene extends Phaser.Scene {
     metrics.resetRun()
     runState.resetRun(this.time.now, mode)
     gameStore.startRun(mode)
-    music.play(themeForMode(gameStore.get().memeTheme, mode, 0).musicPlan)
+    music.playForTheme(themeForMode(gameStore.get().memeTheme, mode, 0), DEV.adultMemeMode)
 
     this.runId = newRunId()
     this.runStartedAt = Date.now()
@@ -356,7 +356,7 @@ export class ShiftDirectorScene extends Phaser.Scene {
       // nothing per-frame reaches the store (invariant 2).
       directorSource: this.live?.lastSource ?? PLAN_SOURCE.Heuristic,
     })
-    music.play(themeForMode(gameStore.get().memeTheme, plan.mode, gameStore.get().shiftIndex).musicPlan)
+    music.playForTheme(themeForMode(gameStore.get().memeTheme, plan.mode, gameStore.get().shiftIndex), DEV.adultMemeMode)
 
     // LAST, so it reads the post-patch shiftIndex. See primeDirector().
     this.primeDirector(closingMetrics)
@@ -408,7 +408,7 @@ export class ShiftDirectorScene extends Phaser.Scene {
       if (phase === PHASE.Menu || phase === PHASE.GameOver) return
       gameStore.patch({ memeTheme: theme })
       const s = gameStore.get()
-      music.play(themeForMode(theme, s.mode, s.shiftIndex).musicPlan)
+      music.playForTheme(themeForMode(theme, s.mode, s.shiftIndex), DEV.adultMemeMode)
     })
   }
 

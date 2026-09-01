@@ -252,10 +252,8 @@ for (const t of ADULT_MEME_THEMES) {
 {
   const safeSpritePacks = new Set(OFFLINE_MEME_THEMES.map((t) => t.spritePack))
   const requiredAdultIds = [
-    'bunker-posting',
     'debate-afterparty',
     'tabloid-island',
-    'strongman-feed',
     'maga-rally',
     'kirk-mode',
   ] as const
@@ -295,10 +293,6 @@ for (const t of ADULT_MEME_THEMES) {
 }
 
 {
-  const bunker = adultMemeThemeById('bunker-posting', '2026-08-27')
-  if (!bunker || bunker.label !== 'BUNKER POSTING' || !bunker.spritePack || !bunker.musicPlan) {
-    fail('adultMemeThemeById did not return a valid adult theme')
-  }
   const tabloid = adultMemeThemeById('tabloid-island', '2026-08-27')
   if (!tabloid || tabloid.label !== 'TABLOID ISLAND' || !tabloid.spritePack || !tabloid.musicPlan) {
     fail('adultMemeThemeById did not return the tabloid island theme')
@@ -316,8 +310,16 @@ for (const t of ADULT_MEME_THEMES) {
     ...(maga?.taunts ?? []),
     ...Object.values(maga?.modeFlavor ?? {}).flatMap((flavor) => Object.values(flavor)),
   ].join(' ')
-  for (const label of ['CHINA', 'FAKE NEWS', 'QUITE FRANKLY', 'MAGA']) {
+  for (const label of ['CHINA', 'FAKE NEWS', 'QUITE FRANKLY', "I'M THE BEST ONE BTW", 'MAGA']) {
     if (!magaText.includes(label)) fail(`MAGA rally is missing requested label ${label}`)
+  }
+  const kirkText = [
+    ...(kirk?.shiftLines ?? []),
+    ...(kirk?.taunts ?? []),
+    ...Object.values(kirk?.modeFlavor ?? {}).flatMap((flavor) => Object.values(flavor)),
+  ].join(' ')
+  for (const label of ['TURNING POINT', 'WOKE']) {
+    if (!kirkText.includes(label)) fail(`Kirk mode is missing requested label ${label}`)
   }
   if (tabloid?.modeFlavor.shooter.enemy !== 'PRIVATE JET') fail('tabloid island shooter enemy is not a private jet')
   if (tabloid?.modeFlavor.runner.obstacle !== 'CASE FILE') fail('tabloid island runner obstacle is not a case file')

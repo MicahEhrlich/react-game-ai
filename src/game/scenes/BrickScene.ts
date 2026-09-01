@@ -190,22 +190,50 @@ export class BrickScene extends ModeScene {
     const g = this.add.graphics().setDepth(DEPTH.Background).setScrollFactor(0)
     g.fillStyle(0x071a2a, 0.95)
     g.fillRect(0, 0, VIEW_W, VIEW_H)
-    g.fillStyle(0x1080a0, 0.3)
-    g.fillRect(0, VIEW_H - 46, VIEW_W, 46)
-    for (let x = 38; x < VIEW_W; x += 92) {
-      g.fillStyle(0xffe14d, 0.38)
-      g.fillEllipse(x, VIEW_H - 38, 74, 17)
-      g.fillStyle(0xffc9a0, 0.6)
-      g.fillRect(x - 18, VIEW_H - 70, 4, 34)
-      g.fillStyle(0x1c7a4a, 0.78)
-      g.fillEllipse(x - 25, VIEW_H - 73, 25, 9)
-      g.fillEllipse(x - 13, VIEW_H - 79, 25, 9)
+    g.fillStyle(0x18b8c8, 0.36)
+    g.fillRect(0, VIEW_H - 74, VIEW_W, 74)
+    g.fillStyle(0x4de8ff, 0.18)
+    for (let y = VIEW_H - 65; y < VIEW_H; y += 11) g.fillRect(0, y, VIEW_W, 2)
+
+    const islandX = VIEW_W / 2
+    const islandY = VIEW_H - 34
+    g.fillStyle(0xffe14d, 0.58)
+    g.fillEllipse(islandX, islandY, VIEW_W * 0.86, 38)
+    g.fillStyle(0x1c7a4a, 0.72)
+    g.fillEllipse(islandX - 3, islandY - 9, VIEW_W * 0.72, 24)
+    g.fillStyle(0x0f5d35, 0.45)
+    g.fillEllipse(islandX - 45, islandY - 14, 74, 18)
+    g.fillEllipse(islandX + 56, islandY - 12, 86, 18)
+
+    const villaX = islandX - 66
+    const villaY = VIEW_H - 111
+    g.fillStyle(0xf2eeff, 0.72)
+    g.fillRect(villaX, villaY + 20, 132, 48)
+    g.fillStyle(0xded8d2, 0.82)
+    g.fillTriangle(villaX - 10, villaY + 20, villaX + 34, villaY, villaX + 78, villaY + 20)
+    g.fillTriangle(villaX + 52, villaY + 20, villaX + 96, villaY + 2, villaX + 142, villaY + 20)
+    g.fillStyle(0xf2eeff, 0.62)
+    g.fillRect(villaX + 86, villaY + 32, 52, 36)
+    g.fillStyle(0xded8d2, 0.8)
+    g.fillTriangle(villaX + 78, villaY + 32, villaX + 112, villaY + 14, villaX + 148, villaY + 32)
+    g.fillStyle(0x105f8f, 0.66)
+    for (let x = villaX + 12; x < villaX + 116; x += 24) g.fillRect(x, villaY + 31, 14, 18)
+    g.fillStyle(0x18b8c8, 0.48)
+    g.fillRect(villaX + 20, villaY + 75, 92, 12)
+    g.fillStyle(0xf2eeff, 0.46)
+    g.fillRect(villaX + 14, villaY + 70, 104, 4)
+
+    for (const x of [islandX - 104, islandX + 101]) {
+      g.fillStyle(0xffc9a0, 0.74)
+      g.fillRect(x - 3, VIEW_H - 86, 6, 46)
+      g.fillStyle(0x1c7a4a, 0.88)
+      g.fillEllipse(x - 22, VIEW_H - 91, 38, 12)
+      g.fillEllipse(x, VIEW_H - 102, 44, 13)
+      g.fillEllipse(x + 23, VIEW_H - 91, 38, 12)
+      g.fillEllipse(x + 4, VIEW_H - 81, 36, 11)
       g.fillStyle(0xff9a2e, 0.9)
-      g.fillCircle(x - 14, VIEW_H - 72, 2)
-      g.fillStyle(0xf2eeff, 0.5)
-      g.fillRect(x + 9, VIEW_H - 84, 38, 28)
-      g.fillStyle(0xffe14d, 0.45)
-      g.fillTriangle(x + 6, VIEW_H - 84, x + 28, VIEW_H - 101, x + 50, VIEW_H - 84)
+      g.fillCircle(x - 6, VIEW_H - 90, 2)
+      g.fillCircle(x + 3, VIEW_H - 88, 2)
     }
   }
 
