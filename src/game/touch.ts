@@ -19,6 +19,10 @@ export interface TouchState {
   slideEdge: boolean
 }
 
+export const JOYSTICK_DEAD_ZONE_PX = 12
+export const JOYSTICK_MOTION_DEAD_ZONE_PX = 2
+export const JOYSTICK_RADIUS_PX = 62
+
 const state: TouchState = {
   dirX: 0,
   dirY: 0,
@@ -47,6 +51,24 @@ export const touch = {
     state.dirX = x
     state.dirY = y
     touchSeen = true
+  },
+  setDirFromVector(dx: number, dy: number): void {
+    const mag = Math.hypot(dx, dy)
+    if (mag < JOYSTICK_DEAD_ZONE_PX) {
+      this.setDir(0, 0)
+      return
+    }
+    const nx = dx / mag
+    const ny = dy / mag
+    const x = Math.abs(nx) >= 0.38 ? (nx < 0 ? -1 : 1) : 0
+    const y = Math.abs(ny) >= 0.38 ? (ny < 0 ? -1 : 1) : 0
+    this.setDir(x, y)
+  },
+  setDirFromMotion(dx: number, dy: number): void {
+    if (Math.hypot(dx, dy) < JOYSTICK_MOTION_DEAD_ZONE_PX) return
+    const x = Math.abs(dx) >= JOYSTICK_MOTION_DEAD_ZONE_PX ? (dx < 0 ? -1 : 1) : 0
+    const y = Math.abs(dy) >= JOYSTICK_MOTION_DEAD_ZONE_PX ? (dy < 0 ? -1 : 1) : 0
+    this.setDir(x, y)
   },
   setAction(down: boolean): void {
     state.action = down
