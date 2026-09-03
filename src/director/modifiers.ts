@@ -11,6 +11,11 @@ export const DEFAULT_MODIFIERS: StageModifiers = {
   invertControls: false,
   mirrorWorld: false,
   fogOfWar: false,
+  lowGravity: false,
+  turboMode: false,
+  colorGlitch: false,
+  jitterSignal: false,
+  doubleVision: false,
   // Only a shape default. The live value comes from pacing.ts, which is fed by
   // public/config/pacing.json -- see clampStageMs below.
   shiftDurationMs: DEFAULT_PACING.firstStageMs,
@@ -25,6 +30,11 @@ export const CHAOS_LABEL = {
   invertControls: 'CONTROLS INVERTED',
   mirrorWorld: 'WORLD MIRRORED',
   fogOfWar: 'SIGNAL DEGRADED',
+  lowGravity: 'GRAVITY LEAK',
+  turboMode: 'TURBO SIGNAL',
+  colorGlitch: 'PALETTE CORRUPTED',
+  jitterSignal: 'JITTER SIGNAL',
+  doubleVision: 'DOUBLE VISION',
 } as const
 export type ChaosFlag = keyof typeof CHAOS_LABEL
 
@@ -32,6 +42,11 @@ export const CHAOS_FLAGS: readonly ChaosFlag[] = [
   'invertControls',
   'mirrorWorld',
   'fogOfWar',
+  'lowGravity',
+  'turboMode',
+  'colorGlitch',
+  'jitterSignal',
+  'doubleVision',
 ]
 
 /**
@@ -94,30 +109,35 @@ export function clampModifiers(partial: ModifierDraft): StageModifiers {
   const merged = { ...DEFAULT_MODIFIERS, ...partial }
 
   // Priority order: the first flag set wins, the rest are dropped.
-  const invertControls = merged.invertControls === true
-  const mirrorWorld = !invertControls && merged.mirrorWorld === true
-  const fogOfWar = !invertControls && !mirrorWorld && merged.fogOfWar === true
+  const active = CHAOS_FLAGS.find((f) => merged[f] === true) ?? null
+  const chaos = Object.fromEntries(CHAOS_FLAGS.map((f) => [f, f === active])) as Record<
+    ChaosFlag,
+    boolean
+  >
+
+  const gravityScale = chaos.lowGravity ? 0.65 : merged.gravityScale
+  const playerSpeedScale = chaos.turboMode ? 1.25 : merged.playerSpeedScale
+  const spawnRateScale = chaos.turboMode ? 1.3 : merged.spawnRateScale
+  const projectileSpeedScale = chaos.turboMode ? 1.3 : merged.projectileSpeedScale
 
   return {
-    gravityScale: clampNumber('gravityScale', merged.gravityScale, 1),
-    playerSpeedScale: clampNumber('playerSpeedScale', merged.playerSpeedScale, 1),
-    spawnRateScale: clampNumber('spawnRateScale', merged.spawnRateScale, 1),
+    gravityScale: clampNumber('gravityScale', gravityScale, 1),
+    playerSpeedScale: clampNumber('playerSpeedScale', playerSpeedScale, 1),
+    spawnRateScale: clampNumber('spawnRateScale', spawnRateScale, 1),
     projectileSpeedScale: clampNumber(
       'projectileSpeedScale',
-      merged.projectileSpeedScale,
+      projectileSpeedScale,
       1,
     ),
     scoreMultiplier: clampNumber('scoreMultiplier', merged.scoreMultiplier, 1),
-    invertControls,
-    mirrorWorld,
-    fogOfWar,
+    ...chaos,
     shiftDurationMs: clampStageMs(merged.shiftDurationMs),
   }
 }
 
 /** True if any chaos flag is set -- used for the "never twice in a row" rule. */
 export function hasChaosFlag(m: StageModifiers): boolean {
-  return m.invertControls || m.mirrorWorld || m.fogOfWar
+  return CHAOS_FLAGS.some((f) => m[f])
 }
 
 /**

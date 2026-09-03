@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { DEV } from '../../dev.ts'
 import { makeDirector } from '../../director/index.ts'
-import { activeChaos, clampModifiers } from '../../director/modifiers.ts'
+import { activeChaos, CHAOS_FLAGS, clampModifiers } from '../../director/modifiers.ts'
 import { getOverride, primeOverrides } from '../../director/stageOverrides.ts'
 import { newRunId, telemetry } from '../../director/telemetry.ts'
 import type { StageRecord } from '../../director/telemetry.ts'
@@ -17,6 +17,7 @@ import { loadPacing } from '../../director/pacing.ts'
 import { metrics } from '../../state/metrics.ts'
 import { loadDailyMemeTheme } from '../../memeTheme/daily.ts'
 import type { MemeThemeTelemetry } from '../../memeTheme/daily.ts'
+import { readAiModeEnabled } from '../aiSettings.ts'
 import { themeForMode } from '../../memeTheme/index.ts'
 import { commands } from '../../state/commands.ts'
 import { pickStartMode, runState } from '../../state/runState.ts'
@@ -80,6 +81,7 @@ export class ShiftDirectorScene extends Phaser.Scene {
   private shifting = false
   private runId = ''
   private runStartedAt = 0
+  private aiModeEnabled = readAiModeEnabled()
   private unsubscribeCommands: (() => void) | null = null
   private unsubscribeStore: (() => void) | null = null
 
@@ -98,6 +100,7 @@ export class ShiftDirectorScene extends Phaser.Scene {
     this.shifting = false
     this.runId = ''
     this.runStartedAt = 0
+    this.aiModeEnabled = readAiModeEnabled()
 
     this.unsubscribeCommands = commands.on((c) => this.onCommand(c))
 
@@ -157,6 +160,10 @@ export class ShiftDirectorScene extends Phaser.Scene {
 
   private startRun(): void {
     unlockAudio()
+    this.aiModeEnabled = readAiModeEnabled()
+    this.director = makeDirector(this.aiModeEnabled)
+    this.live = isLiveDirector(this.director) ? this.director : null
+
     for (const id of [TAUNT.Shift, TAUNT.Hurt, TAUNT.Streak, TAUNT.GameOver]) {
       prefetchTaunt(id)
     }
@@ -400,6 +407,7 @@ export class ShiftDirectorScene extends Phaser.Scene {
       undefined,
       DEV.memeId,
       DEV.adultMemeMode,
+      this.aiModeEnabled,
       themeTelemetry,
       DEV.memeCycle,
     ).then((theme) => {
@@ -423,13 +431,7 @@ export class ShiftDirectorScene extends Phaser.Scene {
     const currentModeStress =
       m.healthFraction < 0.35 || damageRate > 45 ? 'high' : m.healthFraction < 0.7 || damageRate > 20 ? 'medium' : 'low'
     const cleanStageStreak = [...recentStages].reverse().findIndex((s) => s.damageTaken > 0)
-    const recentChaosFlags = recentStages
-      .flatMap((s) => [
-        s.modifiers.invertControls ? 'invertControls' : '',
-        s.modifiers.mirrorWorld ? 'mirrorWorld' : '',
-        s.modifiers.fogOfWar ? 'fogOfWar' : '',
-      ])
-      .filter((x) => x !== '')
+    const recentChaosFlags = recentStages.flatMap((s) => CHAOS_FLAGS.filter((f) => s.modifiers[f]))
 
     return {
       currentMode: m.mode,

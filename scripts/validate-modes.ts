@@ -192,6 +192,35 @@ console.log('validate-modes')
   }
 }
 
+// --- 8: every chaos flag is reachable through the response schema ---------
+{
+  const schema = PLAN_FORMAT.schema as unknown as {
+    properties?: { chaos?: { enum?: unknown } }
+  }
+  const chaosEnum = schema.properties?.chaos?.enum
+
+  if (!Array.isArray(chaosEnum)) {
+    fail('PLAN_FORMAT.schema.properties.chaos.enum is missing or not an array')
+  } else {
+    if (!chaosEnum.includes('none')) {
+      fail('PLAN_FORMAT chaos enum is missing "none"')
+    }
+    for (const flag of CHAOS_FLAGS) {
+      if (!chaosEnum.includes(flag)) {
+        fail(`chaos flag "${flag}" is missing from the PLAN_FORMAT schema enum`)
+      }
+      if (!SYSTEM.includes(flag)) {
+        fail(`the system prompt never mentions chaos flag "${flag}"`)
+      }
+    }
+    for (const entry of chaosEnum) {
+      if (entry !== 'none' && !(CHAOS_FLAGS as readonly unknown[]).includes(entry)) {
+        fail(`PLAN_FORMAT chaos enum contains "${String(entry)}", which is not a real chaos flag`)
+      }
+    }
+  }
+}
+
 if (failures > 0) {
   console.error(`\n${failures} failure(s)`)
   process.exit(1)

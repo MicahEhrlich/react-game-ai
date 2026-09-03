@@ -58,6 +58,9 @@ export abstract class ModeScene extends Phaser.Scene {
 
   private invulnUntil = 0
   private fog: Phaser.GameObjects.Image | null = null
+  private colorGlitch: Phaser.GameObjects.Rectangle | null = null
+  private doubleVision: Phaser.GameObjects.Rectangle | null = null
+  private nextJitterAt = 0
 
   /**
    * +1 normally, -1 when the mirrorWorld modifier is on. Modes apply this to
@@ -100,6 +103,9 @@ export abstract class ModeScene extends Phaser.Scene {
     this.avatar = null
     this.invulnUntil = 0
     this.fog = null
+    this.colorGlitch = null
+    this.doubleVision = null
+    this.nextJitterAt = 0
 
     // Each scene owns its own arcade World, so gravity must be set here and
     // not inherited from the game config (the shooter sets it to zero).
@@ -112,6 +118,7 @@ export abstract class ModeScene extends Phaser.Scene {
     if (this.mods.fogOfWar) {
       this.fog = addFog(this)
     }
+    this.installVisualGlitches()
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.teardownMode())
   }
@@ -131,6 +138,7 @@ export abstract class ModeScene extends Phaser.Scene {
     this.updateMode(this.controls.read(), time, delta)
     this.updateInvulnBlink()
     this.updateFog()
+    this.updateVisualGlitches(time)
   }
 
   // --- hooks for subclasses ------------------------------------------
@@ -211,7 +219,10 @@ export abstract class ModeScene extends Phaser.Scene {
   }
 
   protected memeAccent(index: number, fallback = 0x3ef0ff): number {
-    return memeAccentNumber(this.memeTheme, index, fallback)
+    const accent = memeAccentNumber(this.memeTheme, index, fallback)
+    if (!this.mods.colorGlitch) return accent
+    const palette = [0xff3ea5, 0x3ef0ff, 0xffe14d, 0x8aff6a]
+    return palette[(index + gameStore.get().shiftIndex) % palette.length]
   }
 
   protected memeSprite(role: MemeSpriteRole, fallbackFrame: string): SpriteRef {
@@ -243,6 +254,48 @@ export abstract class ModeScene extends Phaser.Scene {
     if (!f || !a) return
     const cam = this.cameras.main
     f.setPosition(a.x - cam.scrollX, a.y - cam.scrollY)
+  }
+
+  private installVisualGlitches(): void {
+    const cam = this.cameras.main
+    const w = cam.width
+    const h = cam.height
+
+    if (this.mods.colorGlitch) {
+      this.colorGlitch = this.add
+        .rectangle(0, 0, w, h, 0xff3ea5, 0.1)
+        .setOrigin(0)
+        .setScrollFactor(0)
+        .setDepth(9_000)
+        .setBlendMode(Phaser.BlendModes.ADD)
+    }
+
+    if (this.mods.doubleVision) {
+      this.doubleVision = this.add
+        .rectangle(5, -3, w, h, 0x3ef0ff, 0.12)
+        .setOrigin(0)
+        .setScrollFactor(0)
+        .setDepth(9_001)
+        .setBlendMode(Phaser.BlendModes.SCREEN)
+    }
+  }
+
+  private updateVisualGlitches(time: number): void {
+    if (this.colorGlitch) {
+      const hot = Math.floor(time / 180) % 2 === 0
+      this.colorGlitch.setFillStyle(hot ? 0xff3ea5 : 0x3ef0ff, hot ? 0.08 : 0.06)
+    }
+
+    if (this.doubleVision) {
+      const dx = Math.sin(time / 95) * 3
+      const dy = Math.cos(time / 130) * 2
+      this.doubleVision.setPosition(5 + dx, -3 + dy)
+    }
+
+    if (this.mods.jitterSignal && time >= this.nextJitterAt) {
+      this.nextJitterAt = time + 850
+      this.cameras.main.shake(80, 0.004)
+    }
   }
 
 }

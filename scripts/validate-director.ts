@@ -18,6 +18,7 @@ import { readFileSync } from 'node:fs'
 import { HeuristicDirector } from '../src/director/HeuristicDirector.ts'
 import {
   CHAOS_UNLOCK_SHIFT,
+  CHAOS_FLAGS,
   clampModifiers,
   DEFAULT_MODIFIERS,
   hasChaosFlag,
@@ -101,11 +102,7 @@ for (const [label, metrics] of Object.entries(PROFILES)) {
         fail(`${label}/${currentMode}/seed ${seed}: modifiers outside clamp range`)
       }
 
-      const flags = [
-        plan.modifiers.invertControls,
-        plan.modifiers.mirrorWorld,
-        plan.modifiers.fogOfWar,
-      ].filter(Boolean).length
+      const flags = CHAOS_FLAGS.filter((f) => plan.modifiers[f]).length
       if (flags > 1) fail(`${label}/${currentMode}/seed ${seed}: ${flags} chaos flags at once`)
 
       if (history.chaosLastStage && hasChaosFlag(plan.modifiers)) {
@@ -202,6 +199,34 @@ for (const [label, metrics] of Object.entries(PROFILES)) {
   }
 }
 
+// --- 3c: AI Mode off keeps the heuristic adaptive but disables chaos -------
+{
+  let chaos = 0
+
+  for (let seed = 1; seed <= 200; seed++) {
+    const director = new HeuristicDirector(makeRng(seed), { automaticChaos: false })
+    const plan = director.decide(
+      baseMetrics({
+        damageTaken: 0,
+        healthFraction: 1,
+        shotsFired: 60,
+        shotsHit: 55,
+      }),
+      {
+        shiftIndex: CHAOS_UNLOCK_SHIFT + 4,
+        currentMode: MODE.Platformer,
+        modeHistory: ALL_MODES,
+        chaosLastStage: false,
+      },
+    )
+    if (hasChaosFlag(plan.modifiers)) chaos++
+  }
+
+  if (chaos !== 0) {
+    fail(`automatic chaos disabled still emitted ${chaos}/200 chaos stages`)
+  }
+}
+
 // --- 4: clampModifiers is total, even on hostile input --------------------
 {
   const hostile = clampModifiers({
@@ -213,11 +238,16 @@ for (const [label, metrics] of Object.entries(PROFILES)) {
     invertControls: true,
     mirrorWorld: true,
     fogOfWar: true,
+    lowGravity: true,
+    turboMode: true,
+    colorGlitch: true,
+    jitterSignal: true,
+    doubleVision: true,
   })
   if (!sameModifiers(hostile, clampModifiers(hostile))) {
     fail('clampModifiers is not idempotent on hostile input')
   }
-  const flags = [hostile.invertControls, hostile.mirrorWorld, hostile.fogOfWar].filter(Boolean)
+  const flags = CHAOS_FLAGS.filter((f) => hostile[f])
   if (flags.length !== 1) {
     fail(`clampModifiers let ${flags.length} chaos flags through (expected exactly 1)`)
   }

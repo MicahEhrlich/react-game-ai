@@ -36,21 +36,33 @@ const ACCURACY_LOW = 0.35
 /** Damage per minute above this reads as "this player is drowning". */
 const DPM_HIGH = 45
 const HEALTH_MERCY = 0.3
-const CHAOS_STABLE_CHANCE = 0.45
+const CHAOS_STABLE_CHANCE = 0.65
 const WEIGHTED_CHAOS_FLAGS: readonly ChaosFlag[] = [
   'mirrorWorld',
-  'invertControls',
   'mirrorWorld',
+  'mirrorWorld',
+  'invertControls',
   'fogOfWar',
+  'lowGravity',
+  'turboMode',
+  'colorGlitch',
+  'jitterSignal',
+  'doubleVision',
 ]
+
+export interface HeuristicDirectorOptions {
+  readonly automaticChaos?: boolean
+}
 
 export class HeuristicDirector implements Director {
   /** Injectable so validate-director can make runs reproducible.
    *  Declared explicitly: `erasableSyntaxOnly` bans parameter properties. */
   private readonly random: () => number
+  private readonly automaticChaos: boolean
 
-  constructor(random: () => number = Math.random) {
+  constructor(random: () => number = Math.random, options: HeuristicDirectorOptions = {}) {
     this.random = random
+    this.automaticChaos = options.automaticChaos ?? true
   }
 
   decide(m: RunMetrics, history: DirectorHistory): StagePlan {
@@ -138,7 +150,9 @@ export class HeuristicDirector implements Director {
     const earnedChaos = m.damageTaken === 0 && m.healthFraction > HEALTH_MERCY
     const stableEnoughForChaos = m.healthFraction > HEALTH_MERCY && dpm <= DPM_HIGH
     const chaosAllowed =
-      !history.chaosLastStage && history.shiftIndex >= CHAOS_UNLOCK_SHIFT
+      this.automaticChaos &&
+      !history.chaosLastStage &&
+      history.shiftIndex >= CHAOS_UNLOCK_SHIFT
 
     const shouldChaos =
       chaosAllowed &&

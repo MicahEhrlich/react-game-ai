@@ -17,6 +17,11 @@ export interface StageModifiers {
   readonly invertControls: boolean
   readonly mirrorWorld: boolean
   readonly fogOfWar: boolean
+  readonly lowGravity: boolean
+  readonly turboMode: boolean
+  readonly colorGlitch: boolean
+  readonly jitterSignal: boolean
+  readonly doubleVision: boolean
   // --- pacing ---
   readonly shiftDurationMs: number
 }

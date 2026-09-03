@@ -4,10 +4,13 @@ import { commands } from '../state/commands.ts'
 import { scores } from '../scores/index.ts'
 import { AudioControls } from './AudioControls.tsx'
 import { HighScoreTable } from './HighScoreTable.tsx'
+import { setAiModeEnabled, useAiModeEnabled } from '../game/aiSettings.ts'
+import { AiIcon } from './AiIcon.tsx'
 
 export function MenuOverlay() {
   const [adultAck, setAdultAck] = useState(false)
   const [entries, setEntries] = useState<Awaited<ReturnType<typeof scores.top>>>([])
+  const aiModeEnabled = useAiModeEnabled()
 
   useEffect(() => {
     let live = true
@@ -64,6 +67,18 @@ export function MenuOverlay() {
         </button>
 
         <AudioControls />
+
+        <label className="toggle-control">
+          <span className="toggle-label">
+            <AiIcon /> AI MODE
+          </span>
+          <input
+            type="checkbox"
+            checked={aiModeEnabled}
+            disabled={DEV.ai !== null}
+            onChange={(e) => setAiModeEnabled(e.currentTarget.checked)}
+          />
+        </label>
 
         <p className="panel-keys">
           MOVE ←→ / WASD · JUMP ↑ / SPACE · FIRE SPACE / SHIFT · SLIDE ↓ · PAUSE ESC

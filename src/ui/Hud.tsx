@@ -4,6 +4,8 @@ import { PLAN_SOURCE } from '../director/types.ts'
 import { MODE_LABEL } from '../state/types.ts'
 import { useGameState } from '../state/store.ts'
 import { themeForMode } from '../memeTheme/index.ts'
+import { useAiModeEnabled } from '../game/aiSettings.ts'
+import { AiIcon } from './AiIcon.tsx'
 
 /**
  * Reads only the discrete store. The shift countdown is quantised to whole
@@ -24,6 +26,7 @@ export function Hud() {
     directorSource,
     memeTheme,
   } = useGameState()
+  const aiModeEnabled = useAiModeEnabled()
 
   const healthPct = Math.max(0, Math.round((health / maxHealth) * 100))
   const activeTheme = themeForMode(memeTheme, mode, shiftIndex)
@@ -78,6 +81,12 @@ export function Hud() {
       {/* Persists for the whole stage. Without it an inverted-controls stage
           is indistinguishable from a bug -- the transition banner announces
           it once, this is what answers the question 30 seconds later. */}
+      {aiModeEnabled && (
+        <div className="hud-ai-mode" title="AI Mode enabled">
+          <AiIcon /> AI ON
+          {directorSource === PLAN_SOURCE.Llm && <span className="hud-ai-live"> LIVE</span>}
+        </div>
+      )}
       {activeChaos && <div className="hud-chaos">⚠ {CHAOS_LABEL[activeChaos]}</div>}
       {DEV.adultMemeMode && <div className="hud-chaos">ADULT MEME MODE</div>}
       <div className="hud-meme" style={{ borderColor: activeTheme.palette[0] }}>

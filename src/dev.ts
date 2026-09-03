@@ -1,4 +1,5 @@
 import type { ModifierDraft } from './director/types.ts'
+import { CHAOS_FLAGS } from './director/modifiers.ts'
 import { DIFFICULTY_MODIFIERS, isLevelDifficulty } from './game/levels/difficulty.ts'
 import type { LevelDifficulty } from './game/levels/difficulty.ts'
 import type { GameMode } from './state/types.ts'
@@ -28,11 +29,8 @@ import { ALL_MODES } from './state/types.ts'
  * still wins on top of it -- e.g. ?difficulty=easy&mods=spawnRateScale=2
  * gives an easy shell with one field poked.
  */
-const CHAOS_KEYS = ['invertControls', 'mirrorWorld', 'fogOfWar'] as const
-type ChaosKey = (typeof CHAOS_KEYS)[number]
-
-function isChaosKey(s: string): s is ChaosKey {
-  return (CHAOS_KEYS as readonly string[]).includes(s)
+function isChaosKey(s: string): s is (typeof CHAOS_FLAGS)[number] {
+  return (CHAOS_FLAGS as readonly string[]).includes(s)
 }
 
 function isMode(s: string): s is GameMode {
@@ -63,6 +61,8 @@ function parse() {
   const q = new URLSearchParams(window.location.search)
   const adultMemeMode = q.get('memeMode') === 'adult'
   const adultMemeKey = q.get('key')
+  const rawAi = q.get('ai')
+  const ai = rawAi === '1' ? true : rawAi === '0' ? false : null
 
   const localPreviewHost = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname)
   if (!import.meta.env.DEV && !localPreviewHost) {
@@ -72,7 +72,7 @@ function parse() {
       mods: {},
       physics: false,
       god: false,
-      ai: null,
+      ai,
       difficulty: null,
       memeId: adultMemeMode ? q.get('meme') : null,
       memeCycle: false,
@@ -108,8 +108,6 @@ function parse() {
 
   // Tri-state: null means "whatever the build defaults to", so ?ai=0 can turn
   // the live director off in dev without ?ai=1 being needed to keep it on.
-  const rawAi = q.get('ai')
-  const ai = rawAi === '1' ? true : rawAi === '0' ? false : null
   const memeId = q.get('meme')
   const memeCycle = q.get('memeCycle') === '1'
 

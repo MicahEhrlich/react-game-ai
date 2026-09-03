@@ -1,4 +1,4 @@
-import { DEV } from '../dev.ts'
+import { readAiModeEnabled } from '../game/aiSettings.ts'
 import { HeuristicDirector } from './HeuristicDirector.ts'
 import { HttpDirectorTransport } from './httpTransport.ts'
 import { LlmDirector } from './LlmDirector.ts'
@@ -17,13 +17,9 @@ import type { Director } from './types.ts'
  * Default: on in dev, off in a production build -- a static bundle has no
  * /api/director to talk to. `?ai=1` forces it on, `?ai=0` off.
  */
-function aiEnabled(): boolean {
-  return DEV.ai ?? import.meta.env.DEV
-}
-
-export function makeDirector(): Director {
-  const heuristic = new HeuristicDirector()
-  if (!aiEnabled()) return heuristic
+export function makeDirector(aiModeEnabled = readAiModeEnabled()): Director {
+  const heuristic = new HeuristicDirector(Math.random, { automaticChaos: aiModeEnabled })
+  if (!aiModeEnabled) return heuristic
 
   return new LlmDirector(new HttpDirectorTransport(), heuristic, Math.random, (msg) => {
     if (import.meta.env.DEV) console.info(`[director] ${msg}`)

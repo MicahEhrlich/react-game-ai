@@ -44,7 +44,7 @@ describe('daily meme theme loader', () => {
   it('accepts a valid live payload and caches it for the day', async () => {
     const live = offlineMemeThemeById('six-seven', '2026-09-03') as MemeTheme
     const fetcher = vi.fn<MemeThemeFetch>().mockResolvedValue(jsonResponse(200, live))
-    const theme = await loadDailyMemeTheme('2026-09-03', fetcher, localStorage, null, false, telemetry)
+    const theme = await loadDailyMemeTheme('2026-09-03', fetcher, localStorage, null, false, true, telemetry)
     expect(theme.source).toBe(MEME_THEME_SOURCE.Live)
     expect(fetcher).toHaveBeenCalledOnce()
     expect(fetcher.mock.calls[0]?.[1].method).toBe('POST')
@@ -76,6 +76,14 @@ describe('daily meme theme loader', () => {
 
     const adult = await loadDailyMemeTheme('2026-09-03', fetcher, localStorage, 'kirk-mode', true)
     expect(adult.id).toBe(adultMemeThemeById('kirk-mode', '2026-09-03')?.id)
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it('skips live fetches when AI Mode is off', async () => {
+    const fetcher = vi.fn<MemeThemeFetch>().mockResolvedValue(jsonResponse(200, offlineMemeThemeById('six-seven', '2026-09-03')))
+    const theme = await loadDailyMemeTheme('2026-09-03', fetcher, localStorage, null, false, false, telemetry)
+    expect(theme.source).toBe(MEME_THEME_SOURCE.Offline)
+    expect(theme.themeRotations).toBeTruthy()
     expect(fetcher).not.toHaveBeenCalled()
   })
 

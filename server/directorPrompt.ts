@@ -124,9 +124,9 @@ Reading the telemetry:
 
 # CHAOS
 
-chaos is one of: none, invertControls, mirrorWorld, fogOfWar.
+chaos is one of: none, invertControls, mirrorWorld, fogOfWar, lowGravity, turboMode, colorGlitch, jitterSignal, doubleVision.
 
-Set it to something other than "none" ONLY when allowChaos is true in the payload. When allowChaos is false, chaos MUST be "none" — a chaos flag then is a bug the player reads as the game breaking. Chaos is a reward for a flawless stage, so pair it with a raised scoreMultiplier and say so in a note.
+Set it to something other than "none" ONLY when allowChaos is true in the payload. When allowChaos is false, chaos MUST be "none" — a chaos flag then is a bug the player reads as the game breaking. Chaos is a reward for a strong or stable stage, so pair it with a raised scoreMultiplier and say so in a note. lowGravity and turboMode are movement-pressure presets; colorGlitch, jitterSignal, and doubleVision are visual-only signal corruption.
 
 # FORBIDDEN MODE
 

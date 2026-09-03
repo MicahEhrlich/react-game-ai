@@ -23,6 +23,7 @@ import type { DirectorRequest, DirectorTransport } from '../src/director/LlmDire
 import { applyLlmPlan, NOTE_MAX_LEN, sanitiseLine, sanitiseNotes } from '../src/director/llmPlan.ts'
 import {
   CHAOS_UNLOCK_SHIFT,
+  CHAOS_FLAGS,
   clampModifiers,
   hasChaosFlag,
 } from '../src/director/modifiers.ts'
@@ -108,11 +109,7 @@ function assertPlanInvariants(plan: StagePlan, h: DirectorHistory, label: string
     fail(`${label}: modifiers outside clamp range`)
   }
 
-  const flags = [
-    plan.modifiers.invertControls,
-    plan.modifiers.mirrorWorld,
-    plan.modifiers.fogOfWar,
-  ].filter(Boolean).length
+  const flags = CHAOS_FLAGS.filter((f) => plan.modifiers[f]).length
   if (flags > 1) fail(`${label}: ${flags} chaos flags at once`)
 
   if (h.chaosLastStage && hasChaosFlag(plan.modifiers)) {
@@ -187,10 +184,11 @@ if ((ALL_MODES as readonly string[]).includes(UNKNOWN_MODE)) {
     ['mode number', { mode: 42 }],
 
     // chaos
-    ['all three chaos booleans', { invertControls: true, mirrorWorld: true, fogOfWar: true }],
+    ['all chaos booleans', Object.fromEntries(CHAOS_FLAGS.map((f) => [f, true]))],
     ['chaos as bare true', { chaos: true }],
     ['chaos nonsense', { chaos: 'nonsense' }],
     ['chaos legal', { chaos: 'fogOfWar' }],
+    ['new chaos legal', { chaos: 'doubleVision' }],
 
     // numbers
     ['NaN', { gravityScale: Number.NaN, spawnRateScale: Number.NaN }],

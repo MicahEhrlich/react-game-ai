@@ -135,6 +135,7 @@ export async function loadDailyMemeTheme(
   store: MemeThemeStorage | null = storage(),
   forcedOfflineId?: string | null,
   adultMode = false,
+  aiModeEnabled = true,
   telemetry?: MemeThemeTelemetry | null,
   memeCycle = false,
 ): Promise<MemeTheme> {
@@ -147,6 +148,8 @@ export async function loadDailyMemeTheme(
   if (forced) return forced
 
   const offline = memeCycle || !forcedOfflineId ? themeBundleForDate(date, false) : themeBundleForDate(date, false)
+  if (!aiModeEnabled) return offline
+
   const cached = readCached(store, date)
   if (cached?.date === date) return cached
   if (attemptedToday(store, date)) return offline
