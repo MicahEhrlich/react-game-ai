@@ -77,7 +77,8 @@ export class ShiftDirectorScene extends Phaser.Scene {
   private live: LiveDirector | null = null
   private activeKey: SceneKey | null = null
   private stageElapsedMs = 0
-  private planned = false
+  private warned = false
+  private primed = false
   private shifting = false
   private runId = ''
   private runStartedAt = 0
@@ -96,7 +97,8 @@ export class ShiftDirectorScene extends Phaser.Scene {
     this.live = isLiveDirector(this.director) ? this.director : null
     this.activeKey = null
     this.stageElapsedMs = 0
-    this.planned = false
+    this.warned = false
+    this.primed = false
     this.shifting = false
     this.runId = ''
     this.runStartedAt = 0
@@ -110,6 +112,7 @@ export class ShiftDirectorScene extends Phaser.Scene {
     this.unsubscribeStore = gameStore.subscribe(() => this.onStoreChange())
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.live?.cancelPending()
       this.unsubscribeCommands?.()
       this.unsubscribeStore?.()
       this.unsubscribeCommands = null
@@ -129,7 +132,12 @@ export class ShiftDirectorScene extends Phaser.Scene {
     // than one per frame.
     gameStore.patch({ secondsToShift: Math.max(0, Math.ceil(remaining / 1000)) })
 
-    if (!this.planned && remaining <= SHIFT_WARNING_MS) this.planNextStage()
+    if (!this.primed && remaining <= 8_000) this.primeDirector()
+    if (!this.warned && remaining <= SHIFT_WARNING_MS) {
+      this.warned = true
+      gameStore.patch({ shiftWarning: true, nextMode: null })
+      sfx.shiftWarning()
+    }
     if (remaining <= 0) this.beginShift()
   }
 
@@ -159,6 +167,7 @@ export class ShiftDirectorScene extends Phaser.Scene {
   }
 
   private startRun(): void {
+    this.live?.cancelPending()
     unlockAudio()
     this.aiModeEnabled = readAiModeEnabled()
     this.director = makeDirector(this.aiModeEnabled)
@@ -184,7 +193,8 @@ export class ShiftDirectorScene extends Phaser.Scene {
     this.runId = newRunId()
     this.runStartedAt = Date.now()
     this.stageElapsedMs = 0
-    this.planned = false
+    this.warned = false
+    this.primed = false
     this.shifting = false
 
     // Drops every scrap of the previous run and aborts anything still in
@@ -215,6 +225,7 @@ export class ShiftDirectorScene extends Phaser.Scene {
   }
 
   private quitToMenu(): void {
+    this.live?.cancelPending()
     this.stopActive()
     music.stop()
     touch.releaseAll()
@@ -223,14 +234,8 @@ export class ShiftDirectorScene extends Phaser.Scene {
 
   // --- the shift --------------------------------------------------------
 
-  /**
-   * Runs SHIFT_WARNING_MS before the swap so the plan is ready and waiting.
-   * Everything here is synchronous; the only network-backed input
-   * (getOverride) reads a payload primed at the start of the run.
-   */
+  /** Finalize synchronously at the transition, after the full generation window. */
   private planNextStage(): void {
-    this.planned = true
-
     const s = gameStore.get()
     const snapshot = metrics.snapshot(
       s.mode,
@@ -248,8 +253,6 @@ export class ShiftDirectorScene extends Phaser.Scene {
     plan = this.applyOverrides(plan, s.shiftIndex + 1)
 
     runState.setPendingPlan(plan)
-    gameStore.patch({ shiftWarning: true, nextMode: plan.mode })
-    sfx.shiftWarning()
   }
 
   /**
@@ -280,6 +283,7 @@ export class ShiftDirectorScene extends Phaser.Scene {
   }
 
   private beginShift(): void {
+    this.planNextStage()
     this.shifting = true
 
     // Surviving a full stage is the biggest single score event in the game --
@@ -328,8 +332,7 @@ export class ShiftDirectorScene extends Phaser.Scene {
     const plan = runState.pendingPlan ?? this.fallbackPlan()
 
     // Snapshotted ONCE, before metrics.rollShift() clears the window below.
-    // Telemetry and the director then describe identical numbers, and the
-    // director gets the stage that actually just happened.
+    // Final telemetry includes the gameplay after the AI request snapshot.
     const closing = gameStore.get()
     const closingMetrics = metrics.snapshot(
       closing.mode,
@@ -348,7 +351,8 @@ export class ShiftDirectorScene extends Phaser.Scene {
     this.scene.launch(this.activeKey) // never start() -- see startRun()
 
     this.stageElapsedMs = 0
-    this.planned = false
+    this.warned = false
+    this.primed = false
     this.shifting = false
 
     gameStore.patch({
@@ -364,30 +368,21 @@ export class ShiftDirectorScene extends Phaser.Scene {
       directorSource: this.live?.lastSource ?? PLAN_SOURCE.Heuristic,
     })
     music.playForTheme(themeForMode(gameStore.get().memeTheme, plan.mode, gameStore.get().shiftIndex), DEV.adultMemeMode)
-
-    // LAST, so it reads the post-patch shiftIndex. See primeDirector().
-    this.primeDirector(closingMetrics)
   }
 
-  /**
-   * Prefetch the plan for the stage AFTER the one that just started, giving it
-   * a whole stage -- 30 to 90 seconds -- instead of the 3s warning window.
-   * Fire-and-forget: a stage must never wait on this, and a failure just means
-   * the heuristic decides.
-   *
-   * The shift index has to match what planNextStage() will pass to decide():
-   * both read gameStore.shiftIndex for the stage being PLAYED, and the plan is
-   * for that index plus one. Reading it from the store after the patch above
-   * -- rather than computing it here -- is what keeps the two in step. Get
-   * this wrong by one and nothing errors: the cache simply never hits and the
-   * heuristic quietly serves every stage.
-   */
-  private primeDirector(closingMetrics: RunMetrics): void {
+  /** Snapshot this stage once, eight gameplay seconds before its transition. */
+  private primeDirector(): void {
+    this.primed = true
     if (!this.live) return
     const s = gameStore.get()
+    const snapshot = metrics.snapshot(
+      s.mode,
+      this.stageElapsedMs,
+      s.maxHealth > 0 ? s.health / s.maxHealth : 0,
+    )
     const stages = telemetry.currentStages().map((r) => toStageBrief(r, s.maxHealth))
     this.live.prime(
-      closingMetrics,
+      snapshot,
       {
         shiftIndex: s.shiftIndex,
         currentMode: s.mode,
@@ -491,6 +486,7 @@ export class ShiftDirectorScene extends Phaser.Scene {
   }
 
   private endRun(): void {
+    this.live?.cancelPending()
     const s = gameStore.get()
     const final = metrics.snapshot(s.mode, this.stageElapsedMs, 0)
 
@@ -564,7 +560,8 @@ export class ShiftDirectorScene extends Phaser.Scene {
     this.scene.stop(this.activeKey)
     this.activeKey = null
     this.stageElapsedMs = 0
-    this.planned = false
+    this.warned = false
+    this.primed = false
     this.shifting = false
   }
 
