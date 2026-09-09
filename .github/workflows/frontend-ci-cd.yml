@@ -1,6 +1,7 @@
 name: Frontend CI/CD
 
 on:
+  workflow_dispatch:
   pull_request:
     branches:
       - main
@@ -39,7 +40,7 @@ jobs:
 
   deploy-production:
     name: Deploy frontend production
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
     needs: quality
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -47,30 +48,26 @@ jobs:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-      VERCEL_CLI: vercel@59.13.1
+      VERCEL_PROJECT_NAME: react-game-ai
 
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v6
-
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 24 
-          cache: npm
+          node-version: 24
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Verify Vercel project access
+      - name: Deploy passing commit to Vercel
+        id: deploy
         shell: bash
         run: |
           node --input-type=module <<'NODE'
+          import { appendFile } from 'node:fs/promises';
+
           const names = ['VERCEL_TOKEN', 'VERCEL_ORG_ID', 'VERCEL_PROJECT_ID'];
           for (const name of names) {
             const value = process.env[name];
             if (!value || value !== value.trim() || /[\r\n]/.test(value)) {
-              console.error(`::error::${name} is missing or contains surrounding whitespace/newlines. Check Actions secrets and production environment overrides.`);
+              console.error(`::error::${name} is missing or contains surrounding whitespace/newlines. Check the repository's Actions secrets.`);
               process.exit(1);
             }
           }
@@ -80,51 +77,95 @@ jobs:
             console.error('::error::Expected a Vercel team ID (team_...) and project ID (prj_...), not names or URLs.');
             process.exit(1);
           }
-          const org = encodeURIComponent(orgId);
-          const project = encodeURIComponent(projectId);
-          let failed = false;
-          for (const [label, path] of [
-            ['Team lookup', `/teams/${org}?teamId=${org}`],
-            ['Project lookup', `/v9/projects/${project}?teamId=${org}`],
-          ]) {
-            try {
-              const response = await fetch(`https://api.vercel.com${path}`, {
-                headers: { Authorization: `Bearer ${process.env.VERCEL_TOKEN}` },
-                signal: AbortSignal.timeout(15000),
-                redirect: 'error',
-              });
-              // Never print response bodies: project settings can contain environment values.
-              console.log(`${label}: HTTP ${response.status}`);
-              if (!response.ok) {
-                console.error(`::error::${label} failed. VERCEL_TOKEN must be scoped to the Vercel team that owns this project.`);
-                failed = true;
-              }
-              await response.body?.cancel();
-            } catch {
-              console.error(`::error::${label} could not complete; check Vercel API availability and retry.`);
-              failed = true;
-            }
+          const [gitOrg, gitRepo] = process.env.GITHUB_REPOSITORY.split('/');
+          if (!gitOrg || !gitRepo) {
+            console.error('::error::GitHub did not provide a valid owner/repository identifier.');
+            process.exit(1);
           }
-          if (failed) process.exit(1);
+
+          const apiUrl = new URL('https://api.vercel.com/v13/deployments');
+          apiUrl.searchParams.set('teamId', orgId);
+          apiUrl.searchParams.set('forceNew', '1');
+          const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${process.env.VERCEL_TOKEN}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              name: process.env.VERCEL_PROJECT_NAME,
+              project: projectId,
+              target: 'production',
+              gitSource: {
+                type: 'github',
+                org: gitOrg,
+                repo: gitRepo,
+                ref: process.env.GITHUB_REF_NAME,
+                sha: process.env.GITHUB_SHA,
+              },
+            }),
+            signal: AbortSignal.timeout(30000),
+            redirect: 'error',
+          });
+          const body = await response.json().catch(() => ({}));
+          if (!response.ok || typeof body.id !== 'string') {
+            const code = typeof body.error?.code === 'string' ? ` (${body.error.code})` : '';
+            console.error(`::error::Vercel deployment creation failed with HTTP ${response.status}${code}.`);
+            process.exit(1);
+          }
+          console.log(`Created Vercel deployment ${body.id} for commit ${process.env.GITHUB_SHA}.`);
+          await appendFile(process.env.GITHUB_OUTPUT, `deployment_id=${body.id}\n`);
           NODE
 
-      - name: Pull Vercel production configuration
-        run: npx --yes "$VERCEL_CLI" pull --yes --environment=production --token="$VERCEL_TOKEN"
-
-      - name: Build Vercel production artifact
-        run: npx --yes "$VERCEL_CLI" build --prod --token="$VERCEL_TOKEN"
-
-      - name: Deploy production artifact
-        id: deploy
+      - name: Wait for Vercel deployment
+        id: wait-for-deployment
         shell: bash
         run: |
-          deployment_url="$(npx --yes "$VERCEL_CLI" deploy --prebuilt --prod --token="$VERCEL_TOKEN")"
-          echo "url=${deployment_url}" >> "$GITHUB_OUTPUT"
+          node --input-type=module <<'NODE'
+          import { appendFile } from 'node:fs/promises';
+          import { setTimeout as delay } from 'node:timers/promises';
+
+          const deploymentId = process.env.DEPLOYMENT_ID;
+          const apiUrl = new URL(`https://api.vercel.com/v13/deployments/${encodeURIComponent(deploymentId)}`);
+          apiUrl.searchParams.set('teamId', process.env.VERCEL_ORG_ID);
+          const terminalFailures = new Set(['ERROR', 'CANCELED']);
+
+          for (let attempt = 1; attempt <= 60; attempt += 1) {
+            const response = await fetch(apiUrl, {
+              headers: { Authorization: `Bearer ${process.env.VERCEL_TOKEN}` },
+              signal: AbortSignal.timeout(15000),
+              redirect: 'error',
+            });
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok) {
+              console.error(`::error::Vercel deployment status failed with HTTP ${response.status}.`);
+              process.exit(1);
+            }
+            console.log(`Vercel deployment state: ${body.readyState ?? 'UNKNOWN'}`);
+            if (body.readyState === 'READY') {
+              if (typeof body.url !== 'string' || body.url.length === 0) {
+                console.error('::error::Vercel marked the deployment ready without returning its URL.');
+                process.exit(1);
+              }
+              await appendFile(process.env.GITHUB_OUTPUT, `url=https://${body.url}\n`);
+              process.exit(0);
+            }
+            if (terminalFailures.has(body.readyState)) {
+              console.error(`::error::Vercel deployment ended in ${body.readyState}.`);
+              process.exit(1);
+            }
+            await delay(5000);
+          }
+          console.error('::error::Vercel deployment did not become ready within five minutes.');
+          process.exit(1);
+          NODE
+        env:
+          DEPLOYMENT_ID: ${{ steps.deploy.outputs.deployment_id }}
 
       - name: Smoke test production deployment
         shell: bash
         env:
-          DEPLOYMENT_URL: ${{ steps.deploy.outputs.url }}
+          DEPLOYMENT_URL: ${{ steps.wait-for-deployment.outputs.url }}
         run: |
           curl \
             --fail \
