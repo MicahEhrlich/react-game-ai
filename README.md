@@ -65,6 +65,7 @@ fields compute.
 
 ```bash
 npm run build                 # tsc -b && vite build
+npm run ci:check              # lint, unit tests, validators, and production build
 npm run typecheck             # tsc -b
 npm run lint                  # oxlint
 npm run validate              # all five invariant scripts below
@@ -75,6 +76,25 @@ npm run validate-llm-director # asserts a hostile model response can't reach a s
 npm run validate-levels       # asserts the curated easy levels stay playable
 npm run gen-levels            # (re)curates the easy platformer level pack
 ```
+
+## CI/CD
+
+Pull requests into `main` run the complete frontend quality gate. Pushes to
+`main` run the same gate and, only after it passes, deploy the production build
+to Vercel and smoke-test the immutable deployment URL. Run the same checks
+locally with:
+
+```bash
+npm run ci:check
+```
+
+Connect this repository to a Vercel Vite project with `main` as its production
+branch. Automatic Git deployments remain enabled for preview branches but are
+disabled for `main` by `vercel.json`; production is deployed only by GitHub
+Actions. Add `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID` as GitHub
+Actions secrets, then protect `main` by requiring the **Frontend quality**
+check, requiring branches to be up to date, and blocking direct and force
+pushes.
 
 `validate-llm-director` needs no API key and makes no network call — it drives
 the real `LlmDirector` with a fake transport and a corpus of hostile responses.
