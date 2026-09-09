@@ -49,6 +49,7 @@ jobs:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
       VERCEL_PROJECT_NAME: react-game-ai
+      VERCEL_PRODUCTION_URL: https://react-game-ai.vercel.app
 
     steps:
       - name: Set up Node.js
@@ -118,11 +119,9 @@ jobs:
           NODE
 
       - name: Wait for Vercel deployment
-        id: wait-for-deployment
         shell: bash
         run: |
           node --input-type=module <<'NODE'
-          import { appendFile } from 'node:fs/promises';
           import { setTimeout as delay } from 'node:timers/promises';
 
           const deploymentId = process.env.DEPLOYMENT_ID;
@@ -143,11 +142,6 @@ jobs:
             }
             console.log(`Vercel deployment state: ${body.readyState ?? 'UNKNOWN'}`);
             if (body.readyState === 'READY') {
-              if (typeof body.url !== 'string' || body.url.length === 0) {
-                console.error('::error::Vercel marked the deployment ready without returning its URL.');
-                process.exit(1);
-              }
-              await appendFile(process.env.GITHUB_OUTPUT, `url=https://${body.url}\n`);
               process.exit(0);
             }
             if (terminalFailures.has(body.readyState)) {
@@ -164,8 +158,6 @@ jobs:
 
       - name: Smoke test production deployment
         shell: bash
-        env:
-          DEPLOYMENT_URL: ${{ steps.wait-for-deployment.outputs.url }}
         run: |
           curl \
             --fail \
@@ -176,5 +168,5 @@ jobs:
             --show-error \
             --silent \
             --output response.html \
-            "$DEPLOYMENT_URL"
+            "$VERCEL_PRODUCTION_URL"
           grep --fixed-strings --quiet '<title>Glitch Shift Arcade</title>' response.html

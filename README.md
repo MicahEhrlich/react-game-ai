@@ -92,9 +92,10 @@ Connect this repository to a Vercel Vite project with `main` as its production
 branch. Automatic Git deployments remain enabled for preview branches but are
 disabled for `main` by `vercel.json`; production is deployed only by GitHub
 Actions. Add `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID` as GitHub
-Actions secrets, then protect `main` by requiring the **Frontend quality**
+Actions secrets. Then protect `main` by requiring the **Frontend quality**
 check, requiring branches to be up to date, and blocking direct and force
-pushes.
+pushes. The smoke test uses the public production alias because Vercel
+Authentication protects generated deployment URLs.
 
 `validate-llm-director` needs no API key and makes no network call — it drives
 the real `LlmDirector` with a fake transport and a corpus of hostile responses.
