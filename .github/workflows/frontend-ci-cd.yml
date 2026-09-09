@@ -66,32 +66,60 @@ jobs:
       - name: Verify Vercel project access
         shell: bash
         run: |
-          response_file="$(mktemp)"
-          http_code="$(curl \
-            --silent \
-            --show-error \
-            --output "$response_file" \
-            --write-out '%{http_code}' \
-            --header "Authorization: Bearer $VERCEL_TOKEN" \
-            "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID?teamId=$VERCEL_ORG_ID")"
-
-          if [[ "$http_code" != "200" ]]; then
-            echo "Vercel project access check failed with HTTP $http_code."
-            echo "Verify the production environment secrets VERCEL_TOKEN, VERCEL_ORG_ID, and VERCEL_PROJECT_ID."
-            exit 1
-          fi
+          node --input-type=module <<'NODE'
+          const names = ['VERCEL_TOKEN', 'VERCEL_ORG_ID', 'VERCEL_PROJECT_ID'];
+          for (const name of names) {
+            const value = process.env[name];
+            if (!value || value !== value.trim() || /[\r\n]/.test(value)) {
+              console.error(`::error::${name} is missing or contains surrounding whitespace/newlines. Check Actions secrets and production environment overrides.`);
+              process.exit(1);
+            }
+          }
+          const orgId = process.env.VERCEL_ORG_ID;
+          const projectId = process.env.VERCEL_PROJECT_ID;
+          if (!orgId.startsWith('team_') || !projectId.startsWith('prj_')) {
+            console.error('::error::Expected a Vercel team ID (team_...) and project ID (prj_...), not names or URLs.');
+            process.exit(1);
+          }
+          const org = encodeURIComponent(orgId);
+          const project = encodeURIComponent(projectId);
+          let failed = false;
+          for (const [label, path] of [
+            ['Team lookup', `/teams/${org}?teamId=${org}`],
+            ['Project lookup', `/v9/projects/${project}?teamId=${org}`],
+          ]) {
+            try {
+              const response = await fetch(`https://api.vercel.com${path}`, {
+                headers: { Authorization: `Bearer ${process.env.VERCEL_TOKEN}` },
+                signal: AbortSignal.timeout(15000),
+                redirect: 'error',
+              });
+              // Never print response bodies: project settings can contain environment values.
+              console.log(`${label}: HTTP ${response.status}`);
+              if (!response.ok) {
+                console.error(`::error::${label} failed. Verify token access to the owning team and the effective production secrets.`);
+                failed = true;
+              }
+              await response.body?.cancel();
+            } catch {
+              console.error(`::error::${label} could not complete; check Vercel API availability and retry.`);
+              failed = true;
+            }
+          }
+          if (failed) process.exit(1);
+          NODE
 
       - name: Pull Vercel production configuration
-        run: npx --yes "$VERCEL_CLI" pull --yes --environment=production --token="$VERCEL_TOKEN"
+        run: npx --yes "$VERCEL_CLI" pull --yes --environment=production --scope="$VERCEL_ORG_ID" --token="$VERCEL_TOKEN"
 
       - name: Build Vercel production artifact
-        run: npx --yes "$VERCEL_CLI" build --prod --token="$VERCEL_TOKEN"
+        run: npx --yes "$VERCEL_CLI" build --prod --scope="$VERCEL_ORG_ID" --token="$VERCEL_TOKEN"
 
       - name: Deploy production artifact
         id: deploy
         shell: bash
         run: |
-          deployment_url="$(npx --yes "$VERCEL_CLI" deploy --prebuilt --prod --token="$VERCEL_TOKEN")"
+          deployment_url="$(npx --yes "$VERCEL_CLI" deploy --prebuilt --prod --scope="$VERCEL_ORG_ID" --token="$VERCEL_TOKEN")"
           echo "url=${deployment_url}" >> "$GITHUB_OUTPUT"
 
       - name: Smoke test production deployment
