@@ -1,6 +1,7 @@
 import { LocalScoreService } from './LocalScoreService.ts'
 import type { ScoreEntry, ScoreService } from './ScoreService.ts'
 import { apiUrl } from '../api.ts'
+import { observedFetch } from '../observability.ts'
 
 const ENDPOINT = apiUrl('/api/scores')
 
@@ -35,7 +36,7 @@ export class ApiScoreService implements ScoreService {
 
   async top(limit: number): Promise<ScoreEntry[]> {
     try {
-      const res = await fetch(`${ENDPOINT}?limit=${encodeURIComponent(String(limit))}`, {
+      const res = await observedFetch(`${ENDPOINT}?limit=${encodeURIComponent(String(limit))}`, {
         cache: 'no-store',
       })
       if (!res.ok) return this.local.top(limit)
@@ -52,7 +53,7 @@ export class ApiScoreService implements ScoreService {
 
   async submit(entry: ScoreEntry): Promise<void> {
     try {
-      const res = await fetch(ENDPOINT, {
+      const res = await observedFetch(ENDPOINT, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(entry),

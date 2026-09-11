@@ -9,6 +9,7 @@ import {
 import type { MemeTheme } from './index.ts'
 import type { GameMode } from '../state/types.ts'
 import { apiUrl } from '../api.ts'
+import { observedFetch } from '../observability.ts'
 
 const ENDPOINT = apiUrl('/api/meme-theme')
 const STORAGE_KEY = 'glitch-daily-meme-theme'
@@ -102,7 +103,7 @@ function attemptedToday(s: MemeThemeStorage | null, date: string): boolean {
 
 export async function fetchLiveMemeTheme(
   date = localDateKey(),
-  fetcher: MemeThemeFetch = fetch,
+  fetcher: MemeThemeFetch = observedFetch,
   telemetry?: MemeThemeTelemetry | null,
 ): Promise<MemeTheme | null> {
   const controller = new AbortController()

@@ -1,5 +1,6 @@
 import type { DirectorRequest, DirectorTransport } from './LlmDirector.ts'
 import { apiUrl } from '../api.ts'
+import { observedFetch } from '../observability.ts'
 
 /**
  * Talks to the dev-only /api/director middleware (see server/).
@@ -18,7 +19,7 @@ export class HttpDirectorTransport implements DirectorTransport {
   async request(payload: DirectorRequest, signal: AbortSignal): Promise<unknown> {
     const started = Date.now()
 
-    const res = await fetch(ENDPOINT, {
+    const res = await observedFetch(ENDPOINT, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(payload),

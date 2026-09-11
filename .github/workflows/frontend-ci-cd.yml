@@ -170,3 +170,23 @@ jobs:
             --output response.html \
             "$VERCEL_PRODUCTION_URL"
           grep --fixed-strings --quiet '<title>Glitch Shift Arcade</title>' response.html
+          curl \
+            --fail \
+            --location \
+            --retry 5 \
+            --retry-all-errors \
+            --retry-delay 5 \
+            --show-error \
+            --silent \
+            "$VERCEL_PRODUCTION_URL/version.json" \
+            | node --input-type=module -e '
+                let body = "";
+                process.stdin.on("data", chunk => body += chunk);
+                process.stdin.on("end", () => {
+                  const release = JSON.parse(body).release;
+                  if (release !== process.env.GITHUB_SHA) {
+                    console.error(`::error::Frontend release ${release} does not match ${process.env.GITHUB_SHA}.`);
+                    process.exit(1);
+                  }
+                });
+              '

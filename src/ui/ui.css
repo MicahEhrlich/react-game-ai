@@ -8,6 +8,28 @@
     var(--bg);
 }
 
+.fatal-error {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  min-height: 100%;
+  padding: 32px;
+  color: var(--text);
+  text-align: center;
+  background: radial-gradient(ellipse at 50% 0%, #30113c 0%, var(--bg) 72%);
+}
+
+.fatal-error__code { color: var(--danger); letter-spacing: 0.25em; }
+.fatal-error h1 { color: var(--hot); text-shadow: 2px 2px 0 #000; }
+.fatal-error button {
+  padding: 10px 18px;
+  color: var(--bg);
+  font: inherit;
+  background: var(--cool);
+  border: 0;
+  cursor: pointer;
+}
+
 /* Everything positions against .stage, so overlays land on the canvas rather
    than on the page. */
 .stage {

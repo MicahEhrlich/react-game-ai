@@ -100,6 +100,13 @@ Authentication protects generated deployment URLs.
 `validate-llm-director` needs no API key and makes no network call — it drives
 the real `LlmDirector` with a fake transport and a corpus of hostile responses.
 
+Production error reporting is optional and disabled without `VITE_SENTRY_DSN`.
+Set that DSN plus `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, and `SENTRY_PROJECT` in
+Vercel to upload private source maps during the production build. The deployed
+commit is exposed as `/version.json`; Sentry receives no player identity,
+request bodies, query strings, cookies, or gameplay payloads. The complete
+operations setup is documented in the backend repository's `OPERATIONS.md`.
+
 ## Difficulty presets and level curation
 
 Add `?difficulty=easy` or `?difficulty=hard` to the URL to play at either end
