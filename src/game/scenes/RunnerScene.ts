@@ -443,14 +443,18 @@ export class RunnerScene extends ModeScene {
     // does). The chip is what turns "avoid the thing" into "commit to it".
     if (chance(this.rng, 0.6)) {
       const chipY = kind === OBSTACLE.Low ? GROUND_Y - 46 : GROUND_Y - 4
+      const pickupRole = Math.floor(Math.abs(spawnX) / 16) % 2 === 0
+        ? MEME_SPRITE_ROLE.Apple
+        : MEME_SPRITE_ROLE.Honey
+      const sprite = this.memeSprite(pickupRole, 'chip')
       const chip = this.chips.create(
         spawnX + dir * randInt(this.rng, 10, 26),
         chipY,
-        ATLAS_KEY,
-        'chip',
+        sprite.key,
+        sprite.frame,
       ) as Phaser.Physics.Arcade.Sprite
       chip.setDepth(DEPTH.Pickup)
-      chip.setTint(this.memeAccent(0, 0x3ef0ff))
+      if (this.memeTheme.id !== 'rosh-hashanah') chip.setTint(this.memeAccent(0, 0x3ef0ff))
       ;(chip.body as Phaser.Physics.Arcade.Body).setAllowGravity(false).setSize(8, 8).setOffset(4, 4)
     }
   }

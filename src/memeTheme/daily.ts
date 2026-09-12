@@ -4,6 +4,7 @@ import {
   localDateKey,
   normaliseMemeTheme,
   offlineMemeThemeById,
+  roshHashanahThemeForDate,
   themeBundleForDate,
 } from './index.ts'
 import type { MemeTheme } from './index.ts'
@@ -143,6 +144,9 @@ export async function loadDailyMemeTheme(
     if (forcedOfflineId) return adultMemeThemeById(forcedOfflineId, date) ?? themeBundleForDate(date, true)
     return themeBundleForDate(date, true)
   }
+
+  const seasonal = roshHashanahThemeForDate(date)
+  if (seasonal) return seasonal
 
   const forced = offlineMemeThemeById(forcedOfflineId, date)
   if (forced) return forced

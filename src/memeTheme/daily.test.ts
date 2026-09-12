@@ -4,6 +4,7 @@ import {
   MEME_THEME_SOURCE,
   adultMemeThemeById,
   offlineMemeThemeById,
+  roshHashanahThemeForDate,
   themeForMode,
 } from './index.ts'
 import type { MemeTheme } from './index.ts'
@@ -101,5 +102,31 @@ describe('daily meme theme loader', () => {
     expect(theme.themeRotations).toBeTruthy()
     expect(themeForMode(theme, MODE.Platformer, 0).source).toBe(MEME_THEME_SOURCE.Offline)
     expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it('uses the seasonal theme before forced ids or live themes during the holiday', async () => {
+    const fetcher = vi.fn<MemeThemeFetch>().mockResolvedValue(jsonResponse(200, offlineMemeThemeById('six-seven', '2026-09-11')))
+    const theme = await loadDailyMemeTheme('2026-09-11', fetcher, localStorage, 'six-seven', false, true, telemetry)
+    expect(theme.id).toBe(roshHashanahThemeForDate('2026-09-11')?.id)
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it('keeps adult mode ahead of the seasonal theme during the holiday', async () => {
+    const fetcher = vi.fn<MemeThemeFetch>()
+    const forced = await loadDailyMemeTheme('2026-09-11', fetcher, localStorage, 'kirk-mode', true)
+    expect(forced.id).toBe('kirk-mode')
+    expect(forced.id).not.toBe(roshHashanahThemeForDate('2026-09-11')?.id)
+
+    const rotating = await loadDailyMemeTheme('2026-09-11', fetcher, localStorage, null, true)
+    expect(rotating.themeRotations).toBeTruthy()
+    expect(themeForMode(rotating, MODE.Platformer, 0).id).not.toBe('rosh-hashanah')
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it('returns to normal theme loading after the holiday', async () => {
+    const fetcher = vi.fn<MemeThemeFetch>().mockResolvedValue(jsonResponse(204, null))
+    const theme = await loadDailyMemeTheme('2026-09-14', fetcher, localStorage, 'six-seven')
+    expect(theme.id).toBe('six-seven')
+    expect(theme.id).not.toBe('rosh-hashanah')
   })
 })
