@@ -1,7 +1,7 @@
 import { music } from '../src/game/music.ts'
 import { sfx } from '../src/game/audio.ts'
 import { audioSettings } from '../src/game/audioSettings.ts'
-import { adultMemeThemeById, offlineMemeThemeForDate } from '../src/memeTheme/index.ts'
+import { adultMemeThemeById, offlineMemeThemeForDate, roshHashanahThemeForDate } from '../src/memeTheme/index.ts'
 
 let failures = 0
 
@@ -26,8 +26,18 @@ try {
   music.resume()
   music.stop()
   music.stop()
+  const roshHashanah = roshHashanahThemeForDate('2026-09-11')
+  if (!roshHashanah || roshHashanah.musicPlan.style !== 'hava nagila chiptune') {
+    fail('Rosh Hashanah Hava Nagila music plan was unavailable')
+  } else {
+    music.playForTheme(roshHashanah, false)
+    music.pause()
+    music.resume()
+    audioSettings.setMusicVolume(0.5)
+    music.stop()
+  }
   const kirk = adultMemeThemeById('kirk-mode', '2026-09-01')
-  if (!kirk) fail('kirk mode theme was not available for sampled music validation')
+  if (!kirk) fail('kirk mode theme was not available for instrumental music validation')
   else {
     music.playForTheme(kirk, true)
     audioSettings.setMusicVolume(0.5)

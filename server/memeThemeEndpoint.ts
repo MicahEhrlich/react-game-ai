@@ -385,7 +385,7 @@ const FORMAT = {
         properties: {
           style: { type: 'string' },
           bpm: { type: 'integer', minimum: 90, maximum: 180 },
-          scale: { enum: ['minor', 'major', 'pentatonic', 'chromatic'] },
+          scale: { enum: ['minor', 'major', 'pentatonic', 'chromatic', 'phrygianDominant'] },
           bassPattern: { $ref: '#/$defs/notes' },
           leadPattern: { $ref: '#/$defs/notes' },
           padPattern: { $ref: '#/$defs/notes' },

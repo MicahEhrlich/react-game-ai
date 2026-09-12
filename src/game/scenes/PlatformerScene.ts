@@ -291,9 +291,13 @@ export class PlatformerScene extends ModeScene {
           break
         }
         case SPAWN.Chip: {
-          const c = chips.create(s.x, s.y, ATLAS_KEY, 'chip') as Phaser.Physics.Arcade.Sprite
+          const pickupRole = Math.floor(s.x / 16) % 2 === 0
+            ? MEME_SPRITE_ROLE.Apple
+            : MEME_SPRITE_ROLE.Honey
+          const sprite = this.memeSprite(pickupRole, 'chip')
+          const c = chips.create(s.x, s.y, sprite.key, sprite.frame) as Phaser.Physics.Arcade.Sprite
           c.setDepth(DEPTH.Pickup)
-          c.setTint(this.memeAccent(0, 0x3ef0ff))
+          if (this.memeTheme.id !== 'rosh-hashanah') c.setTint(this.memeAccent(0, 0x3ef0ff))
           break
         }
         case SPAWN.Walker: {

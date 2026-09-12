@@ -6,7 +6,10 @@ import {
   offlineMemeThemeById,
   offlineMemeThemeForDate,
   themeBundleForDate,
-  ALL_MEME_SPRITE_ROLES,
+  REQUIRED_MEME_SPRITE_ROLES,
+  ROSH_HASHANAH_THEME_ID,
+  isRoshHashanahDate,
+  roshHashanahThemeForDate,
   ADULT_MEME_THEMES,
   ADULT_MEME_THEME_IDS,
   adultMemeThemeById,
@@ -232,7 +235,7 @@ for (const t of OFFLINE_MEME_THEMES) {
   } else if (!theme.musicPlan) {
     fail(`offline theme ${t.id} has no music plan`)
   } else {
-    for (const role of ALL_MEME_SPRITE_ROLES) {
+    for (const role of REQUIRED_MEME_SPRITE_ROLES) {
       if (!theme.spritePack[role]) fail(`offline theme ${t.id} is missing ${role}`)
     }
   }
@@ -264,9 +267,40 @@ for (const t of ADULT_MEME_THEMES) {
       continue
     }
     if (safeSpritePacks.has(theme.spritePack)) fail(`adult theme ${id} reuses a safe sprite pack object`)
-    for (const role of ALL_MEME_SPRITE_ROLES) {
+    for (const role of REQUIRED_MEME_SPRITE_ROLES) {
       if (!theme.spritePack[role]) fail(`adult theme ${id} is missing ${role}`)
     }
+  }
+}
+
+{
+  const seasonal = roshHashanahThemeForDate('2026-09-11')
+  if (!seasonal || seasonal.id !== ROSH_HASHANAH_THEME_ID || !seasonal.spritePack?.apple || !seasonal.spritePack.honey) {
+    fail('Rosh Hashanah theme is missing or has no apple and honey sprites')
+  }
+  if (seasonal?.modeFlavor.platformer.enemy !== 'SHOFAR') fail('Rosh Hashanah platformer enemy is not a shofar')
+  if (seasonal?.modeFlavor.platformer.hazard !== 'POMEGRANATE') {
+    fail('Rosh Hashanah platformer hazard is not a pomegranate')
+  }
+  if (seasonal?.shiftLines[0] !== 'SHANA TOVA' || !seasonal.taunts.includes('SHANA TOVA')) {
+    fail('Rosh Hashanah theme does not display the exact SHANA TOVA greeting')
+  }
+  if ([...(seasonal?.shiftLines ?? []), ...(seasonal?.taunts ?? [])].includes('L SHANAH TOVAH')) {
+    fail('Rosh Hashanah theme still contains the obsolete greeting spelling')
+  }
+  if (seasonal?.musicPlan.style !== 'hava nagila chiptune' || seasonal.musicPlan.scale !== 'phrygianDominant') {
+    fail('Rosh Hashanah theme does not use the Hava Nagila chiptune plan')
+  }
+  if (seasonal?.musicPlans !== undefined) fail('Rosh Hashanah theme still rotates generic music plans')
+  for (const mode of ['platformer', 'shooter', 'runner', 'brick'] as const) {
+    for (const shift of [0, 1, 7]) {
+      if (seasonal && themeForMode(seasonal, mode, shift).musicPlan.style !== 'hava nagila chiptune') {
+        fail(`Rosh Hashanah ${mode} shift ${shift} did not keep the Hava Nagila plan`)
+      }
+    }
+  }
+  if (!isRoshHashanahDate('2026-09-13') || isRoshHashanahDate('2026-09-14')) {
+    fail('Rosh Hashanah date window is incorrect')
   }
 }
 

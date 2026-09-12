@@ -20,20 +20,23 @@ export function buildMemeAtlas(scene: Phaser.Scene, theme: MemeTheme): string | 
   if (!theme.spritePack) return null
   const key = memeAtlasKey(theme)
   if (scene.textures.exists(key)) return key
+  const roles = ALL_MEME_SPRITE_ROLES.filter((role) => theme.spritePack?.[role])
 
-  const rows = Math.ceil(ALL_MEME_SPRITE_ROLES.length / COLS)
+  const rows = Math.ceil(roles.length / COLS)
   const canvas = makeCanvas(COLS * CELL, rows * CELL)
   const ctx = canvas.getContext('2d')
   if (!ctx) return null
   ctx.imageSmoothingEnabled = false
 
-  ALL_MEME_SPRITE_ROLES.forEach((role, i) => {
-    drawSprite(ctx, theme.spritePack![role], (i % COLS) * CELL, Math.floor(i / COLS) * CELL)
+  roles.forEach((role, i) => {
+    const sprite = theme.spritePack?.[role]
+    if (!sprite) return
+    drawSprite(ctx, sprite, (i % COLS) * CELL, Math.floor(i / COLS) * CELL)
   })
 
   const tex = scene.textures.addCanvas(key, canvas)
   if (!tex) return null
-  ALL_MEME_SPRITE_ROLES.forEach((role, i) => {
+  roles.forEach((role, i) => {
     tex.add(role, 0, (i % COLS) * CELL, Math.floor(i / COLS) * CELL, CELL, CELL)
   })
   return key
@@ -45,6 +48,7 @@ export function spriteForRole(
   role: MemeSpriteRole,
   fallbackFrame: string,
 ): SpriteRef {
+  if (!theme.spritePack?.[role]) return { key: ATLAS_KEY, frame: fallbackFrame }
   const key = buildMemeAtlas(scene, theme)
   if (!key) return { key: ATLAS_KEY, frame: fallbackFrame }
   return { key, frame: role }

@@ -75,16 +75,38 @@ export const MEME_SPRITE_ROLE = {
   Brick: 'brick',
   BrickCracked: 'brickCracked',
   Ball: 'ball',
+  Apple: 'apple',
+  Honey: 'honey',
 } as const
 export type MemeSpriteRole = (typeof MEME_SPRITE_ROLE)[keyof typeof MEME_SPRITE_ROLE]
-export const ALL_MEME_SPRITE_ROLES: readonly MemeSpriteRole[] = Object.values(MEME_SPRITE_ROLE)
-export type MemeSpritePack = Readonly<Record<MemeSpriteRole, PixelSprite>>
+export const REQUIRED_MEME_SPRITE_ROLES = [
+  MEME_SPRITE_ROLE.PlatformerEnemy,
+  MEME_SPRITE_ROLE.PlatformerHazard,
+  MEME_SPRITE_ROLE.ShooterEnemy,
+  MEME_SPRITE_ROLE.ShooterProjectile,
+  MEME_SPRITE_ROLE.RunnerObstacle,
+  MEME_SPRITE_ROLE.Brick,
+  MEME_SPRITE_ROLE.BrickCracked,
+  MEME_SPRITE_ROLE.Ball,
+ ] as const
+export const OPTIONAL_MEME_SPRITE_ROLES = [
+  MEME_SPRITE_ROLE.Apple,
+  MEME_SPRITE_ROLE.Honey,
+ ] as const
+export const ALL_MEME_SPRITE_ROLES: readonly MemeSpriteRole[] = [
+  ...REQUIRED_MEME_SPRITE_ROLES,
+  ...OPTIONAL_MEME_SPRITE_ROLES,
+]
+type RequiredMemeSpriteRole = Exclude<MemeSpriteRole, (typeof OPTIONAL_MEME_SPRITE_ROLES)[number]>
+export type MemeSpritePack = Readonly<Record<RequiredMemeSpriteRole, PixelSprite>> &
+  Partial<Readonly<Record<(typeof OPTIONAL_MEME_SPRITE_ROLES)[number], PixelSprite>>>
 
 export const MUSIC_SCALE = {
   Minor: 'minor',
   Major: 'major',
   Pentatonic: 'pentatonic',
   Chromatic: 'chromatic',
+  PhrygianDominant: 'phrygianDominant',
 } as const
 export type MusicScale = (typeof MUSIC_SCALE)[keyof typeof MUSIC_SCALE]
 export type MusicWave = 'sine' | 'square' | 'sawtooth' | 'triangle'
@@ -272,6 +294,22 @@ const MUSIC = {
     drumKit: 'noir',
     swing: 0.22,
     intensity: 0.42,
+  },
+  HavaNagila: {
+    style: 'hava nagila chiptune',
+    bpm: 126,
+    scale: MUSIC_SCALE.PhrygianDominant,
+    bassPattern: [0, -1, 0, -1, 4, -1, 3, -1],
+    leadPattern: [0, 0, 1, 2, 2, 1, 0, -1, 0, 0, 1, 2, 2, 1, 0, -1],
+    padPattern: [0, -1, -1, -1, 3, -1, -1, -1],
+    chordPattern: [0, -1, 3, -1, 4, -1, 3, -1],
+    drumPattern: [1, 3, 2, 3, 1, 3, 2, 3, 1, 3, 2, 3, 1, 3, 2, 4],
+    bassWave: 'triangle',
+    leadWave: 'square',
+    padWave: 'sine',
+    drumKit: 'dance',
+    swing: 0.1,
+    intensity: 0.58,
   },
   KirkMarch: {
     style: 'anthem lament',
@@ -834,7 +872,7 @@ const SIX_SEVEN_SPRITES: MemeSpritePack = {
     '......f.........',
     '......ff........',
     '................',
-    '.........fff....',
+    '................',
     '........fyyyf...',
     '.........fff....',
     '.........f......',
@@ -1109,7 +1147,13 @@ function spritePack(v: unknown, required: boolean): MemeSpritePack | undefined |
   if (typeof v !== 'object') return null
   const r = v as Record<string, unknown>
   const out: Partial<Record<MemeSpriteRole, PixelSprite>> = {}
-  for (const role of ALL_MEME_SPRITE_ROLES) {
+  for (const role of REQUIRED_MEME_SPRITE_ROLES) {
+    const s = sprite(r[role])
+    if (!s) return null
+    out[role] = s
+  }
+  for (const role of OPTIONAL_MEME_SPRITE_ROLES) {
+    if (r[role] === undefined) continue
     const s = sprite(r[role])
     if (!s) return null
     out[role] = s
@@ -1549,6 +1593,211 @@ export function themeBundleForDate(date = localDateKey(), adultMode = false): Me
   return rotationsFromCatalog(catalog, date, MEME_THEME_SOURCE.Offline) ??
     bundleFromCatalog(catalog, date, MEME_THEME_SOURCE.Offline) ??
     (adultMode ? adultMemeThemeForDate(date) : offlineMemeThemeForDate(date))
+}
+
+const ROSH_HASHANAH_SPRITES: MemeSpritePack = {
+  platformerEnemy: [
+    '................',
+    '......oooo......',
+    '....ooWWWWoo....',
+    '...oWwCCwwWo....',
+    '..oWwCwwwwCwWo..',
+    '..oWwwwwwwwwWo..',
+    '...oooooo....o..',
+    '.....bb..bb.....',
+    '....bbbbbbbb....',
+    '....bBbbbbBb....',
+    '....bbbbbbbb....',
+    '.....b....b.....',
+    '....bb....bb....',
+    '................',
+    '................',
+    '................',
+  ],
+  platformerHazard: [
+    '......kk........',
+    '.....kppk.......',
+    '....kppppk......',
+    '...kppppppk.....',
+    '..kppppppppk....',
+    '.kpppPPppPPk....',
+    '.kppPppPpPpk....',
+    'kppppPPPPpppk...',
+    'kppPppPppPpk...',
+    'kppppPPPPpppk...',
+    '.kpppppppppk....',
+    '..kppppppppk....',
+    '...kppppppk.....',
+    '....kppppk......',
+    '.....kppk.......',
+    '......kkkk......',
+    '......kk........',
+  ],
+  shooterEnemy: [
+    '................',
+    '......oooo......',
+    '....ooWWWWoo....',
+    '...oWwCCwwWo....',
+    '..oWwCwwwwCwWo..',
+    '.oWwwwwwwwwwwWo.',
+    'oWwwwwwwwwwwwwWo',
+    '.oooooobbbooooo.',
+    '..bbb....bbb....',
+    '...bb....bb.....',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+  ],
+  shooterProjectile: [
+    '................',
+    '................',
+    '......yy........',
+    '....yyyyyy......',
+    '...yYyyyyYy.....',
+    '..yyyyyyyyyy....',
+    '...yYyyyyYy.....',
+    '....yyyyyy......',
+    '......yy........',
+    '......gg........',
+    '.....gggg.......',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+  ],
+  runnerObstacle: [
+    '......kk........',
+    '.....kppk.......',
+    '....kppppk......',
+    '...kppppppk.....',
+    '..kppppppppk....',
+    '.kpppPPppPPk....',
+    '.kppPppPpPpk....',
+    'kppppPPPPpppk...',
+    'kppPppPppPpk...',
+    'kppppPPPPpppk...',
+    '.kpppppppppk....',
+    '..kppppppppk....',
+    '...kppppppk.....',
+    '....kppppk......',
+    '.....kppk.......',
+    '......kkkk......',
+    '......kk........',
+  ],
+  brick: [
+    'yyyyyyyyyyyyyyyy',
+    'yWWWWWWWWWWWWWWy',
+    'yWrrrrrrrrrrrrWy',
+    'yWrrrrrrrrrrrrWy',
+    'yWrrrrrrrrrrrrWy',
+    'yWWWWWWWWWWWWWWy',
+    'yggggggggggggggy',
+    'yGooooooooooooGy',
+    'yGooooooooooooGy',
+    'yggggggggggggggy',
+    'yyyyyyyyyyyyyyyy',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+  ],
+  brickCracked: [
+    'yyyyyyyyyyyyyyyy',
+    'yWWWWWWWWWWWWWWy',
+    'yWrrrrrrrRrrrrWy',
+    'yWrrrrrrRRRrrrry',
+    'yWrrrrrRrrRrrrry',
+    'yWWWWWWWWWWWWWWy',
+    'yggggggggggggggy',
+    'yGooooooooooooGy',
+    'yGooooooRoooooGy',
+    'ygggggRRRggggggy',
+    'yyyyyyyyyyyyyyyy',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+  ],
+  ball: [
+    '................',
+    '......yyyy......',
+    '....yyWWyy......',
+    '...yWwwwwWy.....',
+    '..yWwwwwwwWy....',
+    '..yWwwwwwwWy....',
+    '...yWwwwwWy.....',
+    '....yyWWyy......',
+    '......yy........',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+  ],
+  apple: [
+    '.......tt.......',
+    '......tt........',
+    '.....ttt........',
+    '....ktttttk.....',
+    '...kaaaaaak.....',
+    '..kaaWWWWaak....',
+    '..kaaWWWWaak....',
+    '..kaaaaaaaak....',
+    '...kaAAAAak.....',
+    '....kaAAak......',
+    '.....kaak.......',
+    '......kk.......',
+    '................',
+    '................',
+    '................',
+    '................',
+  ],
+  honey: [
+    '....TTTTTTTT....',
+    '...TThHHhhTT....',
+    '...TThHHhhTT....',
+    '.....THHHHHT....',
+    '....THhhhhhhT...',
+    '...THhhhhhhhT...',
+    '..THhhhhhhhhHT..',
+    '..THhwwwwhhhHT..',
+    '..THhwTTwhhhHT..',
+    '..THhwwwwhhhHT..',
+    '...THhhhhhhT....',
+    '....THHHHHT.....',
+    '.....TTTTT......',
+    '........tt......',
+    '........tt......',
+    '.......tTTt.....',
+  ],
+}
+
+export const ROSH_HASHANAH_THEME_ID = 'rosh-hashanah'
+
+const ROSH_HASHANAH_THEME: MemeTheme = {
+  id: ROSH_HASHANAH_THEME_ID,
+  label: 'ROSH HASHANAH',
+  source: MEME_THEME_SOURCE.Offline,
+  date: 'seasonal',
+  palette: ['#d9363e', '#ffe14d', '#4dff9a', '#f2eeff'],
+  shiftLines: ['SHANA TOVA', 'A SWEET NEW SHIFT BEGINS', 'SHOFAR SIGNAL DETECTED'],
+  taunts: ['SHANA TOVA', 'DIPPED AND DELIVERED', 'POMEGRANATE DODGED'],
+  spritePack: ROSH_HASHANAH_SPRITES,
+  musicPlan: MUSIC.HavaNagila,
+  modeFlavor: {
+    [MODE.Platformer]: { ...DEFAULT_FLAVOR, enemy: 'SHOFAR', hazard: 'POMEGRANATE' },
+    [MODE.Shooter]: { ...DEFAULT_FLAVOR, enemy: 'SHOFAR', projectile: 'HONEY DROP' },
+    [MODE.Runner]: { ...DEFAULT_FLAVOR, obstacle: 'POMEGRANATE', hazard: 'SHOFAR SIGNAL' },
+    [MODE.Brick]: { ...DEFAULT_FLAVOR, brick: 'NEW YEAR WALL', projectile: 'HONEY BALL' },
+  },
 }
 
 export const OFFLINE_MEME_THEMES: readonly MemeTheme[] = [
@@ -2428,8 +2677,17 @@ export function offlineMemeThemeForDate(date = localDateKey()): MemeTheme {
 export const OFFLINE_MEME_THEME_IDS: readonly string[] = OFFLINE_MEME_THEMES.map((t) => t.id)
 export const ADULT_MEME_THEME_IDS: readonly string[] = ADULT_MEME_THEMES.map((t) => t.id)
 
+export function isRoshHashanahDate(date: string): boolean {
+  return date >= '2026-09-11' && date <= '2026-09-13'
+}
+
+export function roshHashanahThemeForDate(date = localDateKey()): MemeTheme | null {
+  return isRoshHashanahDate(date) ? withSelectedMusic(ROSH_HASHANAH_THEME, date) : null
+}
+
 export function offlineMemeThemeById(id: string | null | undefined, date = localDateKey()): MemeTheme | null {
   if (!id) return null
+  if (id === ROSH_HASHANAH_THEME_ID) return roshHashanahThemeForDate(date)
   const base = OFFLINE_MEME_THEMES.find((t) => t.id === id)
   return base ? withSelectedMusic(base, date) : null
 }

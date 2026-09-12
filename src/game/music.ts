@@ -1,31 +1,27 @@
 import { getAudioContext, getMusicOutput } from './audio.ts'
 import { audioSettings } from './audioSettings.ts'
 import type { MemeMusicPlan, MemeTheme, MusicScale, MusicWave } from '../memeTheme/index.ts'
+import { KIRK_BPM, KIRK_TICKS_PER_BEAT, KIRK_LOOP_TICKS, KIRK_MELODY, KIRK_BASS } from './kirkMusic.ts'
+import { HAVA_MELODY, HAVA_LOOP_TICKS, HAVA_TICKS_PER_BEAT } from './havaNagila.ts'
 
 const BASE = 55
 const STEP_MS = 0.08
 const RUNNING_GAIN = 0.42
-const KIRK_SAMPLE_URL = '/audio/music/kirk-mode.mp3'
-const SAMPLE_GAIN = 0.2
 
 const INTERVALS: Record<MusicScale, readonly number[]> = {
   minor: [0, 2, 3, 5, 7, 8, 10, 12],
   major: [0, 2, 4, 5, 7, 9, 11, 12],
   pentatonic: [0, 3, 5, 7, 10, 12, 15, 17],
   chromatic: [0, 1, 3, 5, 6, 7, 10, 12],
+  phrygianDominant: [0, 1, 4, 5, 7, 8, 10, 12],
 }
 
 let timer: number | null = null
 let step = 0
 let current: MemeMusicPlan | null = null
-let sample: HTMLAudioElement | null = null
-let sampleFallback: MemeMusicPlan | null = null
-let sampleActive = false
+let kirkActive = false
 let muted = false
 
-function canUseSampleAudio(): boolean {
-  return typeof Audio !== 'undefined' && typeof window !== 'undefined'
-}
 
 function freq(plan: MemeMusicPlan, degree: number, octave: number): number {
   const intervals = INTERVALS[plan.scale]
@@ -131,9 +127,39 @@ function playDrum(plan: MemeMusicPlan, hit: number, level: number): void {
 
 function tick(): void {
   if (!current) return
+  if (muted) { reschedule(); return }
   const i = step++
-  const beat = 60 / current.bpm
+  const beat = 60 / (kirkActive ? KIRK_BPM : current.bpm)
   const level = 0.025 + current.intensity * 0.035
+  if (kirkActive) {
+    const position = i % KIRK_LOOP_TICKS
+    const note = KIRK_MELODY.get(position)
+    if (note) tone(440 * 2 ** ((note[0] - 69) / 12), note[1] * beat * 0.88, level * 0.62, 'square')
+    if (position % KIRK_TICKS_PER_BEAT === 0) {
+      const pulse = position / KIRK_TICKS_PER_BEAT
+      const root = pulse < 2 ? 40 : KIRK_BASS[Math.floor((pulse - 2) / 4)]
+      tone(440 * 2 ** ((root - 69) / 12), beat * 0.7, level * 0.65, 'triangle')
+      playDrum(current, pulse % 2 ? 2 : 1, level * 0.25)
+    }
+    reschedule()
+    return
+  }
+  if (current.style === 'hava nagila chiptune') {
+    const position = i % HAVA_LOOP_TICKS
+    const note = HAVA_MELODY.get(position)
+    if (note && note[0] !== null) {
+      tone(440 * 2 ** ((note[0] - 69) / 12), note[1] * beat * 0.92, level, 'triangle')
+    }
+    // E/B pulse under the melody; A/E for the final dance section.
+    if (position % HAVA_TICKS_PER_BEAT === 0) {
+      const pulse = position / HAVA_TICKS_PER_BEAT
+      const root = pulse >= 64 ? 45 : 40
+      tone(440 * 2 ** ((root + (pulse % 2 ? 7 : 0) - 69) / 12), beat * 0.65, level * 0.55, 'triangle')
+      playDrum(current, pulse % 2 ? 2 : 1, level * 0.25)
+    }
+    reschedule()
+    return
+  }
   const bass = current.bassPattern[i % current.bassPattern.length]
   const lead = current.leadPattern[i % current.leadPattern.length]
   const pad = current.padPattern?.[i % current.padPattern.length]
@@ -159,7 +185,9 @@ function reschedule(): void {
   }
   const swing = current.swing ?? 0
   const swingMul = step % 2 === 0 ? 1 - swing : 1 + swing
-  const interval = Math.max(60, ((60_000 / current.bpm) / 2) * swingMul)
+  const interval = kirkActive ? 60_000 / KIRK_BPM / KIRK_TICKS_PER_BEAT : current.style === 'hava nagila chiptune'
+    ? 60_000 / current.bpm / HAVA_TICKS_PER_BEAT
+    : Math.max(60, ((60_000 / current.bpm) / 2) * swingMul)
   timer =
     typeof window.setTimeout === 'function'
       ? window.setTimeout(tick, interval)
@@ -175,61 +203,9 @@ function fadeTo(value: number): void {
   g.gain.setTargetAtTime(target, ctx.currentTime, STEP_MS)
 }
 
-function sampleVolume(): number {
-  return audioSettings.get().musicVolume * SAMPLE_GAIN
-}
-
-function stopSample(reset = true): void {
-  if (!sample) return
-  sample.pause()
-  if (reset) sample.currentTime = 0
-  sampleActive = false
-}
-
-function ensureSample(url: string, fallback: MemeMusicPlan): HTMLAudioElement | null {
-  if (!canUseSampleAudio()) return null
-  if (!sample || sample.src !== new URL(url, window.location.href).href) {
-    stopSample()
-    sample = new Audio(url)
-    sample.loop = true
-    sample.preload = 'auto'
-    sample.addEventListener('error', () => {
-      const plan = sampleFallback
-      stopSample()
-      if (plan) music.play(plan)
-    })
-  }
-  sampleFallback = fallback
-  sample.volume = sampleVolume()
-  return sample
-}
-
-function playSample(url: string, fallback: MemeMusicPlan): void {
-  current = null
-  reschedule()
-  fadeTo(0)
-
-  const audio = ensureSample(url, fallback)
-  if (!audio) {
-    music.play(fallback)
-    return
-  }
-
-  muted = false
-  sampleActive = true
-  audio.volume = sampleVolume()
-  const attempt = audio.play()
-  if (attempt) {
-    attempt.catch(() => {
-      stopSample()
-      music.play(fallback)
-    })
-  }
-}
-
 export const music = {
   play(plan: MemeMusicPlan): void {
-    stopSample()
+    kirkActive = false
     current = plan
     step = 0
     muted = false
@@ -237,41 +213,35 @@ export const music = {
     fadeTo(RUNNING_GAIN)
   },
   playForTheme(theme: MemeTheme, adultMode: boolean): void {
+    // Let the song reach its later sections across short mode transitions.
+    if (!kirkActive && theme.id === 'rosh-hashanah' && current?.style === 'hava nagila chiptune') return
     if (adultMode && theme.id === 'kirk-mode') {
-      playSample(KIRK_SAMPLE_URL, theme.musicPlan)
+      if (kirkActive && current) return
+      this.play(theme.musicPlan)
+      kirkActive = true
+      reschedule()
       return
     }
     this.play(theme.musicPlan)
   },
   stop(): void {
-    stopSample()
+    kirkActive = false
     current = null
     reschedule()
     fadeTo(0)
   },
   pause(): void {
     muted = true
-    if (sampleActive && sample) sample.pause()
     fadeTo(0)
   },
   resume(): void {
     muted = false
-    if (sampleActive && sample) {
-      sample.volume = sampleVolume()
-      void sample.play().catch(() => {
-        const plan = sampleFallback
-        stopSample()
-        if (plan) music.play(plan)
-      })
-      return
-    }
     if (!current) return
     fadeTo(RUNNING_GAIN)
   },
 }
 
 audioSettings.subscribe(() => {
-  if (sample) sample.volume = muted ? 0 : sampleVolume()
   if (!current || muted) return
   fadeTo(RUNNING_GAIN)
 })
