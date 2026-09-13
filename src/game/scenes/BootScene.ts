@@ -1,17 +1,21 @@
 import Phaser from 'phaser'
 import { createAnims } from '../art/anims.ts'
 import { buildAtlas } from '../art/atlas.ts'
+import { preloadRoshHashanahArt } from '../art/roshHashanahArt.ts'
 import { assertModeScenesRegistered, SCENE } from './keys.ts'
 
 /**
- * There is no preload(): all art is built from ASCII pixel data and all core
- * audio is synthesised, so nothing is fetched before the first frame. Boot
- * builds the texture atlas, registers animations, hands control to the
+ * Preload the seasonal icons, retaining ASCII art as a loading-failure fallback.
+ * Boot builds the texture atlas, registers animations, hands control to the
  * always-on ShiftDirectorScene, and stops itself.
  */
 export class BootScene extends Phaser.Scene {
   constructor() {
     super(SCENE.Boot)
+  }
+
+  preload(): void {
+    preloadRoshHashanahArt(this)
   }
 
   create(): void {

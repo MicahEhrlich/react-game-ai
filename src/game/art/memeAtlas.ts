@@ -3,6 +3,7 @@ import { ALL_MEME_SPRITE_ROLES } from '../../memeTheme/index.ts'
 import type { MemeSpriteRole, MemeTheme } from '../../memeTheme/index.ts'
 import { ATLAS_KEY } from './atlas.ts'
 import { drawSprite, makeCanvas } from './pixels.ts'
+import { drawRoshHashanahArt } from './roshHashanahArt.ts'
 
 const CELL = 16
 const COLS = 4
@@ -31,7 +32,11 @@ export function buildMemeAtlas(scene: Phaser.Scene, theme: MemeTheme): string | 
   roles.forEach((role, i) => {
     const sprite = theme.spritePack?.[role]
     if (!sprite) return
-    drawSprite(ctx, sprite, (i % COLS) * CELL, Math.floor(i / COLS) * CELL)
+    const x = (i % COLS) * CELL
+    const y = Math.floor(i / COLS) * CELL
+    if (!drawRoshHashanahArt(scene, theme, role, ctx, x, y, CELL)) {
+      drawSprite(ctx, sprite, x, y)
+    }
   })
 
   const tex = scene.textures.addCanvas(key, canvas)
