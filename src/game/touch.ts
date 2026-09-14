@@ -85,6 +85,20 @@ export const touch = {
     state.aimY = null
     state.directTouch = false
   },
+  /** Release only the joystick channel so a second thumb can keep jumping. */
+  releaseJoystick(): void {
+    state.dirX = 0
+    state.dirY = 0
+    state.action = false
+  },
+  /** Release only jump hold so the movement thumb keeps steering. */
+  releaseJump(): void {
+    state.jumpHeld = false
+  },
+  /** Release only slide hold so a second thumb can keep jumping. */
+  releaseSlide(): void {
+    state.slide = false
+  },
   releaseHeld(): void {
     state.dirX = 0
     state.dirY = 0

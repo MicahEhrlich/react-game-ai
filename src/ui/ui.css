@@ -640,6 +640,14 @@
   pointer-events: none;
 }
 
+.touch--platformer {
+  inset: auto 20px 20px 20px;
+  display: flex;
+  width: auto;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .touch-joystick {
   position: relative;
   width: 156px;
@@ -710,17 +718,79 @@
   border-color: var(--cool);
 }
 
-.touch-btn--fire {
-  border-color: var(--hot);
+.touch-btn--round-action {
+  display: grid;
+  width: 82px;
+  height: 82px;
+  place-content: center;
+  gap: 2px;
+  border: 2px solid rgba(62, 240, 255, 0.78);
+  border-radius: 50%;
+  background: rgba(8, 6, 15, 0.56);
+  box-shadow:
+    inset 0 0 18px rgba(62, 240, 255, 0.16),
+    0 0 20px rgba(62, 240, 255, 0.2);
+  color: var(--cool);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  pointer-events: auto;
+}
+
+.touch-btn--round-action span {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.touch-btn--round-action:active {
+  color: var(--text);
+  background: rgba(62, 240, 255, 0.3);
+  box-shadow:
+    inset 0 0 22px rgba(62, 240, 255, 0.3),
+    0 0 28px rgba(62, 240, 255, 0.34);
+  transform: scale(0.96);
+}
+
+.touch-btn--platformer-jump {
+  margin-right: 14px;
+}
+
+.touch-btn--runner-jump {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
 }
 
 .touch-btn--runner-slide {
   position: absolute;
-  right: 14px;
+  left: 14px;
   bottom: 14px;
-  width: 68px;
-  height: 58px;
-  pointer-events: auto;
+}
+
+@media (max-width: 520px) {
+  .touch--platformer {
+    right: max(10px, env(safe-area-inset-right));
+    bottom: max(10px, env(safe-area-inset-bottom));
+    left: max(10px, env(safe-area-inset-left));
+  }
+
+  .touch-btn--platformer-jump {
+    margin-right: 4px;
+  }
+
+  .touch-btn--runner-slide {
+    left: max(10px, env(safe-area-inset-left));
+    bottom: max(10px, env(safe-area-inset-bottom));
+  }
+
+  .touch-btn--runner-jump {
+    right: max(10px, env(safe-area-inset-right));
+    bottom: max(10px, env(safe-area-inset-bottom));
+  }
+}
+
+.touch-btn--fire {
+  border-color: var(--hot);
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -164,12 +164,40 @@ export function TouchControls() {
     e.stopPropagation()
     stick.current = null
     setStickThumb({ x: 0, y: 0 })
-    touch.releaseHeld()
+    touch.releaseJoystick()
+  }
+
+  const jumpDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    e.currentTarget.setPointerCapture(e.pointerId)
+    touch.pressJump()
+  }
+
+  const jumpRelease = (e: React.PointerEvent<HTMLButtonElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    touch.releaseJump()
+  }
+
+  const slideDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    e.currentTarget.setPointerCapture(e.pointerId)
+    touch.setSlide(true)
+  }
+
+  const slideRelease = (e: React.PointerEvent<HTMLButtonElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    touch.releaseSlide()
   }
 
   if (mode === MODE.Platformer || mode === MODE.Shooter) {
     return (
-      <div className="touch touch--joystick-only" aria-hidden="true">
+      <div
+        className={`touch touch--joystick-only${mode === MODE.Platformer ? ' touch--platformer' : ''}`}
+      >
         <div
           className="touch-joystick"
           onPointerDown={joystickDown}
@@ -184,6 +212,20 @@ export function TouchControls() {
             style={{ transform: `translate(${stickThumb.x}px, ${stickThumb.y}px)` }}
           />
         </div>
+        {mode === MODE.Platformer && (
+          <button
+            type="button"
+            className="touch-btn touch-btn--jump touch-btn--round-action touch-btn--platformer-jump"
+            aria-label="Jump"
+            onPointerDown={jumpDown}
+            onPointerUp={jumpRelease}
+            onPointerCancel={jumpRelease}
+            onPointerLeave={jumpRelease}
+          >
+            <span aria-hidden="true">▲</span>
+            JUMP
+          </button>
+        )}
       </div>
     )
   }
@@ -191,25 +233,36 @@ export function TouchControls() {
   return (
     <div
       className="touch touch--direct"
-      aria-hidden="true"
       onPointerDown={onSurfaceDown}
       onPointerMove={onSurfaceMove}
       {...release}
     >
       {mode === MODE.Runner && (
-        <button
-          type="button"
-          className="touch-btn touch-btn--slide touch-btn--runner-slide"
-          onPointerDown={(e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            e.currentTarget.setPointerCapture(e.pointerId)
-            touch.setSlide(true)
-          }}
-          {...release}
-        >
-          SLIDE
-        </button>
+        <>
+          <button
+            type="button"
+            className="touch-btn touch-btn--slide touch-btn--round-action touch-btn--runner-slide"
+            aria-label="Slide"
+            onPointerDown={slideDown}
+            onPointerUp={slideRelease}
+            onPointerCancel={slideRelease}
+            onPointerLeave={slideRelease}
+          >
+            SLIDE
+          </button>
+          <button
+            type="button"
+            className="touch-btn touch-btn--jump touch-btn--round-action touch-btn--runner-jump"
+            aria-label="Jump"
+            onPointerDown={jumpDown}
+            onPointerUp={jumpRelease}
+            onPointerCancel={jumpRelease}
+            onPointerLeave={jumpRelease}
+          >
+            <span aria-hidden="true">▲</span>
+            JUMP
+          </button>
+        </>
       )}
     </div>
   )

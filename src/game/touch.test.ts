@@ -44,6 +44,21 @@ describe('touch joystick helpers', () => {
     expect(touch.state.dirY).toBe(0)
   })
 
+  it('keeps joystick and jump releases independent for two-thumb play', () => {
+    touch.setDirFromVector(40, 0)
+    touch.pressJump()
+
+    touch.releaseJump()
+    expect(touch.state.jumpHeld).toBe(false)
+    expect(touch.state.dirX).toBe(1)
+
+    touch.pressJump()
+    touch.releaseJoystick()
+    expect(touch.state.dirX).toBe(0)
+    expect(touch.state.jumpHeld).toBe(true)
+    expect(touch.consumeJumpEdge()).toBe(true)
+  })
+
   it('supports joystick-held shooter fire without direct aim coordinates', () => {
     touch.setDirFromVector(40, 0)
     touch.setAction(true)
@@ -59,5 +74,19 @@ describe('touch joystick helpers', () => {
     expect(touch.state.slide).toBe(true)
     expect(touch.consumeSlideEdge()).toBe(true)
     expect(touch.consumeSlideEdge()).toBe(false)
+  })
+
+  it('releases runner jump and slide buttons independently', () => {
+    touch.pressJump()
+    touch.setSlide(true)
+
+    touch.releaseSlide()
+    expect(touch.state.slide).toBe(false)
+    expect(touch.state.jumpHeld).toBe(true)
+
+    touch.setSlide(true)
+    touch.releaseJump()
+    expect(touch.state.jumpHeld).toBe(false)
+    expect(touch.state.slide).toBe(true)
   })
 })
