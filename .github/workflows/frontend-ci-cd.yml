@@ -170,3 +170,13 @@ jobs:
             --output response.html \
             "$VERCEL_PRODUCTION_URL"
           grep --fixed-strings --quiet '<title>Glitch Shift Arcade</title>' response.html
+          curl \
+            --fail \
+            --retry 5 \
+            --retry-all-errors \
+            --retry-delay 5 \
+            --show-error \
+            --silent \
+            --output scores.json \
+            "$VERCEL_PRODUCTION_URL/api/scores?limit=1"
+          node -e "const fs=require('node:fs'); const body=JSON.parse(fs.readFileSync('scores.json','utf8')); if (!Array.isArray(body.entries)) process.exit(1)"

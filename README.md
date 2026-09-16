@@ -97,6 +97,31 @@ check, requiring branches to be up to date, and blocking direct and force
 pushes. The smoke test uses the public production alias because Vercel
 Authentication protects generated deployment URLs.
 
+### Authenticated API proxy
+
+Production browser requests use same-origin `/api/*` Vercel functions. The
+function proxies only the scores, director, and meme-theme endpoints to Render
+and attaches a fresh 60-second RS256 service JWT. Add these Vercel secrets:
+
+- `RENDER_API_BASE_URL`: the Render origin, without a trailing slash.
+- `SERVICE_JWT_PRIVATE_KEY`: the RS256 private key in PKCS#8 PEM format.
+- `SERVICE_JWT_KEY_ID`: a rotation-friendly key identifier, such as `game-api-1`.
+- `SERVICE_JWT_ISSUER`: the frontend service identity, such as the production URL.
+- `SERVICE_JWT_AUDIENCE`: the backend identity, such as `react-game-ai-server`.
+
+Generate a key pair locally (never commit either generated file):
+
+```bash
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out service-jwt-private.pem
+openssl pkey -in service-jwt-private.pem -pubout -out service-jwt-public.pem
+```
+
+Put the private key only in Vercel. Put the public key and the same key ID,
+issuer, and audience in Render. Multiline PEM values are supported directly;
+escaped `\n` values are also accepted. Local Vite and Render development use
+the equivalent values in each project's ignored `.env.local` file. The Vite
+development proxy signs requests, so no credential enters browser JavaScript.
+
 `validate-llm-director` needs no API key and makes no network call — it drives
 the real `LlmDirector` with a fake transport and a corpus of hostile responses.
 
