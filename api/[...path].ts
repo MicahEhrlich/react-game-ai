@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { createServiceJwt, serviceJwtSignerConfig } from '../server/serviceJwt.ts'
+import { createServiceJwt, serviceJwtSignerConfig } from '../server/serviceJwt.js'
 
 const ALLOWED_PATHS = new Set(['/api/scores', '/api/director', '/api/meme-theme'])
 const RESPONSE_HEADERS = ['content-type', 'cache-control', 'retry-after'] as const

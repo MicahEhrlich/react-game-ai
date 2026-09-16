@@ -32,7 +32,6 @@
     "validate": "npm run validate-modes && npm run validate-director && npm run validate-runner && npm run validate-llm-director && npm run validate-levels && npm run validate-brick && npm run validate-meme-theme && npm run validate-trend-seeds && npm run validate-music && npm run validate-audio-settings && npm run validate-phase-damage && npm run validate-input-mapping && npm run validate-scale"
   },
   "dependencies": {
-    "jose": "^6.2.12",
     "phaser": "^4.2.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
@@ -45,6 +44,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.4",
     "happy-dom": "^20.13.2",
+    "jose": "^6.2.12",
     "oxlint": "^1.75.0",
     "typescript": "~6.0.2",
     "vite": "^8.2.0",

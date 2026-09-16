@@ -1,5 +1,4 @@
-import { randomUUID } from 'node:crypto'
-import { importPKCS8, SignJWT } from 'jose'
+import { createPrivateKey, randomUUID, sign } from 'node:crypto'
 
 export interface ServiceJwtSignerConfig {
   readonly privateKey: string
@@ -22,13 +21,17 @@ export function serviceJwtSignerConfig(env: NodeJS.ProcessEnv): ServiceJwtSigner
 }
 
 export async function createServiceJwt(config: ServiceJwtSignerConfig, now = Math.floor(Date.now() / 1000)): Promise<string> {
-  const privateKey = await importPKCS8(config.privateKey.replace(/\\n/g, '\n'), 'RS256')
-  return new SignJWT({})
-    .setProtectedHeader({ alg: 'RS256', typ: 'JWT', kid: config.keyId })
-    .setIssuer(config.issuer)
-    .setAudience(config.audience)
-    .setIssuedAt(now)
-    .setExpirationTime(now + 60)
-    .setJti(randomUUID())
-    .sign(privateKey)
+  const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url')
+  const header = encode({ alg: 'RS256', typ: 'JWT', kid: config.keyId })
+  const payload = encode({
+    iss: config.issuer,
+    aud: config.audience,
+    iat: now,
+    exp: now + 60,
+    jti: randomUUID(),
+  })
+  const signingInput = `${header}.${payload}`
+  const privateKey = createPrivateKey(config.privateKey.replace(/\\n/g, '\n'))
+  const signature = sign('RSA-SHA256', Buffer.from(signingInput), privateKey).toString('base64url')
+  return `${signingInput}.${signature}`
 }
