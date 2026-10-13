@@ -1,3 +1,5 @@
+import { BIBI_THEME_ID, COURT_TEXT, AIRCRAFT_WIDTH } from '../../memeTheme/bibiSprites.ts'
+import { attachBibiObstacleLabel, AIRCRAFT_BODY_BOUNDS, COURT_TEXT_STYLE } from '../art/bibiArt.ts'
 import Phaser from 'phaser'
 import { metrics } from '../../state/metrics.ts'
 import type { GameMode } from '../../state/types.ts'
@@ -50,6 +52,7 @@ export class SpaceShooterScene extends ModeScene {
   private nextSpawnMs = 0
   private nextEnemyFireMs = 0
   private stars!: Phaser.GameObjects.Graphics
+  private bibiEnemyIndex = 0
   private shipCostume?: Phaser.GameObjects.Graphics
 
   constructor() {
@@ -63,6 +66,7 @@ export class SpaceShooterScene extends ModeScene {
     this.nextSpawnMs = 0
     this.nextEnemyFireMs = 0
     this.shipCostume = undefined
+    this.bibiEnemyIndex = 0
 
     // A shooter with the platformer's gravity still applied is the exact bug
     // per-scene physics config exists to prevent.
@@ -85,6 +89,11 @@ export class SpaceShooterScene extends ModeScene {
       .setSize(12, 8)
       .setOffset(2, 4)
       .setCollideWorldBounds(true)
+    if (this.memeTheme.id === BIBI_THEME_ID) {
+      const { x, y, width, height } = AIRCRAFT_BODY_BOUNDS
+      ;(this.ship.body as Phaser.Physics.Arcade.Body)
+        .setBoundsRectangle(new Phaser.Geom.Rectangle(x, y, width, height))
+    }
     this.avatar = this.ship
 
     this.shots = this.physics.add.group()
@@ -229,15 +238,17 @@ export class SpaceShooterScene extends ModeScene {
   private fire(time: number): void {
     this.lastShotMs = time
     const dir = this.worldDir
-    const sprite = this.memeSprite(MEME_SPRITE_ROLE.ShooterProjectile, 'shot-player')
+    const sprite = this.memeTheme.id === BIBI_THEME_ID
+      ? { key: ATLAS_KEY, frame: 'shot-player' }
+      : this.memeSprite(MEME_SPRITE_ROLE.ShooterProjectile, 'shot-player')
     const bolt = this.shots.create(
-      this.ship.x + dir * 10,
+      this.ship.x + dir * (this.memeTheme.id === BIBI_THEME_ID ? AIRCRAFT_WIDTH / 2 : 10),
       this.ship.y,
       sprite.key,
       sprite.frame,
     ) as Phaser.Physics.Arcade.Sprite
     bolt.setDepth(DEPTH.Projectile)
-    bolt.setTint(this.memeAccent(0, 0x3ef0ff))
+    if (this.memeTheme.id !== BIBI_THEME_ID) bolt.setTint(this.memeAccent(0, 0x3ef0ff))
     bolt.setVelocityX(dir * this.projectileSpeed(SHOT_SPEED))
     ;(bolt.body as Phaser.Physics.Arcade.Body).setAllowGravity(false).setSize(10, 4).setOffset(3, 6)
     this.addMemeTrail(bolt.x - dir * 13, bolt.y - 6, this.memeTheme.modeFlavor[this.modeId].projectile, 0)
@@ -247,7 +258,8 @@ export class SpaceShooterScene extends ModeScene {
 
   private spawnEnemy(): void {
     const dir = this.worldDir
-    const sprite = this.memeSprite(MEME_SPRITE_ROLE.ShooterEnemy, 'gunship-0')
+    const cube = this.memeTheme.id === BIBI_THEME_ID && this.bibiEnemyIndex++ % 2 === 1
+    const sprite = this.memeSprite(cube ? MEME_SPRITE_ROLE.Brick : MEME_SPRITE_ROLE.ShooterEnemy, 'gunship-0')
     const enemy = this.physics.add
       .sprite(
         dir === 1 ? VIEW_W + 12 : -12,
@@ -257,8 +269,12 @@ export class SpaceShooterScene extends ModeScene {
       )
       .setDepth(DEPTH.Enemy)
       .setFlipX(dir === -1)
-    enemy.setTint(this.memeAccent(1, 0xff3ea5))
-    this.addMemeTrail(enemy.x - dir * 16, enemy.y - 13, this.memeTheme.modeFlavor[this.modeId].enemy, 1)
+    if (this.memeTheme.id !== BIBI_THEME_ID) enemy.setTint(this.memeAccent(1, 0xff3ea5))
+    else {
+      enemy.setFlipX(false)
+      attachBibiObstacleLabel(this, enemy, cube ? 'court' : 'alarm')
+    }
+    if (this.memeTheme.id !== BIBI_THEME_ID) this.addMemeTrail(enemy.x - dir * 16, enemy.y - 13, this.memeTheme.modeFlavor[this.modeId].enemy, 1)
     if (sprite.key === ATLAS_KEY) enemy.anims.play(ANIM.Gunship, true)
     ;(enemy.body as Phaser.Physics.Arcade.Body)
       .setAllowGravity(false)
@@ -280,7 +296,9 @@ export class SpaceShooterScene extends ModeScene {
     if (live.length === 0) return
     const shooter = live[Math.floor(this.rng() * live.length)]
     const dir = this.worldDir
-    const sprite = this.memeSprite(MEME_SPRITE_ROLE.ShooterProjectile, 'shot-enemy')
+    const sprite = this.memeTheme.id === BIBI_THEME_ID
+      ? { key: ATLAS_KEY, frame: 'shot-enemy' }
+      : this.memeSprite(MEME_SPRITE_ROLE.ShooterProjectile, 'shot-enemy')
 
     const bolt = this.enemyShots.create(
       shooter.x - dir * 10,
@@ -289,7 +307,7 @@ export class SpaceShooterScene extends ModeScene {
       sprite.frame,
     ) as Phaser.Physics.Arcade.Sprite
     bolt.setDepth(DEPTH.Projectile)
-    bolt.setTint(this.memeAccent(2, 0xffe14d))
+    if (this.memeTheme.id !== BIBI_THEME_ID) bolt.setTint(this.memeAccent(2, 0xffe14d))
     bolt.setVelocityX(-dir * this.projectileSpeed(ENEMY_SHOT_SPEED))
     ;(bolt.body as Phaser.Physics.Arcade.Body).setAllowGravity(false).setSize(6, 6).setOffset(5, 5)
     this.addMemeTrail(bolt.x + dir * 11, bolt.y - 6, this.memeTheme.modeFlavor[this.modeId].projectile, 2)
@@ -297,15 +315,17 @@ export class SpaceShooterScene extends ModeScene {
   }
 
   private addMemeTrail(x: number, y: number, label: string, paletteIndex: number): void {
+    if (this.memeTheme.id === BIBI_THEME_ID && label === 'SHOT') return
     if (this.memeTheme.id === 'maga-rally') {
       const trails = ['MAGA', 'CHINA', 'FAKE NEWS', 'QUITE FRANKLY'] as const
       label = trails[paletteIndex % trails.length]
     }
     if (!label) return
     const txt = this.add
-      .text(x, y, label, {
+      .text(x, y, label, this.memeTheme.id === BIBI_THEME_ID && label === COURT_TEXT ? COURT_TEXT_STYLE : {
         fontFamily: 'ui-monospace, Menlo, Consolas, monospace',
         fontSize: '7px',
+        rtl: /[\u0590-\u05ff]/.test(label),
         color: this.memeTheme.palette[paletteIndex % this.memeTheme.palette.length] ?? '#3ef0ff',
       })
       .setOrigin(0.5)

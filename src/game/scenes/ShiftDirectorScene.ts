@@ -188,6 +188,7 @@ export class ShiftDirectorScene extends Phaser.Scene {
     metrics.resetRun()
     runState.resetRun(this.time.now, mode)
     gameStore.startRun(mode)
+    music.stop() // A new run always starts its soundtrack from the beginning.
     music.playForTheme(themeForMode(gameStore.get().memeTheme, mode, 0), DEV.adultMemeMode)
 
     this.runId = newRunId()

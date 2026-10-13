@@ -1,3 +1,6 @@
+import { createBibiHead, bibiHeadPose } from '../art/bibiHead.ts'
+import { BIBI_THEME_ID, AIRCRAFT_TITLE } from '../../memeTheme/bibiSprites.ts'
+import { addBibiBackdrop, drawBibiCharacter, drawBibiAircraft, themeText } from '../art/bibiArt.ts'
 import Phaser from 'phaser'
 import { DEV } from '../../dev.ts'
 import type { StageModifiers } from '../../director/types.ts'
@@ -5,7 +8,7 @@ import { metrics } from '../../state/metrics.ts'
 import { runState } from '../../state/runState.ts'
 import { gameStore } from '../../state/store.ts'
 import type { GameMode } from '../../state/types.ts'
-import { GRAVITY_Y, INVULN_BLINK_MS, INVULN_MS, MAX_MULTIPLIER } from '../constants.ts'
+import { DEPTH, GRAVITY_Y, INVULN_BLINK_MS, INVULN_MS, MAX_MULTIPLIER } from '../constants.ts'
 import { sfx } from '../audio.ts'
 import { TAUNT, playTaunt } from '../taunts.ts'
 import { InputReader, NEUTRAL_INPUT } from '../input.ts'
@@ -56,6 +59,10 @@ export abstract class ModeScene extends Phaser.Scene {
   /** Assigned by setupMode(); the base handles its invulnerability blink. */
   protected avatar: AvatarLike | null = null
 
+  private bibiHead: Phaser.GameObjects.Image | null = null
+  private bibiCharacter: Phaser.GameObjects.Graphics | null = null
+  private bibiAircraftTitle: Phaser.GameObjects.Text | null = null
+
   private invulnUntil = 0
   private fog: Phaser.GameObjects.Image | null = null
   private colorGlitch: Phaser.GameObjects.Rectangle | null = null
@@ -101,6 +108,9 @@ export abstract class ModeScene extends Phaser.Scene {
     // --- field resets: everything declared above, every time ---
     this.mods = runState.modifiers
     this.avatar = null
+    this.bibiCharacter = null
+    this.bibiHead = null
+    this.bibiAircraftTitle = null
     this.invulnUntil = 0
     this.fog = null
     this.colorGlitch = null
@@ -114,6 +124,23 @@ export abstract class ModeScene extends Phaser.Scene {
     this.controls = new InputReader(this, this.mods, this.modeId)
 
     this.setupMode()
+    if (this.memeTheme.id === BIBI_THEME_ID && this.avatar) {
+      addBibiBackdrop(this)
+      this.bibiCharacter = this.add.graphics().setDepth(DEPTH.Player + 1)
+      this.bibiHead = createBibiHead(this)
+      if (this.modeId === 'shooter') {
+        this.bibiAircraftTitle = themeText(this, 0, 0, AIRCRAFT_TITLE, 8)
+          .setColor('#1c2f8c').setFontStyle('bold').setResolution(3).setStroke('#1c2f8c', 0)
+          .setDepth(DEPTH.Player + 2)
+      }
+      // The original avatar continues driving physics and animation state.
+      if (this.modeId !== 'brick') (this.avatar as Phaser.GameObjects.Sprite).setAlpha(0)
+      this.updateBibiCharacter()
+      this.events.on('postupdate', this.updateBibiCharacter, this)
+      this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+        this.events.off('postupdate', this.updateBibiCharacter, this)
+      })
+    }
 
     if (this.mods.fogOfWar) {
       this.fog = addFog(this)
@@ -139,6 +166,26 @@ export abstract class ModeScene extends Phaser.Scene {
     this.updateInvulnBlink()
     this.updateFog()
     this.updateVisualGlitches(time)
+  }
+
+  private updateBibiCharacter(): void {
+    const g = this.bibiCharacter
+    const a = this.avatar
+    if (!g || !a) return
+    const sprite = a as Phaser.GameObjects.Sprite
+    const flipY = this.modeId === 'brick' ? this.mods.mirrorWorld : sprite.flipY
+    g.setPosition(a.x, a.y + (this.modeId === 'brick' ? (flipY ? 8 : -8) : 0))
+      .setScale(sprite.flipX ? -1 : 1, flipY ? -1 : 1).setVisible(a.visible)
+    if (this.modeId === 'shooter') {
+      drawBibiAircraft(g, !this.bibiHead)
+      this.bibiAircraftTitle?.setPosition(a.x + (sprite.flipX ? -2 : 2), a.y - 0.5)
+        .setVisible(a.visible)
+    } else drawBibiCharacter(g, sprite.frame?.name?.toString() ?? 'idle', this.time.now, !this.bibiHead)
+    if (this.bibiHead) {
+      const pose = bibiHeadPose(this.modeId, sprite.frame?.name?.toString() ?? 'idle', !!sprite.flipX, !!flipY)
+      this.bibiHead.setDisplaySize(pose.width, pose.height).setOrigin(0.5, pose.originY)
+        .setPosition(g.x + pose.dx, g.y + pose.dy).setFlipX(!!sprite.flipX).setFlipY(!!flipY).setVisible(a.visible)
+    }
   }
 
   // --- hooks for subclasses ------------------------------------------

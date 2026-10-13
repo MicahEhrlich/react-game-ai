@@ -1,3 +1,5 @@
+import { BIBI_THEME_ID } from '../memeTheme/bibiSprites.ts'
+import { LoopingTrackPlayer } from './loopingTrackPlayer.ts'
 import { getAudioContext, getMusicOutput } from './audio.ts'
 import { audioSettings } from './audioSettings.ts'
 import type { MemeMusicPlan, MemeTheme, MusicScale, MusicWave } from '../memeTheme/index.ts'
@@ -19,6 +21,8 @@ const INTERVALS: Record<MusicScale, readonly number[]> = {
 let timer: number | null = null
 let step = 0
 let current: MemeMusicPlan | null = null
+const bibiPlayer = new LoopingTrackPlayer('/audio/music/bibi-mode.mp3', getAudioContext, getMusicOutput)
+let bibiActive = false
 let kirkActive = false
 let muted = false
 
@@ -179,7 +183,7 @@ function reschedule(): void {
     if (typeof window.clearTimeout === 'function') window.clearTimeout(timer)
     else window.clearInterval(timer)
   }
-  if (!current) {
+  if (!current || bibiActive) {
     timer = null
     return
   }
@@ -205,6 +209,8 @@ function fadeTo(value: number): void {
 
 export const music = {
   play(plan: MemeMusicPlan): void {
+    bibiPlayer.stop()
+    bibiActive = false
     kirkActive = false
     current = plan
     step = 0
@@ -213,6 +219,14 @@ export const music = {
     fadeTo(RUNNING_GAIN)
   },
   playForTheme(theme: MemeTheme, adultMode: boolean): void {
+    if (adultMode && theme.id === BIBI_THEME_ID) {
+      if (bibiActive) return
+      this.play(theme.musicPlan)
+      bibiActive = true
+      reschedule()
+      bibiPlayer.play()
+      return
+    }
     // Let the song reach its later sections across short mode transitions.
     if (!kirkActive && theme.id === 'rosh-hashanah' && current?.style === 'hava nagila chiptune') return
     if (adultMode && theme.id === 'kirk-mode') {
@@ -225,16 +239,20 @@ export const music = {
     this.play(theme.musicPlan)
   },
   stop(): void {
+    bibiPlayer.stop()
+    bibiActive = false
     kirkActive = false
     current = null
     reschedule()
     fadeTo(0)
   },
   pause(): void {
+    bibiPlayer.pause()
     muted = true
     fadeTo(0)
   },
   resume(): void {
+    bibiPlayer.resume()
     muted = false
     if (!current) return
     fadeTo(RUNNING_GAIN)

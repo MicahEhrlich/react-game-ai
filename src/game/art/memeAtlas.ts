@@ -4,6 +4,7 @@ import type { MemeSpriteRole, MemeTheme } from '../../memeTheme/index.ts'
 import { ATLAS_KEY } from './atlas.ts'
 import { drawSprite, makeCanvas } from './pixels.ts'
 import { drawRoshHashanahArt } from './roshHashanahArt.ts'
+import { PROTESTER_SPRITES } from '../../memeTheme/bibiSprites.ts'
 
 const CELL = 16
 const COLS = 4
@@ -11,6 +12,22 @@ const COLS = 4
 export interface SpriteRef {
   readonly key: string
   readonly frame: string
+}
+
+/** A small shared atlas gives each protester its own art without cloning themes. */
+export function protesterSprite(scene: Phaser.Scene, index: number): SpriteRef {
+  const key = 'bibi-protesters'
+  if (!scene.textures.exists(key)) {
+    const canvas = makeCanvas(PROTESTER_SPRITES.length * CELL, CELL)
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return { key: ATLAS_KEY, frame: 'walker-0' }
+    ctx.imageSmoothingEnabled = false
+    PROTESTER_SPRITES.forEach((sprite, i) => drawSprite(ctx, sprite, i * CELL, 0))
+    const texture = scene.textures.addCanvas(key, canvas)
+    if (!texture) return { key: ATLAS_KEY, frame: 'walker-0' }
+    PROTESTER_SPRITES.forEach((_, i) => texture.add(`protester-${i}`, 0, i * CELL, 0, CELL, CELL))
+  }
+  return { key, frame: `protester-${Math.abs(Math.floor(index)) % PROTESTER_SPRITES.length}` }
 }
 
 export function memeAtlasKey(theme: MemeTheme): string {

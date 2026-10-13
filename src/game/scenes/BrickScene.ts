@@ -1,3 +1,5 @@
+import { BIBI_THEME_ID, COURT_TEXT } from '../../memeTheme/bibiSprites.ts'
+import { attachThemeLabel, COURT_TEXT_STYLE } from '../art/bibiArt.ts'
 import Phaser from 'phaser'
 import { runState } from '../../state/runState.ts'
 import type { GameMode } from '../../state/types.ts'
@@ -88,13 +90,14 @@ export class BrickScene extends ModeScene {
     this.cameras.main.setBackgroundColor('#140a1c')
     this.buildBackdrop()
     this.add
-      .text(VIEW_W / 2, 8, this.memeTheme.modeFlavor[this.modeId].brick, {
+      .text(VIEW_W / 2, 8, this.memeTheme.modeFlavor[this.modeId].brick, this.memeTheme.id === BIBI_THEME_ID ? COURT_TEXT_STYLE : {
         fontFamily: 'ui-monospace, Menlo, Consolas, monospace',
         fontSize: '9px',
+        rtl: this.memeTheme.id === BIBI_THEME_ID,
         color: this.memeTheme.palette[0] ?? '#3ef0ff',
       })
       .setOrigin(0.5)
-      .setDepth(DEPTH.Background)
+      .setDepth(this.memeTheme.id === BIBI_THEME_ID ? DEPTH.Background + 1 : DEPTH.Background)
 
     this.paddle = this.add
       .rectangle(VIEW_W / 2, this.paddleY, PADDLE_W, PADDLE_H, this.memeAccent(0, 0x3ef0ff), 1)
@@ -247,7 +250,10 @@ export class BrickScene extends ModeScene {
         .setDepth(DEPTH.Terrain)
         .setScale(2, 1) as Brick
       brick.setTint(this.brickTint(spec.x, spec.row))
-      if ((spec.col === 0 || spec.col === 6) && this.memeTheme.id !== 'maga-rally') {
+      if (this.memeTheme.id === BIBI_THEME_ID) {
+        attachThemeLabel(this, brick, COURT_TEXT, 0)
+      }
+      if ((spec.col === 0 || spec.col === 6) && this.memeTheme.id !== 'maga-rally' && this.memeTheme.id !== BIBI_THEME_ID) {
         const label = this.add
           .text(spec.x, orientedBrickY(spec.y, this.mods.mirrorWorld), this.brickStamp(spec.row), {
             fontFamily: 'ui-monospace, Menlo, Consolas, monospace',
@@ -275,8 +281,8 @@ export class BrickScene extends ModeScene {
     const sprite = this.memeSprite(MEME_SPRITE_ROLE.Ball, 'ball')
     this.ball = this.physics.add
       .sprite(this.paddle.x, ballSpawnY(this.mods.mirrorWorld), sprite.key, sprite.frame)
-      .setDepth(DEPTH.Projectile)
-    this.ball.setTint(this.memeAccent(2, 0xffe14d))
+      .setDepth(this.memeTheme.id === BIBI_THEME_ID ? DEPTH.Player + 2 : DEPTH.Projectile)
+    if (this.memeTheme.id !== BIBI_THEME_ID) this.ball.setTint(this.memeAccent(2, 0xffe14d))
     ;(this.ball.body as Phaser.Physics.Arcade.Body)
       .setAllowGravity(false)
       .setCircle(BALL_R, 8 - BALL_R, 8 - BALL_R)
@@ -294,6 +300,7 @@ export class BrickScene extends ModeScene {
   }
 
   private brickTint(x: number, row: number): number {
+    if (this.memeTheme.id === BIBI_THEME_ID) return 0xffffff
     if (this.memeTheme.id !== 'maga-rally') return this.memeAccent(row, 0xff3ea5)
     void x
     return row % 2 === 0 ? 0x8f88b8 : 0xf2eeff

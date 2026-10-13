@@ -1,9 +1,7 @@
 import { getAudioContext, getSfxOutput } from './audio.ts'
 
 /**
- * Optional AI-generated voice taunts. This is the ONLY place the game touches
- * a binary asset, and it is deliberately built so that the asset never
- * matters to correctness:
+ * Optional AI-generated voice taunts. These assets never matter to correctness:
  *
  *   - nothing is fetched during boot, so a missing or slow file cannot delay
  *     the first frame;

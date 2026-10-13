@@ -4,9 +4,8 @@
  * is created lazily and must be unlocked by a user gesture (browser autoplay
  * policy) -- call unlockAudio() from the first keydown/pointerdown.
  *
- * Voice taunts are the one place we do use files, and they are loaded lazily
- * and optionally by taunts.ts -- see that file for why nothing breaks when
- * they are absent.
+ * File-based theme music and voice taunts are loaded lazily by their players,
+ * keeping audio downloads out of the game boot path.
  */
 import { audioSettings } from './audioSettings.ts'
 

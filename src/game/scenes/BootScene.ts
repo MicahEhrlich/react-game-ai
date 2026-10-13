@@ -1,3 +1,5 @@
+import { DEV } from '../../dev.ts'
+import { preloadBibiHead } from '../art/bibiHead.ts'
 import Phaser from 'phaser'
 import { createAnims } from '../art/anims.ts'
 import { buildAtlas } from '../art/atlas.ts'
@@ -16,6 +18,7 @@ export class BootScene extends Phaser.Scene {
 
   preload(): void {
     preloadRoshHashanahArt(this)
+    if (DEV.adultMemeMode) preloadBibiHead(this)
   }
 
   create(): void {

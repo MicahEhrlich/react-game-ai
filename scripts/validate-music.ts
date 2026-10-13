@@ -36,6 +36,16 @@ try {
     audioSettings.setMusicVolume(0.5)
     music.stop()
   }
+  const bibi = adultMemeThemeById('bibi-mode', '2026-10-13')
+  if (!bibi) fail('Bibi theme was unavailable for backing music validation')
+  else {
+    music.playForTheme(bibi, true)
+    music.playForTheme(bibi, true)
+    music.pause()
+    music.resume()
+    music.stop()
+    music.stop()
+  }
   const kirk = adultMemeThemeById('kirk-mode', '2026-09-01')
   if (!kirk) fail('kirk mode theme was not available for instrumental music validation')
   else {

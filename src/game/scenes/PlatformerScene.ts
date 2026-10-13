@@ -1,3 +1,6 @@
+import { protesterSprite } from '../art/memeAtlas.ts'
+import { BIBI_THEME_ID } from '../../memeTheme/bibiSprites.ts'
+import { attachThemeLabel, attachBibiObstacleLabel } from '../art/bibiArt.ts'
 import Phaser from 'phaser'
 import { DEV } from '../../dev.ts'
 import { metrics } from '../../state/metrics.ts'
@@ -49,6 +52,7 @@ export class PlatformerScene extends ModeScene {
   private enemies: (Walker | Flyer)[] = []
   private lastSafeX = 0
   private lastSafeY = 0
+  private protesterIndex = 0
   private playerCostume?: Phaser.GameObjects.Graphics
 
   constructor() {
@@ -57,6 +61,7 @@ export class PlatformerScene extends ModeScene {
 
   protected setupMode(): void {
     this.enemies = []
+    this.protesterIndex = Math.floor(Math.random() * 4)
     this.lastSafeX = 0
     this.lastSafeY = 0
     this.playerCostume = undefined
@@ -280,13 +285,16 @@ export class PlatformerScene extends ModeScene {
         case SPAWN.Spike:
         case SPAWN.Fire: {
           const frame = s.kind === SPAWN.Spike ? 'spike' : 'fire-0'
-          const sprite = this.memeSprite(MEME_SPRITE_ROLE.PlatformerHazard, frame)
+          const role = this.memeTheme.id === BIBI_THEME_ID && s.kind === SPAWN.Spike
+            ? MEME_SPRITE_ROLE.Brick : MEME_SPRITE_ROLE.PlatformerHazard
+          const sprite = this.memeSprite(role, frame)
           const h = hazards.create(s.x, s.y, ATLAS_KEY, frame) as Phaser.Physics.Arcade.Sprite
           h.setTexture(sprite.key, sprite.frame)
           h.setDepth(DEPTH.Terrain)
           h.setFlipY(this.mods.mirrorWorld)
-          h.setTint(this.memeAccent(1, 0xff3ea5))
-          this.addMemeDecal(s.x, s.y - 13, this.memeTheme.modeFlavor[this.modeId].hazard, 1)
+          if (this.memeTheme.id !== BIBI_THEME_ID) h.setTint(this.memeAccent(1, 0xff3ea5))
+          else attachBibiObstacleLabel(this, h, s.kind === SPAWN.Spike ? 'court' : 'alarm')
+          if (this.memeTheme.id !== BIBI_THEME_ID) this.addMemeDecal(s.x, s.y - 13, this.memeTheme.modeFlavor[this.modeId].hazard, 1)
           if (s.kind === SPAWN.Fire && sprite.key === ATLAS_KEY) h.anims.play(ANIM.Fire, true)
           break
         }
@@ -297,7 +305,8 @@ export class PlatformerScene extends ModeScene {
           const sprite = this.memeSprite(pickupRole, 'chip')
           const c = chips.create(s.x, s.y, sprite.key, sprite.frame) as Phaser.Physics.Arcade.Sprite
           c.setDepth(DEPTH.Pickup)
-          if (this.memeTheme.id !== 'rosh-hashanah') c.setTint(this.memeAccent(0, 0x3ef0ff))
+          if (this.memeTheme.id === BIBI_THEME_ID) attachThemeLabel(this, c, '$ Qatar', -9)
+          if (this.memeTheme.id !== 'rosh-hashanah' && this.memeTheme.id !== BIBI_THEME_ID) c.setTint(this.memeAccent(0, 0x3ef0ff))
           break
         }
         case SPAWN.Walker: {
@@ -307,12 +316,14 @@ export class PlatformerScene extends ModeScene {
             s.y,
             s.range,
             this.mods.projectileSpeedScale,
-            this.memeSprite(MEME_SPRITE_ROLE.PlatformerEnemy, 'walker-0'),
+            this.memeTheme.id === BIBI_THEME_ID
+              ? protesterSprite(this, this.protesterIndex++)
+              : this.memeSprite(MEME_SPRITE_ROLE.PlatformerEnemy, 'walker-0'),
           )
           w.setDepth(DEPTH.Enemy)
           w.setFlipY(this.mods.mirrorWorld)
-          w.setTint(this.memeAccent(0, 0x3ef0ff))
-          this.addMemeDecal(s.x, s.y - 16, this.memeTheme.modeFlavor[this.modeId].enemy, 0)
+          if (this.memeTheme.id !== BIBI_THEME_ID) w.setTint(this.memeAccent(0, 0x3ef0ff))
+          if (this.memeTheme.id !== BIBI_THEME_ID) this.addMemeDecal(s.x, s.y - 16, this.memeTheme.modeFlavor[this.modeId].enemy, 0)
           this.physics.add.collider(w, this.solids)
           this.enemies.push(w)
           break
@@ -324,12 +335,14 @@ export class PlatformerScene extends ModeScene {
             s.y,
             s.range,
             this.mods.projectileSpeedScale,
-            this.memeSprite(MEME_SPRITE_ROLE.PlatformerEnemy, 'flyer-0'),
+            this.memeTheme.id === BIBI_THEME_ID
+              ? protesterSprite(this, this.protesterIndex++)
+              : this.memeSprite(MEME_SPRITE_ROLE.PlatformerEnemy, 'flyer-0'),
           )
           f.setDepth(DEPTH.Enemy)
           f.setFlipY(this.mods.mirrorWorld)
-          f.setTint(this.memeAccent(2, 0xff3ea5))
-          this.addMemeDecal(s.x, s.y - 15, this.memeTheme.modeFlavor[this.modeId].enemy, 2)
+          if (this.memeTheme.id !== BIBI_THEME_ID) f.setTint(this.memeAccent(2, 0xff3ea5))
+          if (this.memeTheme.id !== BIBI_THEME_ID) this.addMemeDecal(s.x, s.y - 15, this.memeTheme.modeFlavor[this.modeId].enemy, 2)
           this.enemies.push(f)
           break
         }

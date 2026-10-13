@@ -1,3 +1,5 @@
+import { BibiDateMark } from './BibiDateMark.tsx'
+import { BIBI_THEME_ID, BIBI_DATE_LABEL } from '../memeTheme/bibiSprites.ts'
 import { CHAOS_LABEL } from '../director/modifiers.ts'
 import { MODE_LABEL } from '../state/types.ts'
 import { useGameState } from '../state/store.ts'
@@ -43,7 +45,9 @@ export function GlitchOverlay() {
             matter; both are cheap. */}
         <ul className="glitch-notes">
           {notes.length > 0 ? (
-            notes.map((note, i) => <li key={`${i}-${note}`}>{note}</li>)
+            notes.map((note, i) => <li key={`${i}-${note}`}>
+              {activeTheme.id === BIBI_THEME_ID && note === BIBI_DATE_LABEL ? <BibiDateMark /> : note}
+            </li>)
           ) : (
             <li>DIRECTOR ONLINE</li>
           )}

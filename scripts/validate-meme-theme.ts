@@ -259,6 +259,7 @@ for (const t of ADULT_MEME_THEMES) {
     'tabloid-island',
     'maga-rally',
     'kirk-mode',
+    'bibi-mode',
   ] as const
   for (const id of requiredAdultIds) {
     const theme = adultMemeThemeById(id, '2026-08-27')
@@ -269,6 +270,17 @@ for (const t of ADULT_MEME_THEMES) {
     if (safeSpritePacks.has(theme.spritePack)) fail(`adult theme ${id} reuses a safe sprite pack object`)
     for (const role of REQUIRED_MEME_SPRITE_ROLES) {
       if (!theme.spritePack[role]) fail(`adult theme ${id} is missing ${role}`)
+    }
+  }
+}
+
+{
+  const theme = adultMemeThemeById('bibi-mode', '2026-10-13')
+  if (!theme || offlineMemeThemeById('bibi-mode', '2026-10-13')) fail('Bibi theme is not adult-only')
+  if (theme?.musicPlans !== undefined) fail('Bibi backing should not rotate generic tracks')
+  for (const mode of ['platformer', 'shooter', 'runner', 'brick'] as const) {
+    if (theme && themeForMode(theme, mode).musicPlan.style !== 'bibi mp3 loop') {
+      fail(`Bibi ${mode} lost its dedicated backing music`)
     }
   }
 }
@@ -484,7 +496,7 @@ for (const [name, raw] of badCases) {
 {
   const styles = new Set<string>()
   for (const t of [...OFFLINE_MEME_THEMES, ...ADULT_MEME_THEMES]) {
-    if (!t.musicPlans || t.musicPlans.length < 2) fail(`${t.id} does not expose multiple music plans`)
+    if (t.id !== 'bibi-mode' && (!t.musicPlans || t.musicPlans.length < 2)) fail(`${t.id} does not expose multiple music plans`)
     for (const plan of t.musicPlans ?? [t.musicPlan]) styles.add(plan.style)
   }
   for (const style of [

@@ -1,3 +1,5 @@
+import { BIBI_SPRITES, BIBI_THEME_ID, COURT_TEXT, BIBI_CALLOUTS, BIBI_DATE_LABEL } from './bibiSprites.ts'
+import { BRICK, BRICK_CRACKED, BALL, SHOT_PLAYER } from '../game/art/sprites.ts'
 import { ALL_MODES, MODE } from '../state/types.ts'
 import type { GameMode } from '../state/types.ts'
 import { PALETTE } from '../game/art/palette.ts'
@@ -2594,6 +2596,28 @@ const KIRK_SPRITES: MemeSpritePack = {
 }
 
 export const ADULT_MEME_THEMES: readonly MemeTheme[] = [
+  {
+    id: BIBI_THEME_ID,
+    label: 'BIBI MODE', source: MEME_THEME_SOURCE.Offline, date: 'adult',
+    palette: ['#4d7cff', '#ff4d4d', '#f2eeff', '#4dff9a'],
+    shiftLines: [BIBI_DATE_LABEL, ...BIBI_CALLOUTS], taunts: [...BIBI_CALLOUTS],
+    spritePack: BIBI_SPRITES,
+    modeThemes: {
+      [MODE.Brick]: { spritePack: { brick: BRICK, brickCracked: BRICK_CRACKED, ball: BALL } },
+      [MODE.Shooter]: { spritePack: { shooterProjectile: SHOT_PLAYER } },
+    },
+    musicPlan: {
+      style: 'bibi mp3 loop', bpm: 177, scale: MUSIC_SCALE.Minor,
+      bassPattern: [0, -1], leadPattern: [0, -1], drumPattern: [1, 2],
+      leadWave: 'square', bassWave: 'triangle', drumKit: 'arcade', intensity: 0.62,
+    },
+    modeFlavor: {
+      [MODE.Platformer]: { ...DEFAULT_FLAVOR, enemy: 'PROTEST', hazard: 'ALARM' },
+      [MODE.Shooter]: { ...DEFAULT_FLAVOR, enemy: COURT_TEXT, projectile: 'SHOT' },
+      [MODE.Runner]: { ...DEFAULT_FLAVOR, obstacle: 'SLIDE', hazard: COURT_TEXT },
+      [MODE.Brick]: { ...DEFAULT_FLAVOR, brick: COURT_TEXT, projectile: 'ALARM' },
+    },
+  },
   {
     id: 'debate-afterparty',
     label: 'DEBATE AFTERPARTY',

@@ -1,4 +1,4 @@
-import type { PixelSprite } from './pixels.ts'
+import type { PixelSprite } from '../../memeTheme/index.ts'
 
 /**
  * Every frame is 16x16. One char per pixel, indexed into PALETTE; '.' is

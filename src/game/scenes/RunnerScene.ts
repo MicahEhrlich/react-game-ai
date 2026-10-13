@@ -1,3 +1,5 @@
+import { BIBI_THEME_ID, COURT_TEXT } from '../../memeTheme/bibiSprites.ts'
+import { attachThemeLabel, attachBibiObstacleLabel, themeText, COURT_TEXT_STYLE } from '../art/bibiArt.ts'
 import Phaser from 'phaser'
 import { metrics } from '../../state/metrics.ts'
 import type { GameMode } from '../../state/types.ts'
@@ -79,6 +81,7 @@ export class RunnerScene extends ModeScene {
   private threatSeenMs = 0
   /** One "SLIDE" prompt per run, the first time a gate appears. */
   private gateHintShown = false
+  private bibiBlockIndex = 0
   private runnerCostume?: Phaser.GameObjects.Graphics
 
   constructor() {
@@ -97,6 +100,7 @@ export class RunnerScene extends ModeScene {
     this.threatSeenMs = 0
     this.gateHintShown = false
     this.runnerCostume = undefined
+    this.bibiBlockIndex = 0
 
     this.cameras.main.setBackgroundColor('#120a1e')
     this.physics.world.setBounds(0, -80, VIEW_W, VIEW_H + 160)
@@ -454,15 +458,18 @@ export class RunnerScene extends ModeScene {
         sprite.frame,
       ) as Phaser.Physics.Arcade.Sprite
       chip.setDepth(DEPTH.Pickup)
-      if (this.memeTheme.id !== 'rosh-hashanah') chip.setTint(this.memeAccent(0, 0x3ef0ff))
+      if (this.memeTheme.id === BIBI_THEME_ID) attachThemeLabel(this, chip, '$ Qatar', -9)
+      if (this.memeTheme.id !== 'rosh-hashanah' && this.memeTheme.id !== BIBI_THEME_ID) chip.setTint(this.memeAccent(0, 0x3ef0ff))
       ;(chip.body as Phaser.Physics.Arcade.Body).setAllowGravity(false).setSize(8, 8).setOffset(4, 4)
     }
   }
 
   private spawnBlock(x: number): Phaser.GameObjects.Sprite {
-    const sprite = this.memeSprite(MEME_SPRITE_ROLE.RunnerObstacle, 'obstacle')
+    const cube = this.memeTheme.id === BIBI_THEME_ID && this.bibiBlockIndex++ % 2 === 1
+    const sprite = this.memeSprite(cube ? MEME_SPRITE_ROLE.Brick : MEME_SPRITE_ROLE.RunnerObstacle, 'obstacle')
     const obs = this.physics.add.sprite(x, FEET_Y, sprite.key, sprite.frame).setDepth(DEPTH.Enemy)
-    obs.setTint(this.memeAccent(1, 0xff3ea5))
+    if (this.memeTheme.id !== BIBI_THEME_ID) obs.setTint(this.memeAccent(1, 0xff3ea5))
+    if (this.memeTheme.id === BIBI_THEME_ID) attachBibiObstacleLabel(this, obs, cube ? 'court' : 'alarm')
     ;(obs.body as Phaser.Physics.Arcade.Body).setAllowGravity(false).setSize(14, 14).setOffset(1, 1)
     return obs
   }
@@ -478,6 +485,26 @@ export class RunnerScene extends ModeScene {
     this.physics.add.existing(gate)
     ;(gate.body as Phaser.Physics.Arcade.Body).setAllowGravity(false).setImmovable(true)
 
+    if (this.memeTheme.id === BIBI_THEME_ID) {
+      gate.setFillStyle(0x1b2440, 0.65).setStrokeStyle(1, 0x8f88b8)
+      const cube = this.memeSprite(MEME_SPRITE_ROLE.Brick, 'obstacle')
+      const stack = this.add.container(x, 0).setDepth(DEPTH.Enemy)
+      for (let y = 8; y < GATE_BOTTOM_Y - 6; y += 16) {
+        stack.add(this.add.image(0, y, cube.key, cube.frame))
+        stack.add(themeText(this, 0, y - 14, COURT_TEXT))
+      }
+      const follow = () => stack.setX(gate.x)
+      const dispose = () => {
+        this.events.off('postupdate', follow)
+        this.events.off('shutdown', dispose)
+        gate.off('destroy', dispose)
+        stack.destroy()
+      }
+      this.events.on('postupdate', follow)
+      gate.once('destroy', dispose)
+      this.events.once('shutdown', dispose)
+    }
+
     // A chevron at the beam's tip, pulsing downward. The affordance has to say
     // "go under this", not just "hazard" -- the beam alone reads as something
     // to jump, which is the one thing that cannot work.
@@ -485,9 +512,10 @@ export class RunnerScene extends ModeScene {
       .triangle(x, GATE_BOTTOM_Y + 7, 0, 0, 10, 0, 5, 7, this.memeAccent(2, 0xffe14d), 0.95)
       .setDepth(DEPTH.Enemy)
     const label = this.add
-      .text(x, GATE_BOTTOM_Y + 18, this.memeTheme.modeFlavor[this.modeId].hazard, {
+      .text(x, GATE_BOTTOM_Y + 18, this.memeTheme.modeFlavor[this.modeId].hazard, this.memeTheme.id === BIBI_THEME_ID ? COURT_TEXT_STYLE : {
         fontFamily: 'ui-monospace, Menlo, Consolas, monospace',
         fontSize: '7px',
+        rtl: this.memeTheme.id === BIBI_THEME_ID,
         color: this.memeTheme.palette[0] ?? '#3ef0ff',
       })
       .setOrigin(0.5)

@@ -29,7 +29,9 @@
     "analyze-kirk-audio": "node --experimental-strip-types scripts/analyze-kirk-audio.ts",
     "analyze-kirk-midi": "node --experimental-strip-types scripts/analyze-kirk-midi.ts",
     "gen-levels": "node --experimental-strip-types scripts/gen-levels.ts",
-    "validate": "npm run validate-modes && npm run validate-director && npm run validate-runner && npm run validate-llm-director && npm run validate-levels && npm run validate-brick && npm run validate-meme-theme && npm run validate-trend-seeds && npm run validate-music && npm run validate-audio-settings && npm run validate-phase-damage && npm run validate-input-mapping && npm run validate-scale"
+    "validate": "npm run validate-modes && npm run validate-director && npm run validate-runner && npm run validate-llm-director && npm run validate-levels && npm run validate-brick && npm run validate-meme-theme && npm run validate-trend-seeds && npm run validate-music && npm run validate-audio-settings && npm run validate-phase-damage && npm run validate-input-mapping && npm run validate-scale",
+    "render-bibi-audition": "node --experimental-strip-types scripts/render-bibi-audition.ts",
+    "render-bibi-sprites": "node --experimental-strip-types scripts/render-bibi-sprites.ts"
   },
   "dependencies": {
     "phaser": "^4.2.1",
